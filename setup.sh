@@ -35,6 +35,41 @@ sudo apt install -y \
 echo -e "${GREEN}  ✓ System dependencies installed (including nmap)${NC}"
 
 # ─────────────────────────────────────────
+# STEP 1: System Dependencies
+# ─────────────────────────────────────────
+echo -e "${YELLOW}[1/5] Checking system dependencies...${NC}"
+
+OS_TYPE="$(uname -s)"
+
+if [[ "$OS_TYPE" == "Linux" ]]; then
+    if command -v apt-get &> /dev/null; then
+        echo -e "${CYAN}  → Linux (Debian/Ubuntu) detected. Using apt...${NC}"
+        sudo apt update -q
+        sudo apt install -y \
+            python3 python3-pip python3-venv \
+            nmap \
+            build-essential libssl-dev libffi-dev python3-dev \
+            curl wget git
+    elif command -v yum &> /dev/null; then
+        echo -e "${CYAN}  → Linux (RHEL/CentOS) detected. Using yum...${NC}"
+        sudo yum install -y python3 nmap gcc openssl-devel libffi-devel python3-devel curl wget git
+    else
+        echo -e "${YELLOW}  ⚠ Unsupported Linux distribution. Please ensure dependencies are installed manually.${NC}"
+    fi
+elif [[ "$OS_TYPE" == "Darwin" ]]; then
+    echo -e "${CYAN}  → macOS detected. Checking for Homebrew...${NC}"
+    if command -v brew &> /dev/null; then
+        brew install python nmap curl wget git
+    else
+        echo -e "${YELLOW}  ⚠ Homebrew not found. Skipping system package installation.${NC}"
+    fi
+else
+    echo -e "${YELLOW}  ⚠ Unsupported OS: $OS_TYPE. Skipping system package installation.${NC}"
+fi
+
+echo -e "${GREEN}  ✓ System dependencies check complete${NC}"
+
+# ─────────────────────────────────────────
 # STEP 2: Python Virtual Environment
 # ─────────────────────────────────────────
 echo -e "${YELLOW}[2/5] Setting up Python virtual environment...${NC}"
@@ -59,8 +94,13 @@ echo -e "${GREEN}  ✓ Python packages installed${NC}"
 # STEP 4: Playwright Chromium Browser
 # ─────────────────────────────────────────
 echo -e "${YELLOW}[4/5] Installing Playwright Chromium browser...${NC}"
-playwright install chromium
-playwright install-deps chromium
+# Use current python within venv for playwright
+python3 -m playwright install chromium
+
+# install-deps is linux-specific and usually requires sudo
+if [[ "$(uname -s)" == "Linux" ]]; then
+    sudo python3 -m playwright install-deps chromium
+fi
 echo -e "${GREEN}  ✓ Chromium browser installed${NC}"
 
 # ─────────────────────────────────────────

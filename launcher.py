@@ -101,8 +101,8 @@ def main():
     print("\nStarting Cybermon...")
     print("---------------------")
     try:
-        # Run app.py in a subprocess
-        subprocess.run([sys.executable, 'app.py'])
+        # Run run.py in a subprocess (uses the structured 'app' package)
+        subprocess.run([sys.executable, 'run.py'])
     except KeyboardInterrupt:
         print("\nCybermon stopped.")
 
