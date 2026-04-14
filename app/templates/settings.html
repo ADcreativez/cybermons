@@ -239,11 +239,23 @@
                 <div style="flex: 1; min-width: 300px; background: rgba(255,100,100,0.05); border: 1px solid rgba(255,100,100,0.2); padding: 20px; border-radius: 4px;">
                     <h4 style="margin: 0 0 10px; color: var(--danger-color); font-family: var(--font-mono);"><i class="fa-solid fa-upload"></i> IMPORT DATABASE (DECRYPT)</h4>
                     <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px;">Upload a previously AES-encrypted <code>.db.enc</code> file. The encryption password is required to decrypt it.</p>
-                    <form action="{{ url_for('admin.import_database') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 10px;" onsubmit="return confirm('WARNING: Overwriting the database will replace all user accounts, settings, and logs. Are you absolutely sure?');">
+                    <form action="{{ url_for('admin.import_database') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 10px;">
                         <input type="file" name="database" accept=".enc" required style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px; font-family: var(--font-mono);">
-                        <div style="display: flex; gap: 10px; align-items: center;">
+                        
+                        <div id="overwrite-preparation" style="display: flex; gap: 10px; align-items: center;">
                             <input type="password" name="admin_password" placeholder="Encryption Password" required style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px; font-family: var(--font-mono);">
-                            <button type="submit" class="btn" style="background: var(--danger-color); color: #000; border: none; font-weight: bold;"><i class="fa-solid fa-lock-open"></i> OVERWRITE</button>
+                            <button type="button" class="btn" onclick="showOverwriteConfirm()" style="background: var(--danger-color); color: #000; border: none; font-weight: bold;"><i class="fa-solid fa-triangle-exclamation"></i> OVERWRITE</button>
+                        </div>
+
+                        <div id="overwrite-confirmation" style="display: none; flex-direction: column; gap: 15px; background: rgba(255,100,100,0.1); padding: 15px; border: 1px solid var(--danger-color); border-radius: 4px;">
+                            <div style="color: var(--danger-color); font-family: var(--font-mono); font-size: 0.85rem; font-weight: bold;">
+                                <i class="fa-solid fa-skull"></i> CRITICAL WARNING:
+                            </div>
+                            <p style="margin:0; font-size: 0.75rem; color: #fff; line-height: 1.4;">THIS WILL REPLACE ALL USER ACCOUNTS, SYSTEM SETTINGS, AND HISTORICAL LOGS. DATA LOSS IS PERMANENT.</p>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn" style="flex: 2; background: var(--danger-color); color: #000; border: none; font-weight: bold;">YES, OVERWRITE SYSTEM</button>
+                                <button type="button" class="btn" onclick="cancelOverwriteConfirm()" style="flex: 1; background: transparent; border: 1px solid #fff; color: #fff;">CANCEL</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -410,6 +422,16 @@
     function cancelTerminateConfirm(index) {
         document.getElementById('terminate-control-' + index).style.display = 'inline-block';
         document.getElementById('terminate-confirm-' + index).style.display = 'none';
+    }
+
+    function showOverwriteConfirm() {
+        document.getElementById('overwrite-preparation').style.display = 'none';
+        document.getElementById('overwrite-confirmation').style.display = 'flex';
+    }
+
+    function cancelOverwriteConfirm() {
+        document.getElementById('overwrite-preparation').style.display = 'flex';
+        document.getElementById('overwrite-confirmation').style.display = 'none';
     }
 
     // Keyboard Navigation for Settings Feed List
