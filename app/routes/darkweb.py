@@ -79,56 +79,93 @@ def save_defacement_cache(cache):
 
 async def _scrape_zone_xsec_page(browser, url, deep_scrape=False):
     from playwright_stealth import Stealth
-    page = await browser.new_page()
-    await Stealth().apply_stealth_async(page)
-    try:
-        try:
-            await page.goto(url, wait_until='domcontentloaded', timeout=30000)
-            await page.wait_for_timeout(7000) 
-        except: pass
-        html = await page.content()
-    finally: await page.close()
     
-    if 'Just a moment' in html or 'Wait while' in html: return None
-
-    rows = re.findall(r'<tr[^>]*>(.*?)</tr>', html, re.DOTALL)
-    results = []
-    for row in rows[1:]:
-        cols = re.findall(r'<td[^>]*>(.*?)</td>', row, re.DOTALL)
-        if len(cols) >= 9:
-            mirror_match = re.search(r'href="(/mirror/id/(\d+))"', cols[-1])
-            country_match = re.search(r'/assets/images/flags/([a-z]+)\.png', row)
-            item = {
-                'date': re.sub(r'<[^>]*>', '', cols[0]).strip(),
-                'attacker': re.sub(r'<[^>]*>', '', cols[1]).strip(),
-                'team': re.sub(r'<[^>]*>', '', cols[2]).strip(),
-                'country': country_match.group(1).upper() if country_match else 'UNKNOWN',
-                'url': re.sub(r'<[^>]*>', '', cols[-2]).strip(),
-                'mirror_id': mirror_match.group(2) if mirror_match else '',
-                'mirror': 'https://zone-xsec.com' + mirror_match.group(1) if mirror_match else '',
-                'ip': 'N/A', 'web_server': 'N/A'
-            }
-            results.append(item)
-
-    if deep_scrape and results:
-        page = await browser.new_page()
-        await Stealth().apply_stealth_async(page)
+    # Standard context with realistic user agent
+    context = await browser.new_context(
+        user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+    page = await context.new_page()
+    await Stealth().apply_stealth_async(page)
+    
+    try:
+        print(f"DEBUG: Navigating to {url}")
         try:
-            await page.goto("https://zone-xsec.com/special", wait_until='domcontentloaded', timeout=20000)
-            await page.wait_for_timeout(4000)
-            for item in results[:10]: # Limit deep scrape in loop to avoid massive slowdown
-                if not item['mirror_id']: continue
-                try:
-                    await page.goto(f"https://zone-xsec.com/mirror/id/{item['mirror_id']}", wait_until='domcontentloaded', timeout=10000)
-                    m_html = await page.content()
-                    mfind = lambda p: re.sub(r'<[^>]+>', '', re.search(p, m_html, re.I | re.DOTALL).group(1)).strip() if re.search(p, m_html, re.I | re.DOTALL) else 'N/A'
-                    item['ip'] = mfind(r'IP[^<]+<[^>]+>\s*([0-9\.]+)')
-                    item['web_server'] = mfind(r'Web Server[^<]+<[^>]+>\s*([^<]+)')
-                    full_match = re.search(r'Defacement Details of\s+(https?://[^\s<]+)', m_html, re.I)
-                    if full_match: item['url'] = full_match.group(1).strip()
-                except: pass
-        finally: await page.close()
-    return results
+            # Wait for full 'load' state instead of just DOM
+            await page.goto(url, wait_until='load', timeout=60000)
+            # Extra wait for security scripts to settle
+            await page.wait_for_timeout(5000)
+            try:
+                await page.wait_for_load_state('networkidle', timeout=10000)
+            except: pass
+        except Exception as e:
+            print(f"DEBUG: Navigation timeout/warning: {str(e)}")
+            
+        # Polling loop: Wait for data to appear (bypass challenge)
+        results = []
+        for i in range(20): # Poll for ~40 seconds total
+            try:
+                html = await page.content()
+            except Exception as e:
+                # If page is still navigating/refreshing, wait and retry
+                print(f"DEBUG: Content retrieval deferred (navigating): {str(e)}")
+                await page.wait_for_timeout(2000)
+                continue
+
+            if 'Just a moment' in html or 'Wait while' in html or 'Checking your browser' in html:
+                if i % 3 == 0:
+                    print(f"DEBUG: Challenge detected, waiting... (Attempt {i})")
+                await page.wait_for_timeout(2000)
+                continue
+                
+            # Try to extract rows
+            rows = re.findall(r'<tr[^>]*>(.*?)</tr>', html, re.DOTALL)
+            if len(rows) > 1:
+                print(f"DEBUG: Data ready on attempt {i}. Found {len(rows)-1} records.")
+                for row in rows[1:]:
+                    cols = re.findall(r'<td[^>]*>(.*?)</td>', row, re.DOTALL)
+                    if len(cols) >= 9:
+                        mirror_match = re.search(r'href="(/mirror/id/(\d+))"', cols[-1])
+                        country_match = re.search(r'/assets/images/flags/([a-z]+)\.png', row)
+                        item = {
+                            'date': re.sub(r'<[^>]*>', '', cols[0]).strip(),
+                            'attacker': re.sub(r'<[^>]*>', '', cols[1]).strip(),
+                            'team': re.sub(r'<[^>]*>', '', cols[2]).strip(),
+                            'country': country_match.group(1).upper() if country_match else 'UNKNOWN',
+                            'url': re.sub(r'<[^>]*>', '', cols[-2]).strip(),
+                            'mirror_id': mirror_match.group(2) if mirror_match else '',
+                            'mirror': 'https://zone-xsec.com' + mirror_match.group(1) if mirror_match else '',
+                            'ip': 'N/A', 'web_server': 'N/A'
+                        }
+                        results.append(item)
+                break # Success
+            else:
+                if i % 3 == 0:
+                    print(f"DEBUG: Table not found yet, waiting... (Attempt {i})")
+                await page.wait_for_timeout(2000)
+                
+        if deep_scrape and results:
+            # Deep scrape logic stays similar but with its own stealth page
+            d_page = await context.new_page()
+            await Stealth().apply_stealth_async(d_page)
+            try:
+                for item in results[:10]:
+                    if not item['mirror_id']: continue
+                    try:
+                        await d_page.goto(f"https://zone-xsec.com/mirror/id/{item['mirror_id']}", wait_until='domcontentloaded', timeout=15000)
+                        m_html = await d_page.content()
+                        if 'IP' in m_html:
+                            mfind = lambda p: re.sub(r'<[^>]+>', '', re.search(p, m_html, re.I | re.DOTALL).group(1)).strip() if re.search(p, m_html, re.I | re.DOTALL) else 'N/A'
+                            item['ip'] = mfind(r'IP[^<]+<[^>]+>\s*([0-9\.]+)')
+                            item['web_server'] = mfind(r'Web Server[^<]+<[^>]+>\s*([^<]+)')
+                    except: pass
+            finally: await d_page.close()
+            
+        return results if results else None
+    except Exception as e:
+        print(f"DEBUG: Scraper error: {str(e)}")
+        return None
+    finally:
+        await context.close()
 
 def scrape_zone_xsec(page=1, deep_scrape=False):
     from playwright.async_api import async_playwright
@@ -272,26 +309,7 @@ def defacements_sync():
                 break
                 
             time.sleep(1) # Be nice to the source
-                    page_has_new = True
-                else:
-                    for existing_item in cache[d_key]:
-                        if existing_item['url'] == item['url']:
-                            updated = False
-                            if (not existing_item.get('ip') or existing_item['ip'] == 'N/A') and item['ip'] != 'N/A':
-                                existing_item['ip'] = item['ip']
-                                updated = True
-                            if (not existing_item.get('web_server') or existing_item['web_server'] == 'N/A') and item['web_server'] != 'N/A':
-                                existing_item['web_server'] = item['web_server']
-                                updated = True
-                            if '...' in existing_item.get('url', '') and '...' not in item['url']:
-                                existing_item['url'] = item['url']
-                                updated = True
-                            if updated: page_has_new = True
-                            break
-            # Optimization: If no new data on page 1-2, maybe stop? No, let's follow the app.py logic
-            # but allow user to see progress.
-            if not page_has_new and page > 1: break
-            
+                
         save_defacement_cache(cache)
         return jsonify({
             'success': True, 
