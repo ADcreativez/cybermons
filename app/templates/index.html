@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <!-- Stats Panel -->
+    <div class="panel stats-panel">
+        <div class="panel-header">THREAT METRICS (FILTER)</div>
+        <div class="stats-container">
+            <!-- Time Display -->
+            <div class="stat-box time-box">
+                <div class="stat-value" id="clock" style="font-size: 1.2rem;">--:--:--</div>
+                <div class="stat-label">SYSTEM TIME (UTC)</div>
+            </div>
+
+
+            <a href="{{ url_for(request.endpoint, severity='Critical', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                class="stat-box critical {% if current_severity == 'Critical' %}active{% endif %}">
+                <div class="stat-value">{{ stats.critical }}</div>
+                <div class="stat-label">CRITICAL</div>
+            </a>
+
+            <a href="{{ url_for(request.endpoint, severity='High', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                class="stat-box high {% if current_severity == 'High' %}active{% endif %}">
+                <div class="stat-value">{{ stats.high }}</div>
+                <div class="stat-label">HIGH</div>
+            </a>
+
+            <a href="{{ url_for(request.endpoint, severity='Medium', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                class="stat-box medium {% if current_severity == 'Medium' %}active{% endif %}">
+                <div class="stat-value">{{ stats.medium }}</div>
+                <div class="stat-label">MEDIUM</div>
+            </a>
+
+            <a href="{{ url_for(request.endpoint, severity='Low', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                class="stat-box low {% if current_severity == 'Low' %}active{% endif %}">
+                <div class="stat-value">{{ stats.low }}</div>
+                <div class="stat-label">LOW</div>
+            </a>
+
+            <a href="{{ url_for(request.endpoint, severity='Info', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                class="stat-box info {% if current_severity == 'Info' %}active{% endif %}">
+                <div class="stat-value">{{ stats.info }}</div>
+                <div class="stat-label">INFO</div>
+            </a>
+
+            <a href="{{ url_for(request.endpoint) }}" class="stat-box database">
+                <div class="stat-value">{{ stats.total }}</div>
+                <div class="stat-label">THREAT DATABASE</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Threats Feed -->
+    <div class="panel feed-panel" style="position: relative;">
+        <!-- Native Scroll used - Buttons Removed -->
+
+        <div class="panel-header">
+            <span>{{ page_title }}</span>
+
+            <div class="feed-controls">
+                <!-- Limit Selector -->
+                <!-- Search Form -->
+                <form action="{{ request.path }}" method="GET" class="search-form" style="margin-right: 15px;">
+                    {% if current_severity %}<input type="hidden" name="severity" value="{{ current_severity }}">{%
+                    endif %}
+                    {% if current_date %}<input type="hidden" name="date" value="{{ current_date }}">{% endif %}
+                    {% if current_source %}<input type="hidden" name="source" value="{{ current_source }}">{% endif %}
+                    {% if current_limit %}<input type="hidden" name="limit" value="{{ current_limit }}">{% endif %}
+
+                    <div class="search-input-wrapper">
+                        <i class="fa-solid fa-search search-icon"></i>
+                        <input type="text" name="q" placeholder="SEARCH INTEL..." value="{{ current_search or '' }}"
+                            class="search-input">
+                    </div>
+                </form>
+
+                <form action="{{ request.path }}" method="GET" class="limit-form">
+                    {% if current_severity %}<input type="hidden" name="severity" value="{{ current_severity }}">{%
+                    endif %}
+                    {% if current_date %}<input type="hidden" name="date" value="{{ current_date }}">{% endif %}
+                    {% if current_source %}<input type="hidden" name="source" value="{{ current_source }}">{% endif %}
+                    {% if current_search %}<input type="hidden" name="q" value="{{ current_search }}">{% endif %}
+
+                    <select name="limit" onchange="this.form.submit()" class="limit-selector">
+                        <option value="10" {% if current_limit=='10' %}selected{% endif %}>10 / PAGE</option>
+                        <option value="20" {% if current_limit=='20' or not current_limit %}selected{% endif %}>20 /
+                            PAGE</option>
+                        <option value="50" {% if current_limit=='50' %}selected{% endif %}>50 / PAGE</option>
+                        <option value="100" {% if current_limit=='100' %}selected{% endif %}>100 / PAGE</option>
+                        <option value="all" {% if current_limit=='all' %}selected{% endif %}>SHOW ALL</option>
+                    </select>
+                </form>
+
+                <!-- General Filter Form (Date & Source) -->
+                <form action="{{ request.path }}" method="GET" class="date-filter-form">
+                    {% if current_severity %}
+                    <input type="hidden" name="severity" value="{{ current_severity }}">
+                    {% endif %}
+                    {% if current_limit %}
+                    <input type="hidden" name="limit" value="{{ current_limit }}">
+                    {% endif %}
+                    {% if current_search %}<input type="hidden" name="q" value="{{ current_search }}">{% endif %}
+
+                    <select name="source" class="source-selector" onchange="this.form.submit()">
+                        <option value="">ALL SOURCES</option>
+                        {% for source in sources %}
+                        <option value="{{ source }}" {% if current_source==source %}selected{% endif %}>{{ source }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    <input type="date" name="date" value="{{ current_date or '' }}" class="date-picker"
+                        onchange="this.form.submit()">
+                    <!-- Button removed for dynamic filtering -->
+                    {% if current_date or current_severity or current_source or current_search %}
+                    <a href="{{ request.path }}" class="btn-clear" title="Clear Filters"><i
+                            class="fa-solid fa-times"></i></a>
+                    {% endif %}
+                </form>
+
+                <a href="{{ url_for('monitoring.refresh_data') }}" class="btn-refresh"><i class="fa-solid fa-sync"></i> REFRESH</a>
+            </div>
+        </div>
+
+        <div class="feed-list" id="feedListContainer">
+            {% for threat in threats %}
+            <div
+                class="threat-card severity-{{ threat.severity.lower() }} {% if current_category == 'monitoring.news' %}news-card{% endif %}">
+                <div class="threat-header">
+                    <span class="threat-source">[{{ threat.source }}]</span>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <span class="threat-date">{{ threat.published_str }}</span>
+                        {% if current_category == 'monitoring.news' %}
+                        <div id="intel-delete-control-{{ threat.id }}" style="display: inline-block;">
+                            <button type="button" class="btn-delete-icon" title="Delete News"
+                                onclick="showConfirmIntel({{ threat.id }})">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                        <div id="intel-confirm-control-{{ threat.id }}"
+                            style="display: none; align-items: center; gap: 5px;">
+                            <span
+                                style="font-size: 0.6em; color: var(--danger-color); font-weight: bold; font-family: var(--font-mono);">SURE?</span>
+                            <form action="{{ url_for('monitoring.delete_threat', id=threat.id) }}" method="POST"
+                                style="display:inline;">
+                                <button type="submit" class="btn"
+                                    style="background: var(--danger-color); color: #000; border: none; padding: 2px 5px; font-size: 0.6em; font-weight: bold;">YES</button>
+                            </form>
+                            <button type="button" onclick="cancelConfirmIntel({{ threat.id }})"
+                                style="background: none; border: none; color: #fff; cursor: pointer; font-size: 0.7em; opacity: 0.6;">X</button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <h3 class="threat-title"><a href="{{ threat.link }}" target="_blank">{{ threat.title }}</a></h3>
+                <div class="threat-meta">
+                    {% if current_category != 'monitoring.news' %}
+                    <span class="badge badge-{{ threat.severity.lower() }}">{{ threat.severity.upper() }}</span>
+                    {% endif %}
+                </div>
+                <p class="threat-summary">{{ threat.summary[:200] | striptags }}{% if threat.summary|length > 200
+                    %}...{% endif %}</p>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-search"></i> NO THREATS FOUND MATCHING CRITERIA
+            </div>
+            {% endfor %}
+
+            <!-- Pagination Footer -->
+            {% if pagination.pages > 1 %}
+            <div class="pagination-footer">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for(request.endpoint, page=pagination.prev_num, limit=current_limit, severity=current_severity, date=current_date, source=current_source, q=current_search) }}"
+                    class="page-link">&laquo; PREV</a>
+                {% else %}
+                <span class="page-link disabled">&laquo; PREV</span>
+                {% endif %}
+
+                <span class="page-info">PAGE {{ pagination.page }} OF {{ pagination.pages }}</span>
+
+                {% if pagination.has_next %}
+                <a href="{{ url_for(request.endpoint, page=pagination.next_num, limit=current_limit, severity=current_severity, date=current_date, source=current_source, q=current_search) }}"
+                    class="page-link">NEXT &raquo;</a>
+                {% else %}
+                <span class="page-link disabled">NEXT &raquo;</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function showConfirmIntel(id) {
+        document.getElementById('intel-delete-control-' + id).style.display = 'none';
+        document.getElementById('intel-confirm-control-' + id).style.display = 'flex';
+    }
+
+    function cancelConfirmIntel(id) {
+        document.getElementById('intel-delete-control-' + id).style.display = 'inline-block';
+        document.getElementById('intel-confirm-control-' + id).style.display = 'none';
+    }
+
+    document.addEventListener('keydown', function (e) {
+        const feedList = document.getElementById('feedListContainer');
+        const scrollAmount = 50; // Pixels per key press
+
+        if (!feedList) return;
+
+        // Check if user is typing in an input (don't scroll then)
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') {
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowDown':
+                feedList.scrollTop += scrollAmount;
+                e.preventDefault();
+                break;
+            case 'ArrowUp':
+                feedList.scrollTop -= scrollAmount;
+                e.preventDefault();
+                break;
+            case 'PageDown':
+                feedList.scrollTop += feedList.clientHeight;
+                e.preventDefault();
+                break;
+            case 'PageUp':
+                feedList.scrollTop -= feedList.clientHeight;
+                e.preventDefault();
+                break;
+            case 'Home':
+                feedList.scrollTop = 0;
+                e.preventDefault();
+                break;
+            case 'End':
+                feedList.scrollTop = feedList.scrollHeight;
+                e.preventDefault();
+                break;
+            case 'End':
+                feedList.scrollTop = feedList.scrollHeight;
+                e.preventDefault();
+                break;
+        }
+    });
+
+    function updateClock() {
+        const now = new Date();
+        const timeString = now.toISOString().replace('T', ' ').substring(0, 19);
+        const clockElement = document.getElementById('clock');
+        if (clockElement) {
+            clockElement.innerText = timeString;
+        }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+</script>
+{% endblock %}

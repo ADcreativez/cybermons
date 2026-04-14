@@ -1,0 +1,383 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="scrollable-content">
+    <div class="content-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2><i class="fa-solid fa-user-shield"></i> ANTIBOT & WAF CONTROL</h2>
+            <p>System-wide visitor monitoring and automated threat mitigation</p>
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <form method="POST" action="{{ url_for('admin.clear_system_logs') }}"
+                onsubmit="return confirm('Are you sure you want to PERMANENTLY delete all visitor logs?');">
+                <button type="submit" class="btn-primary"
+                    style="background: rgba(220, 53, 69, 0.2); border: 1px solid var(--danger-color); color: var(--danger-color);">
+                    <i class="fa-solid fa-trash-can"></i> PURGE LOGS
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="dashboard-stats"
+        style="display: flex; flex-wrap: wrap; gap: 40px; margin-bottom: 30px; background: rgba(0, 0, 0, 0.2); padding: 15px 25px; border: 1px solid rgba(0, 255, 204, 0.1); border-left: 4px solid var(--accent-color);">
+        <div class="stat-card"
+            style="display: flex; align-items: baseline; gap: 10px; background: none; border: none; padding: 0;">
+            <span class="stat-label"
+                style="font-size: 0.7rem; color: var(--text-secondary); opacity: 0.8; letter-spacing: 1px;">TOTAL
+                VISITS:</span>
+            <span class="stat-value" style="font-size: 1.1rem; font-weight: 500;">{{ logs|length }}</span>
+        </div>
+        <div class="stat-card"
+            style="display: flex; align-items: baseline; gap: 10px; background: none; border: none; padding: 0;">
+            <span class="stat-label"
+                style="font-size: 0.7rem; color: var(--text-secondary); opacity: 0.8; letter-spacing: 1px;">BLACKLISTED:</span>
+            <span class="stat-value text-danger" style="font-size: 1.1rem; font-weight: 500;">{{ blacklist|length
+                }}</span>
+        </div>
+        <div class="stat-card"
+            style="display: flex; align-items: baseline; gap: 10px; background: none; border: none; padding: 0;">
+            <span class="stat-label"
+                style="font-size: 0.7rem; color: var(--text-secondary); opacity: 0.8; letter-spacing: 1px;">WHITELISTED:</span>
+            <span class="stat-value text-success" style="font-size: 1.1rem; font-weight: 500;">{{ whitelist|length
+                }}</span>
+        </div>
+        <div class="stat-card"
+            style="display: flex; align-items: baseline; gap: 10px; background: none; border: none; padding: 0;">
+            <span class="stat-label"
+                style="font-size: 0.7rem; color: var(--text-secondary); opacity: 0.8; letter-spacing: 1px;">WAF
+                STATUS:</span>
+            <span class="stat-value"
+                style="color: #00ff41; font-size: 1.1rem; font-weight: bold; text-shadow: 0 0 8px rgba(0,255,65,0.3);">ACTIVE</span>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs-nav"
+        style="display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 255, 65, 0.2);">
+        <button class="tab-btn active" onclick="openTab(event, 'visitor-log')">VISITOR LOG</button>
+        <button class="tab-btn" onclick="openTab(event, 'ip-control')">IP MANAGEMENT</button>
+        <button class="tab-btn" onclick="openTab(event, 'geo-blocking')">GEO BLOCKING</button>
+        <button class="tab-btn" onclick="openTab(event, 'security-config')">WAF SETTINGS</button>
+    </div>
+
+    <!-- Tab 1: Visitor Log -->
+    <div id="visitor-log" class="tab-content active">
+        <div class="settings-card" style="margin-top: 0;">
+            <div class="table-container" style="max-height: 600px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--primary-color); text-align: left;">
+                            <th style="padding: 12px;">TIMESTAMP</th>
+                            <th style="padding: 12px;">IP ADDRESS</th>
+                            <th style="padding: 12px;">DEVICE / OS</th>
+                            <th style="padding: 12px;">BROWSER</th>
+                            <th style="padding: 12px;">PATH</th>
+                            <th style="padding: 12px; text-align: right;">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if not logs %}
+                        <tr>
+                            <td colspan="6" style="padding: 20px; text-align: center; opacity: 0.5;">NO RECENT ACTIVITY
+                                DETECTED</td>
+                        </tr>
+                        {% endif %}
+                        {% for log in logs %}
+                        <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.1);">
+                            <td style="padding: 12px; white-space: nowrap;">{{ log.timestamp.strftime('%Y-%m-%d
+                                %H:%M:%S') }}</td>
+                            <td style="padding: 12px;"><code style="color: var(--primary-color);">{{ log.ip }}</code>
+                            </td>
+                            <td style="padding: 12px;">
+                                <i class="fa-solid fa-laptop"></i> {{ log.device }} / {{ log.os }}
+                            </td>
+                            <td style="padding: 12px;">{{ log.browser }}</td>
+                            <td style="padding: 12px;"><span style="color: #666;">{{ log.method }}</span> {{ log.path }}
+                            </td>
+                            <td style="padding: 12px; text-align: right;">
+                                <form method="POST" action="{{ url_for('admin.add_ip') }}" style="display: inline;">
+                                    <input type="hidden" name="ip" value="{{ log.ip }}">
+                                    <input type="hidden" name="category" value="blacklist">
+                                    <input type="hidden" name="reason" value="Suspicious visit: {{ log.path }}">
+                                    <button type="submit" class="danger-link"
+                                        style="border: none; background: none; color: var(--danger-color); cursor: pointer;"
+                                        title="Quick Ban">
+                                        <i class="fa-solid fa-ban"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: IP Control -->
+    <div id="ip-control" class="tab-content">
+        <div class="settings-grid">
+            <!-- Add IP Form -->
+            <div class="settings-card">
+                <h3><i class="fa-solid fa-plus-circle"></i> ACCESS CONTROL ENTRY</h3>
+                <form method="POST" action="{{ url_for('admin.add_ip') }}">
+                    <div style="display: grid; gap: 15px; margin-top: 15px;">
+                        <div>
+                            <label style="font-size: 0.8em; opacity: 0.7;">IP ADDRESS</label>
+                            <input type="text" name="ip" required class="status-input" placeholder="e.g., 1.2.3.4">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8em; opacity: 0.7;">POLICY</label>
+                            <select name="category" class="status-input" style="height: 38px;">
+                                <option value="blacklist">BLACKLIST (BLOCK)</option>
+                                <option value="whitelist">WHITELIST (ALLOW)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8em; opacity: 0.7;">REASON / NOTE</label>
+                            <input type="text" name="reason" class="status-input" placeholder="e.g., Trusted Office IP">
+                        </div>
+                        <button type="submit" class="btn-primary" style="margin-top: 10px;">
+                            <i class="fa-solid fa-shield-halved"></i> APPLY POLICY
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- List Card -->
+            <div class="settings-card">
+                <h3><i class="fa-solid fa-list-ul"></i> ACTIVE IP POLICIES</h3>
+                <div class="table-container" style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--primary-color); text-align: left;">
+                                <th style="padding: 10px;">IP</th>
+                                <th style="padding: 10px;">POLICY</th>
+                                <th style="padding: 10px;">REASON</th>
+                                <th style="padding: 10px; text-align: right;">ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in blacklist + whitelist %}
+                            <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.1);">
+                                <td style="padding: 10px;"><code>{{ item.ip }}</code></td>
+                                <td style="padding: 10px;">
+                                    <span
+                                        class="badge {{ 'text-danger' if item.category == 'blacklist' else 'text-success' }}">
+                                        {{ item.category|upper }}
+                                    </span>
+                                </td>
+                                <td style="padding: 10px; font-size: 0.8em; opacity: 0.7;">{{ item.reason }}</td>
+                                <td style="padding: 10px; text-align: right;">
+                                    <form method="POST" action="{{ url_for('admin.delete_ip', id=item.id) }}">
+                                        <button type="submit"
+                                            style="background: none; border: none; color: #666; cursor: pointer;">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 4: Geo Blocking -->
+    <div id="geo-blocking" class="tab-content">
+        <div class="settings-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3><i class="fa-solid fa-earth-americas"></i> GEOGRAPHIC IP RESTRICTION</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <form method="POST" action="{{ url_for('admin.geo_mode') }}" id="geo-mode-form"
+                        style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.3); padding: 5px 15px; border: 1px solid rgba(0,255,204,0.2);">
+                        <span style="font-size: 0.8rem; opacity: 0.7;">POLICY MODE:</span>
+                        <select name="mode" onchange="this.form.submit()"
+                            style="background: none; border: none; color: var(--primary-color); font-family: var(--font-mono); cursor: pointer; outline: none;">
+                            <option value="blacklist" {% if not geo_settings.is_whitelist_mode %}selected{% endif %}>
+                                BLACKLIST (BLOCK SELECTED)</option>
+                            <option value="whitelist" {% if geo_settings.is_whitelist_mode %}selected{% endif %}>
+                                WHITELIST (ALLOW SELECTED)</option>
+                        </select>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('admin.update_geo') }}">
+                        <input type="hidden" name="action" value="only_id">
+                        <button type="submit" class="btn-primary"
+                            style="background: var(--warning-color); color: #000; font-size: 0.8rem; padding: 6px 12px; height: 32px; display: flex; align-items: center; gap: 5px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                            <i class="fa-solid fa-flag"></i> ONLY ALLOW INDONESIA
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <p
+                style="margin-bottom: 20px; font-size: 0.9rem; border-left: 3px solid var(--primary-color); padding-left: 15px; background: rgba(0,255,204,0.05); padding-top: 10px; padding-bottom: 10px;">
+                {% if geo_settings.is_whitelist_mode %}
+                <strong style="color: var(--warning-color);"><i class="fa-solid fa-circle-exclamation"></i> STRICT MODE
+                    ENABLED:</strong> Only requests from the countries selected below will be permitted. All others will
+                be blocked.
+                {% else %}
+                Select countries to restrict access to the application. Requests from these regions will be
+                automatically blocked.
+                {% endif %}
+            </p>
+
+            <form method="POST" action="{{ url_for('admin.update_geo') }}">
+                <input type="hidden" name="action" value="update">
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; padding: 20px; background: rgba(0,0,0,0.2); border: 1px solid rgba(0,255,204,0.1);">
+                    {% for code, name in countries %}
+                    <div
+                        style="display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <input type="checkbox" name="blocked_countries" value="{{ code }}" id="geo-{{ code }}" {% if
+                            code in blocked_codes %}checked{% endif %}
+                            style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--danger-color);">
+                        <label for="geo-{{ code }}"
+                            style="cursor: pointer; font-family: var(--font-mono); font-size: 0.9rem;">
+                            <img src="https://flagcdn.com/16x12/{{ code|lower }}.png" width="16" height="12"
+                                alt="{{ code }}" style="margin-right: 5px;">
+                            {{ name }} ({{ code }})
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div style="margin-top: 25px; display: flex; justify-content: flex-end;">
+                    <button type="submit" class="btn-primary" style="background: var(--danger-color); color: #fff;">
+                        <i class="fa-solid fa-shield-virus"></i> UPDATE GEO-BLOCK POLICY
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tab 5: Settings -->
+    <div id="security-config" class="tab-content">
+        <div class="settings-card">
+            <h3><i class="fa-solid fa-gears"></i> AUTOMATED WAF CONFIGURATION</h3>
+            <p>Define global automated response patterns for suspicious activity</p>
+
+            <div style="margin-top: 25px; display: grid; gap: 20px;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: rgba(255,255,255,0.03); border: 1px solid rgba(0,255,65,0.1);">
+                    <div>
+                        <strong style="color: var(--primary-color);">AUTO-BAN ENABLED</strong>
+                        <p style="font-size: 0.8em; opacity: 0.6; margin: 0;">Automatically add identified bots to the
+                            blacklist</p>
+                    </div>
+                    <span class="badge text-success">ALWAYS ON</span>
+                </div>
+
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: rgba(255,255,255,0.03); border: 1px solid rgba(0,255,65,0.1);">
+                    <div>
+                        <strong style="color: var(--primary-color);">PATH MONITORING</strong>
+                        <p style="font-size: 0.8em; opacity: 0.6; margin: 0;">Block common vulnerability scanning
+                            patterns (../, .env, etc.)</p>
+                    </div>
+                    <span class="badge text-success">ACTIVE</span>
+                </div>
+
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: rgba(255,255,255,0.03); border: 1px solid rgba(0,255,65,0.1);">
+                    <div>
+                        <strong style="color: var(--primary-color);">USER-AGENT SIGNATURES</strong>
+                        <p style="font-size: 0.8em; opacity: 0.6; margin: 0;">Verified bot signatures (nmap, sqlmap,
+                            etc.)</p>
+                    </div>
+                    <span class="stat-value" style="font-size: 0.9em;">15 SIGNATURES</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tabs-nav {
+        background: rgba(0, 255, 65, 0.05);
+    }
+
+    .tab-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        padding: 12px 25px;
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 0.9em;
+        letter-spacing: 1px;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: all 0.3s;
+        border-bottom: 2px solid transparent;
+    }
+
+    .tab-btn:hover {
+        opacity: 1;
+        background: rgba(0, 255, 65, 0.05);
+    }
+
+    .tab-btn.active {
+        opacity: 1;
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        background: rgba(0, 255, 65, 0.1);
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+        animation: fadeIn 0.4s;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .status-input {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(0, 255, 65, 0.3);
+        color: var(--primary-color);
+        padding: 10px;
+        font-family: inherit;
+    }
+
+    .badge {
+        padding: 2px 8px;
+        border: 1px solid currentColor;
+        font-size: 0.7em;
+        font-weight: bold;
+    }
+</style>
+
+<script>
+    function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].classList.remove("active");
+        }
+        tablinks = document.getElementsByClassName("tab-btn");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        document.getElementById(tabName).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+</script>
+{% endblock %}

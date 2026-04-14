@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="scrollable-content">
+    <div class="inventory-container">
+        <div class="panel-header" style="margin-bottom: 25px;">
+            <h2 style="font-family: var(--font-mono); color: var(--accent-color); margin: 0;">
+                <i class="fa-solid fa-network-wired"></i> COMPROMISED INFRASTRUCTURE SEARCH
+            </h2>
+            <div
+                style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; font-family: var(--font-mono);">
+                IDENTIFY COMPROMISED CORPORATE & SUPPLY CHAIN INFRASTRUCTURE (VIA HUDSON ROCK)
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div style="max-width: 700px; margin: 0 auto; padding: 20px 0;">
+                <div style="display: flex; gap: 10px; margin-bottom: 30px;">
+                    <input type="text" id="infra-domain" placeholder="Enter domain (e.g. company.com)"
+                        style="flex: 1; padding: 15px 20px; background: #11111a; border: 1px solid rgba(0,255,204,0.2); color: var(--text-primary); font-family: var(--font-mono); font-size: 1rem; border-radius: 8px; outline: none;">
+                    <button onclick="checkInfra()" id="search-btn" class="btn btn-add"
+                        style="padding: 0 30px; font-size: 0.9rem; border-radius: 8px;">
+                        <i class="fa-solid fa-magnifying-glass"></i> SEARCH
+                    </button>
+                </div>
+            </div>
+
+            <div id="loading-spinner" style="display: none; padding: 50px; text-align: center;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: var(--accent-color);"></i>
+                <div style="color: var(--text-secondary); font-family: var(--font-mono); margin-top: 15px;">ANALYZING
+                    DOMAIN INFRASTRUCTURE...</div>
+            </div>
+
+            <div id="results-container" style="display: none;">
+                <div style="margin-bottom: 25px; text-align: center;">
+                    <h3 style="color: var(--text-primary); margin-bottom: 5px;">Results for: <span id="res-domain"
+                            style="color: var(--accent-color);"></span></h3>
+                    <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary);">THREAT
+                        INTELLIGENCE SUMMARY</div>
+                </div>
+
+                <div class="stats-grid"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <div class="stat-card">
+                        <div class="stat-label">INFECTED EMPLOYEES</div>
+                        <div class="stat-value" id="count-employees">0</div>
+                        <i class="fa-solid fa-user-tie stat-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">INFECTED USERS</div>
+                        <div class="stat-value" id="count-users">0</div>
+                        <i class="fa-solid fa-users stat-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">EXTERNAL / 3RD PARTY</div>
+                        <div class="stat-value" id="count-external">0</div>
+                        <i class="fa-solid fa-handshake stat-icon"></i>
+                    </div>
+                </div>
+
+                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="stat-card highlights" style="border-color: var(--danger-color);">
+                        <div class="stat-label">TOTAL COMPROMISED CREDENTIALS</div>
+                        <div class="stat-value" id="count-creds" style="color: var(--danger-color);">0</div>
+                        <i class="fa-solid fa-key stat-icon" style="color: var(--danger-color); opacity: 0.1;"></i>
+                    </div>
+                    <div class="stat-card highlights" style="border-color: var(--accent-color);">
+                        <div class="stat-label">TOTAL COMPROMISED MACHINES</div>
+                        <div class="stat-value" id="count-machines">0</div>
+                        <i class="fa-solid fa-laptop-code stat-icon" style="opacity: 0.1;"></i>
+                    </div>
+                </div>
+
+                <div
+                    style="margin-top: 40px; padding: 20px; background: rgba(255,165,0,0.05); border: 1px dashed rgba(255,165,0,0.3); border-radius: 8px; text-align: center;">
+                    <p style="color: #ffa500; font-size: 0.85rem; margin: 0; font-family: var(--font-mono);">
+                        <i class="fa-solid fa-circle-info"></i> These results indicate machines that have been infected
+                        by Infostealer malware and are actively leaking corporate infrastructure data.
+                    </p>
+                </div>
+            </div>
+
+            <div id="error-container"
+                style="display: none; padding: 20px; background: rgba(255,68,68,0.1); border: 1px solid var(--danger-color); border-radius: 4px; color: var(--danger-color); margin-top: 20px; text-align: center;">
+                <i class="fa-solid fa-circle-xmark"></i> <span id="error-message"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        background: #11111a;
+        border: 1px solid rgba(0, 255, 204, 0.1);
+        padding: 25px;
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--accent-color);
+    }
+
+    .stat-card.highlights {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .stat-label {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-bottom: 10px;
+        letter-spacing: 1px;
+    }
+
+    .stat-value {
+        font-family: var(--font-mono);
+        font-size: 2.2rem;
+        font-weight: bold;
+        color: var(--accent-color);
+    }
+
+    .stat-icon {
+        position: absolute;
+        right: 20px;
+        bottom: 20px;
+        font-size: 3.5rem;
+        color: var(--accent-color);
+        opacity: 0.05;
+        pointer-events: none;
+    }
+
+    #infra-domain:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 15px rgba(0, 255, 204, 0.1);
+    }
+</style>
+
+<script>
+    function checkInfra() {
+        const domain = document.getElementById('infra-domain').value.trim();
+        const btn = document.getElementById('search-btn');
+        const spinner = document.getElementById('loading-spinner');
+        const results = document.getElementById('results-container');
+        const errorDiv = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+
+        if (!domain) return;
+
+        // UI Reset
+        btn.disabled = true;
+        spinner.style.display = 'block';
+        results.style.display = 'none';
+        errorDiv.style.display = 'none';
+
+        fetch('/darkweb/infra-search/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domain: domain })
+        })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+
+                if (data.error) {
+                    errorMessage.innerText = data.error;
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('res-domain').innerText = data.domain.toUpperCase();
+                document.getElementById('count-employees').innerText = data.summary.employees.toLocaleString();
+                document.getElementById('count-users').innerText = data.summary.users.toLocaleString();
+                document.getElementById('count-external').innerText = data.summary.external.toLocaleString();
+                document.getElementById('count-creds').innerText = data.summary.total_credentials.toLocaleString();
+                document.getElementById('count-machines').innerText = data.summary.total_machines.toLocaleString();
+
+                results.style.display = 'block';
+            })
+            .catch(err => {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                errorMessage.innerText = 'Connection error. Please try again.';
+                errorDiv.style.display = 'block';
+            });
+    }
+
+    // Enter key support
+    document.getElementById('infra-domain').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') checkInfra();
+    });
+</script>
+{% endblock %}

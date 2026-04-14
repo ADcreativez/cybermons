@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+    <div class="settings-card" style="width: 500px; border-top: 4px solid var(--primary-color);">
+        <h2 style="color: var(--primary-color); margin-bottom: 15px; text-align: center;">
+            <i class="fa-solid fa-qrcode"></i> CONFIGURE MFA
+        </h2>
+        <p style="opacity: 0.8; margin-bottom: 25px; text-align: center;">
+            Scan the QR code below using your Google Authenticator or any TOTP-compatible app.
+        </p>
+
+        <div
+            style="background: white; padding: 12px; border-radius: 8px; width: 50%; margin: 0 auto 25px auto; box-shadow: 0 0 20px rgba(255,255,255,0.1);">
+            <img src="data:image/png;base64,{{ qr_code }}" alt="MFA QR Code"
+                style="display: block; width: 100%; height: auto;">
+        </div>
+
+        <div
+            style="background: rgba(0,255,204,0.05); border: 1px dashed rgba(0,255,204,0.3); padding: 15px; margin-bottom: 25px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.9rem;">
+            <span style="opacity: 0.6;">Manual Secret:</span> <strong style="color: var(--primary-color);">{{ secret
+                }}</strong>
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.mfa_enable') }}">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; opacity: 0.8;">Enter the 6-digit code to verify and
+                    activate:</label>
+                <input type="text" name="token" placeholder="000000" maxlength="6" required
+                    style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,204,0.3); color: var(--primary-color); font-family: var(--font-mono); font-size: 1.5rem; text-align: center; letter-spacing: 5px; outline: none;">
+            </div>
+
+            <div style="display: flex; gap: 15px;">
+                <a href="{{ url_for('auth.change_password') }}" class="btn-primary"
+                    style="background: transparent; border: 1px solid #444; color: #fff; flex: 1; text-align: center; text-decoration: none; padding: 12px; display: flex; align-items: center; justify-content: center;">
+                    CANCEL
+                </a>
+                <button type="submit" class="btn-primary" style="flex: 2; padding: 12px; font-weight: bold;">
+                    ACTIVATE MFA
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="scrollable-content">
+    <div class="inventory-container">
+        <h2 style="font-family: var(--font-mono); color: var(--danger-color); margin-bottom: 25px;">
+            <i class="fa-solid fa-bell"></i> SECURITY ALERTS & MATCHES
+        </h2>
+
+        <div id="alerts-loading-status" style="display: none; padding: 15px; background: rgba(0, 180, 255, 0.05); border: 1px solid var(--info-color); color: var(--info-color); margin-bottom: 20px; font-size: 0.85rem;">
+            <i class="fa-solid fa-spinner fa-spin"></i> SCANNING PRIVATE LOCAL ASSETS...
+        </div>
+
+        <div id="alerts-main-container">
+            {% if alerts %}
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">The following threats in our database match items in your inventory.</p>
+
+            <div class="alerts-list" id="alerts-list">
+                {% for alert in alerts %}
+                <div class="alert-card" style="position: relative;" data-type="cloud">
+                    <div style="position: absolute; top: 15px; right: 15px;">
+                        <div id="dismiss-control-{{ alert.threat.id }}">
+                            <button type="button" class="btn-delete-icon"
+                                onclick="showDismissConfirm({{ alert.threat.id }})" title="Dismiss Alert">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                        <div id="dismiss-confirm-{{ alert.threat.id }}"
+                            style="display: none; align-items: center; gap: 10px; background: rgba(0,0,0,0.8); padding: 5px 10px; border: 1px solid var(--danger-color); border-radius: 4px;">
+                            <span style="font-size: 0.7rem; color: var(--danger-color); font-weight: bold; font-family: var(--font-mono);">DISMISS?</span>
+                            <form action="{{ url_for('inventory.dismiss_alert', threat_id=alert.threat.id) }}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn" style="background: var(--danger-color); color: #000; padding: 2px 8px; font-size: 0.7rem; border: none; font-weight: bold; cursor: pointer;">YES</button>
+                            </form>
+                            <button type="button" onclick="cancelDismissConfirm({{ alert.threat.id }})" style="background: none; border: none; color: #fff; cursor: pointer; font-size: 0.7rem; opacity: 0.6;">X</button>
+                        </div>
+                    </div>
+
+                    <div class="inventory-label">
+                        <i class="fa-solid fa-cloud" style="color: var(--info-color); font-size: 0.8em; margin-right: 5px;"></i> 
+                        MATCHED CLOUD ASSET: <strong>{{ alert.inventory_item }}</strong>
+                    </div>
+                    <a href="{{ alert.threat.link }}" target="_blank" class="threat-title"
+                        style="font-weight: bold; color: var(--text-primary); text-decoration: none; display: block; margin: 10px 0;">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger-color);"></i> {{ alert.threat.title }}
+                    </a>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px;">
+                        <span class="badge" style="background: {% if alert.threat.severity == 'High' or alert.threat.severity == 'Critical' %}var(--danger-color){% elif alert.threat.severity == 'Medium' %}var(--warning-color){% else %}var(--info-color){% endif %}; color: #000;">
+                            {{ alert.threat.severity|upper }}
+                        </span>
+                        <span style="margin-left: 10px;"><i class="fa-solid fa-clock"></i> {{ alert.threat.published_str }}</span>
+                        <span style="margin-left: 10px;"><i class="fa-solid fa-share-nodes"></i> {{ alert.threat.source }}</span>
+                    </div>
+                    <div class="summary" style="font-size: 0.9rem; margin-top: 10px; color: var(--text-primary); opacity: 0.8;">
+                        {{ alert.threat.summary|truncate(250) }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div id="no-cloud-alerts-msg" class="settings-section" style="text-align: center; padding: 50px;">
+                <i class="fa-solid fa-shield-check" style="font-size: 3rem; color: var(--accent-color); margin-bottom: 20px; display: block;"></i>
+                <h3 style="border: none;">NO CLOUD THREATS FOUND</h3>
+                <p style="color: var(--text-secondary);">Your shared inventory doesn't match any known threats.</p>
+            </div>
+            <div class="alerts-list" id="alerts-list" style="display: none;"></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    const LOCAL_STORAGE_KEY = 'cybermon_local_inventory';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        checkLocalAssets();
+    });
+
+    async function checkLocalAssets() {
+        const localData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
+        if (localData.length === 0) return;
+
+        const loader = document.getElementById('alerts-loading-status');
+        const list = document.getElementById('alerts-list');
+        const noCloudMsg = document.getElementById('no-cloud-alerts-msg');
+
+        loader.style.display = 'block';
+
+        try {
+            const resp = await fetch('/api/threats/check', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ items: localData })
+            });
+            const matches = await resp.json();
+
+            if (matches && matches.length > 0) {
+                if (noCloudMsg) noCloudMsg.style.display = 'none';
+                list.style.display = 'block';
+
+                matches.forEach(match => {
+                    const card = createAlertCard(match);
+                    list.appendChild(card);
+                });
+            }
+        } catch (e) {
+            console.error("Local scan failure:", e);
+        } finally {
+            loader.style.display = 'none';
+        }
+    }
+
+    function createAlertCard(match) {
+        const div = document.createElement('div');
+        div.className = 'alert-card';
+        div.style.position = 'relative';
+        div.style.borderLeft = '3px solid var(--accent-color)';
+        
+        const severity = match.threat.severity;
+        const badgeColor = severity === 'High' || severity === 'Critical' ? 'var(--danger-color)' : (severity === 'Medium' ? 'var(--warning-color)' : 'var(--info-color)');
+
+        div.innerHTML = `
+            <div class="inventory-label" style="color: var(--accent-color);">
+                <i class="fa-solid fa-user-secret" style="font-size: 0.8em; margin-right: 5px;"></i> 
+                MATCHED PRIVATE ASSET: <strong>${match.inventory_item}</strong>
+            </div>
+            <a href="${match.threat.link}" target="_blank" class="threat-title"
+                style="font-weight: bold; color: var(--text-primary); text-decoration: none; display: block; margin: 10px 0;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger-color);"></i> ${match.threat.title}
+            </a>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px;">
+                <span class="badge" style="background: ${badgeColor}; color: #000; padding: 2px 8px; border-radius: 3px; font-weight: bold; font-size: 0.75rem;">
+                    ${severity.toUpperCase()}
+                </span>
+                <span style="margin-left: 10px;"><i class="fa-solid fa-clock"></i> ${match.threat.published_str}</span>
+                <span style="margin-left: 10px;"><i class="fa-solid fa-share-nodes"></i> ${match.threat.source}</span>
+            </div>
+            <div class="summary" style="font-size: 0.9rem; margin-top: 10px; color: var(--text-primary); opacity: 0.8;">
+                ${match.threat.summary.substring(0, 250)}...
+            </div>
+        `;
+        return div;
+    }
+
+    function showDismissConfirm(id) {
+        document.getElementById('dismiss-control-' + id).style.display = 'none';
+        document.getElementById('dismiss-confirm-' + id).style.display = 'flex';
+    }
+
+    function cancelDismissConfirm(id) {
+        document.getElementById('dismiss-control-' + id).style.display = 'block';
+        document.getElementById('dismiss-confirm-' + id).style.display = 'none';
+    }
+</script>
+{% endblock %}

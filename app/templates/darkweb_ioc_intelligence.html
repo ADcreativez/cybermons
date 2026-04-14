@@ -1,0 +1,559 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<style>
+    .ioc-mode-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .mode-btn {
+        background: rgba(0,255,204,0.05);
+        border: 1px solid rgba(0,255,204,0.2);
+        color: var(--text-secondary);
+        padding: 8px 20px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        transition: all 0.3s;
+    }
+    .mode-btn.active {
+        background: var(--accent-color);
+        color: #000;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 15px rgba(0,255,204,0.3);
+    }
+    #ioc-map {
+        height: 300px;
+        width: 100%;
+        background: #111;
+        border-radius: 4px;
+    }
+    .bulk-input-container {
+        display: none;
+    }
+    .result-grid-pro {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    .cache-badge {
+        background: rgba(0,255,204,0.1);
+        color: var(--accent-color);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        margin-left: 10px;
+        border: 1px solid rgba(0,255,204,0.3);
+    }
+</style>
+
+<div class="scrollable-content">
+    <div class="inventory-container">
+        <div class="panel-header" style="margin-bottom: 25px;">
+            <h2 style="font-family: var(--font-mono); color: var(--accent-color); margin: 0;">
+                <i class="fa-solid fa-fingerprint"></i> IOC INTELLIGENCE <span style="font-size: 0.7rem; vertical-align: middle; opacity: 0.6;">PRO SUITE</span>
+            </h2>
+            <div
+                style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; font-family: var(--font-mono);">
+                MULTI-VECTOR THREAT ANALYSIS (IP, DOMAIN, MALWARE HASH, PHISING URL, etc)
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div style="max-width: 900px; margin: 0 auto; padding: 20px 0;">
+                <!-- Mode Toggle -->
+                <div class="ioc-mode-toggle">
+                    <button class="mode-btn active" onclick="setMode('single')" id="btn-mode-single">SINGLE SCAN</button>
+                    <button class="mode-btn" onclick="setMode('bulk')" id="btn-mode-bulk">BULK SCAN (MAX 10)</button>
+                </div>
+
+                <!-- Single Input -->
+                <div id="single-input-area" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" id="ioc-indicator" placeholder="Enter IP, Domain, or File Hash (MD5/SHA1/SHA256)"
+                        style="flex: 1; padding: 15px 20px; background: #11111a; border: 1px solid rgba(0,255,204,0.2); color: var(--text-primary); font-family: var(--font-mono); font-size: 1rem; border-radius: 8px; outline: none;">
+                    <button onclick="checkIOC()" id="search-btn" class="btn btn-add"
+                        style="padding: 0 30px; font-size: 0.9rem; border-radius: 8px;">
+                        <i class="fa-solid fa-magnifying-glass"></i> ANALYZE IOC
+                    </button>
+                </div>
+
+                <!-- Bulk Input -->
+                <div id="bulk-input-area" class="bulk-input-container" style="flex-direction: column; gap: 10px; margin-bottom: 10px;">
+                    <textarea id="ioc-bulk-indicator" placeholder="Enter multiple IOCs (one per line, max 10)"
+                        style="width: 100%; height: 120px; padding: 15px 20px; background: #11111a; border: 1px solid rgba(0,255,204,0.2); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.9rem; border-radius: 8px; outline: none; resize: none;"></textarea>
+                    <button onclick="bulkScan()" id="bulk-search-btn" class="btn btn-add"
+                        style="padding: 12px; font-size: 0.9rem; border-radius: 8px; width: 100%;">
+                        <i class="fa-solid fa-layer-group"></i> INITIATE BULK ANALYSIS
+                    </button>
+                </div>
+
+                <div
+                    style="font-size: 0.75rem; color: var(--text-secondary); font-family: var(--font-mono); margin-left: 5px; text-align: center;">
+                    EXAMPLES: <span style="color: var(--accent-color); cursor: pointer;"
+                        onclick="setExample('8.8.8.8')">8.8.8.8</span>,
+                    <span style="color: var(--accent-color); cursor: pointer;"
+                        onclick="setExample('google.com')">google.com</span>,
+                    <span style="color: var(--accent-color); cursor: pointer;"
+                        onclick="setExample('44d88612fea8a8f36de82e1278abb02f')">44d8861...</span>
+                </div>
+            </div>
+
+            <div id="loading-spinner" style="display: none; padding: 50px; text-align: center;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: var(--accent-color);"></i>
+                <div style="color: var(--text-secondary); font-family: var(--font-mono); margin-top: 15px;" id="loading-text">
+                    SYNCHRONIZING WITH GLOBAL THREAT SWARM...</div>
+            </div>
+
+            <!-- Bulk Progress Card -->
+            <div id="bulk-progress-container" style="display: none; max-width: 800px; margin: 20px auto;">
+                <div class="panel" style="padding: 15px; background: rgba(0,255,204,0.02); border: 1px solid rgba(0,255,204,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">BULK QUEUE PROGRESS</span>
+                        <span id="bulk-stats" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-color);">0/0 COMPLETE</span>
+                    </div>
+                    <div style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden;">
+                        <div id="bulk-progress-bar" style="height: 100%; width: 0%; background: var(--accent-color); transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="results-container" style="display: none;">
+                <div style="margin-bottom: 25px; text-align: center; position: relative;">
+                    <div style="position: absolute; right: 0; top: 0; display: flex; gap: 10px;">
+                        <button onclick="exportReport()" class="btn btn-secondary" style="font-size: 0.7rem; padding: 5px 12px; height: auto;">
+                            <i class="fa-solid fa-file-export"></i> EXPORT REPORT
+                        </button>
+                    </div>
+                    <h3 style="color: var(--text-primary); margin-bottom: 5px;">Results for <span id="res-type"
+                            style="text-transform: uppercase;"></span>: <span id="res-indicator"
+                            style="color: var(--accent-color);"></span> <span id="cache-indicator"></span></h3>
+                    <div id="res-status-summary"
+                        style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); font-weight: bold; letter-spacing: 1px;">
+                        ANALYSIS COMPLETE</div>
+                </div>
+
+                <!-- Main Intelligence Cards -->
+                <div class="result-grid-pro">
+                    <!-- VirusTotal Aggregator -->
+                    <div class="panel" style="border: 1px solid rgba(0,255,204,0.1); background: rgba(0,0,0,0.2);">
+                        <div class="panel-header"
+                            style="font-size: 0.8rem; border-bottom: 1px solid rgba(0,255,204,0.1); background: rgba(0,255,204,0.03);">
+                            <i class="fa-solid fa-virus"></i> VIRUSTOTAL AGGREGATOR
+                        </div>
+                        <div id="vt-content" style="padding: 20px; font-family: var(--font-mono);">
+                            <div style="text-align: center; opacity: 0.5; padding: 20px;">NO DATA</div>
+                        </div>
+                    </div>
+
+                    <!-- URLScan.io Panel -->
+                    <div class="panel" style="border: 1px solid rgba(0,255,204,0.1); background: rgba(0,0,0,0.2);">
+                        <div class="panel-header"
+                            style="font-size: 0.8rem; border-bottom: 1px solid rgba(0,255,204,0.1); background: rgba(0,255,204,0.03);">
+                            <i class="fa-solid fa-spider"></i> URLSCAN.IO ANALYSIS
+                        </div>
+                        <div id="urlscan-content" style="padding: 20px; font-family: var(--font-mono);">
+                            <div style="text-align: center; opacity: 0.5; padding: 20px;">NOT APPLICABLE FOR THIS IOC</div>
+                        </div>
+                    </div>
+
+                    <!-- AbuseIPDB -->
+                    <div class="panel" style="border: 1px solid rgba(0,255,204,0.1); background: rgba(0,0,0,0.2);">
+                        <div class="panel-header"
+                            style="font-size: 0.8rem; border-bottom: 1px solid rgba(0,255,204,0.1); background: rgba(0,255,204,0.03);">
+                            <i class="fa-solid fa-database"></i> ABUSEIPDB REPUTATION
+                        </div>
+                        <div id="abuseipdb-content" style="padding: 20px; font-family: var(--font-mono);">
+                            <div style="text-align: center; opacity: 0.5; padding: 20px;">NO DATA</div>
+                        </div>
+                    </div>
+
+                    <!-- CheckPhish / URL Analysis -->
+                    <div class="panel" style="border: 1px solid rgba(0,255,204,0.1); background: rgba(0,0,0,0.2);">
+                        <div class="panel-header"
+                            style="font-size: 0.8rem; border-bottom: 1px solid rgba(0,255,204,0.1); background: rgba(0,255,204,0.03);">
+                            <i class="fa-solid fa-link-slash"></i> CHECKPHISH (BOLSTER.AI)
+                        </div>
+                        <div id="checkphish-content" style="padding: 20px; font-family: var(--font-mono);">
+                            <div style="text-align: center; opacity: 0.5; padding: 20px;">NO DATA</div>
+                        </div>
+                    </div>
+
+                    <!-- Community Threat Feeds (ThreatFox) -->
+                    <div class="panel" style="border: 1px solid rgba(0,255,204,0.1); background: rgba(0,0,0,0.2);">
+                        <div class="panel-header"
+                            style="font-size: 0.8rem; border-bottom: 1px solid rgba(0,255,204,0.1); background: rgba(0,255,204,0.03);">
+                            <i class="fa-solid fa-shield-virus"></i> THREATFOX (ABUSE.CH)
+                        </div>
+                        <div id="threatfox-content" style="padding: 20px; font-family: var(--font-mono);">
+                            <div style="text-align: center; opacity: 0.5; padding: 20px;">NO DATA</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extended Metadata (Specific to Type) -->
+                <div id="extended-results" style="margin-top: 20px; display: none;">
+                    <div class="panel" style="border: 1px solid rgba(0,255,204,0.1); background: rgba(0,0,0,0.1);">
+                        <div class="panel-header"
+                            style="font-size: 0.8rem; border-bottom: 1px solid rgba(0,255,204,0.1);">
+                            <i class="fa-solid fa-list-ul"></i> EXTENDED IOC METADATA
+                        </div>
+                        <div id="extended-content" style="padding: 20px; font-family: var(--font-mono);">
+                            <!-- Content injected via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error-container"
+                style="display: none; padding: 20px; background: rgba(255,68,68,0.1); border: 1px solid var(--danger-color); border-radius: 4px; color: var(--danger-color); margin-top: 20px; text-align: center;">
+                <i class="fa-solid fa-circle-xmark"></i> <span id="error-message"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .result-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 10px;
+    }
+
+    @media (max-width: 1000px) {
+        .result-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .ioc-match-card {
+        background: rgba(255, 68, 68, 0.05);
+        border: 1px solid rgba(255, 68, 68, 0.2);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+
+    .ioc-match-card h4 {
+        margin: 0 0 10px 0;
+        color: var(--danger-color);
+        font-size: 0.85rem;
+    }
+
+    .meta-item {
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        padding-bottom: 4px;
+    }
+
+    .meta-label {
+        color: var(--text-secondary);
+        font-weight: bold;
+    }
+
+    .meta-value {
+        color: var(--text-primary);
+        text-align: right;
+        max-width: 60%;
+        overflow-wrap: break-word;
+    }
+
+    .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 10px;
+    }
+
+    .ioc-tag {
+        background: rgba(0, 255, 204, 0.05);
+        color: var(--accent-color);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        border: 1px solid rgba(0, 255, 204, 0.2);
+    }
+
+    #ioc-indicator:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 15px rgba(0, 255, 204, 0.1);
+    }
+
+    .vt-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 25px;
+    }
+
+    .vt-stat-box {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 12px 5px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .vt-stat-val {
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: var(--accent-color);
+    }
+
+    .vt-stat-label {
+        font-size: 0.55rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        margin-top: 5px;
+        letter-spacing: 1px;
+    }
+
+    .vt-malicious {
+        color: var(--danger-color) !important;
+        background: rgba(255, 65, 54, 0.05);
+        border-color: rgba(255, 65, 54, 0.2);
+    }
+</style>
+
+<script>
+    let currentResults = null;
+
+    function setMode(mode) {
+        const singleBtn = document.getElementById('btn-mode-single');
+        const bulkBtn = document.getElementById('btn-mode-bulk');
+        const singleArea = document.getElementById('single-input-area');
+        const bulkArea = document.getElementById('bulk-input-area');
+
+        if (mode === 'single') {
+            singleBtn.classList.add('active');
+            bulkBtn.classList.remove('active');
+            singleArea.style.display = 'flex';
+            bulkArea.style.display = 'none';
+        } else {
+            bulkBtn.classList.add('active');
+            singleBtn.classList.remove('active');
+            bulkArea.style.display = 'flex';
+            singleArea.style.display = 'none';
+        }
+    }
+
+    function setExample(val) {
+        document.getElementById('ioc-indicator').value = val;
+    }
+
+    async function checkIOC(indicatorVal = null) {
+        const indicator = indicatorVal || document.getElementById('ioc-indicator').value.trim();
+        if (!indicator) return;
+
+        const btn = document.getElementById('search-btn');
+        const spinner = document.getElementById('loading-spinner');
+        const results = document.getElementById('results-container');
+        const cacheInd = document.getElementById('cache-indicator');
+
+        if (!indicatorVal) {
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            results.style.display = 'none';
+        }
+        cacheInd.innerHTML = '';
+
+        try {
+            const resp = await fetch('/darkweb/ioc-intelligence/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ indicator: indicator })
+            });
+            const data = await resp.json();
+            
+            if (data.error) {
+                if (!indicatorVal) alert(data.error);
+                return;
+            }
+
+            currentResults = data;
+            renderIOCResults(data);
+
+            if (!indicatorVal) {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                results.style.display = 'block';
+            }
+            return data;
+        } catch (e) {
+            console.error('Scan Error:', e);
+            if (!indicatorVal) {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                alert('Connection error. Please try again.');
+            }
+        }
+    }
+
+    async function bulkScan() {
+        const textarea = document.getElementById('ioc-bulk-indicator');
+        const indicators = textarea.value.split('\n').map(i => i.trim()).filter(i => i !== '').slice(0, 10);
+        if (indicators.length === 0) return alert('Enter IOCs first.');
+
+        const btn = document.getElementById('bulk-search-btn');
+        const progCont = document.getElementById('bulk-progress-container');
+        const progBar = document.getElementById('bulk-progress-bar');
+        const stats = document.getElementById('bulk-stats');
+        const spinner = document.getElementById('loading-spinner');
+        const resCont = document.getElementById('results-container');
+
+        btn.disabled = true;
+        progCont.style.display = 'block';
+        spinner.style.display = 'block';
+        resCont.style.display = 'none';
+        document.getElementById('loading-text').innerText = 'CYCLING THROUGH THREAT VECTORS...';
+
+        let done = 0;
+        for (const ioc of indicators) {
+            await checkIOC(ioc);
+            done++;
+            const pct = (done / indicators.length) * 100;
+            progBar.style.width = pct + '%';
+            stats.innerText = `${done}/${indicators.length} COMPLETE`;
+        }
+
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        resCont.style.display = 'block';
+        progCont.style.display = 'none';
+        document.getElementById('loading-text').innerText = 'SYNCHRONIZING WITH GLOBAL THREAT SWARM...';
+    }
+
+    function renderIOCResults(data) {
+        document.getElementById('res-indicator').innerText = data.indicator;
+        document.getElementById('res-type').innerText = data.type;
+        if (data.is_cached) {
+            document.getElementById('cache-indicator').innerHTML = `<span class="cache-badge"><i class="fa-solid fa-history"></i> CACHED (${data.cached_at})</span>`;
+        }
+
+        // VirusTotal
+        const vtCont = document.getElementById('vt-content');
+        if (data.results.virustotal?.last_analysis_stats) {
+            const s = data.results.virustotal.last_analysis_stats;
+            const malicious = s.malicious || 0;
+            const suspicious = s.suspicious || 0;
+            
+            let severity = "CLEAN";
+            let sevColor = "var(--accent-color)";
+            if (malicious > 5) {
+                severity = "CRITICAL RISK";
+                sevColor = "var(--danger-color)";
+            } else if (malicious > 0) {
+                severity = "HIGH RISK";
+                sevColor = "var(--danger-color)";
+            } else if (suspicious > 0) {
+                severity = "SUSPICIOUS";
+                sevColor = "var(--warning-color)";
+            }
+            
+            vtCont.innerHTML = `
+                <div style="text-align:center;margin-bottom:15px;">
+                    <div style="font-size:1.5rem;color:${sevColor};font-weight:bold;">${severity}</div>
+                    <div class="meta-label" style="font-size:0.6rem;">CONSENSUS SEVERITY</div>
+                </div>
+                <div class="vt-stats">
+                    <div class="vt-stat-box ${malicious > 0 ? 'vt-malicious' : ''}"><div class="vt-stat-val">${malicious}</div><div class="vt-stat-label">Malicious</div></div>
+                    <div class="vt-stat-box ${suspicious > 0 ? 'vt-malicious' : ''}"><div class="vt-stat-val" style="${suspicious > 0 ? 'color:var(--danger-color)' : ''}">${suspicious}</div><div class="vt-stat-label">Suspicious</div></div>
+                    <div class="vt-stat-box"><div class="vt-stat-val" style="color:var(--accent-color)">${s.harmless || 0}</div><div class="vt-stat-label">Harmless</div></div>
+                    <div class="vt-stat-box"><div class="vt-stat-val" style="color:var(--text-secondary)">${s.undetected || 0}</div><div class="vt-stat-label">Undetect</div></div>
+                </div>
+                <div class="meta-item"><span class="meta-label">ASN:</span><span class="meta-value">${data.results.virustotal.asn || 'N/A'}</span></div>
+                <div class="meta-item"><span class="meta-label">Network:</span><span class="meta-value">${data.results.virustotal.network || 'N/A'}</span></div>`;
+        } else {
+            vtCont.innerHTML = '<div style="text-align:center;opacity:0.5;padding:20px;">NO VT DATA</div>';
+        }
+
+        // ThreatFox
+        const tfCont = document.getElementById('threatfox-content');
+        if (data.results.threatfox && data.results.threatfox.length > 0) {
+            let html = '';
+            data.results.threatfox.forEach(m => {
+                html += `<div class="ioc-match-card">
+                    <div style="color:var(--danger-color);font-weight:bold;font-size:0.7rem;margin-bottom:5px;">THREAT DETECTED</div>
+                    <div class="meta-item"><span class="meta-label">Type:</span><span class="meta-value">${m.threat_type_desc}</span></div>
+                    <div class="meta-item"><span class="meta-label">Confidence:</span><span class="meta-value">${m.confidence}%</span></div>
+                </div>`;
+            });
+            tfCont.innerHTML = html;
+        } else {
+            tfCont.innerHTML = '<div style="text-align:center;opacity:0.5;padding:20px;">CLEAN / NO TF RECORDS</div>';
+        }
+
+        // AbuseIPDB
+        const aidbCont = document.getElementById('abuseipdb-content');
+        if (data.results.abuseipdb) {
+            const score = data.results.abuseipdb.abuseConfidenceScore || 0;
+            aidbCont.innerHTML = `
+                <div style="text-align:center;margin-bottom:15px;">
+                    <div style="font-size:2rem;color:${score > 50 ? 'var(--danger-color)' : 'var(--accent-color)'}">${score}%</div>
+                    <div class="meta-label">REPUTATION SCORE</div>
+                </div>
+                <div class="meta-item"><span class="meta-label">ISP:</span><span class="meta-value">${data.results.abuseipdb.isp || 'N/A'}</span></div>
+                <div class="meta-item"><span class="meta-label">Usage:</span><span class="meta-value">${data.results.abuseipdb.usageType || 'N/A'}</span></div>`;
+        } else {
+            aidbCont.innerHTML = '<div style="text-align:center;opacity:0.5;padding:20px;">NO DATA</div>';
+        }
+
+        // URLScan
+        const usCont = document.getElementById('urlscan-content');
+        if (data.results.urlscan) {
+            const uuid = data.results.urlscan._id || (data.results.urlscan.task ? data.results.urlscan.task.uuid : data.results.urlscan.uuid);
+            usCont.innerHTML = `
+                <div style="text-align:center;margin-bottom:10px;"><i class="fa-solid fa-search" style="color:var(--accent-color)"></i> SCAN FOUND</div>
+                <div class="meta-item"><span class="meta-label">UUID:</span><span class="meta-value" style="font-size:0.6rem;">${uuid}</span></div>
+                <div style="margin-top:10px;text-align:center;"><a href="https://urlscan.io/result/${uuid}/" target="_blank" style="color:var(--accent-color);font-size:0.7rem;text-decoration:none;"><i class="fa-solid fa-external-link"></i> VIEW URLSCAN REPORT</a></div>`;
+        } else {
+            usCont.innerHTML = '<div style="text-align:center;opacity:0.5;padding:20px;">NOT ANALYZED</div>';
+        }
+
+        // CheckPhish
+        const cpCont = document.getElementById('checkphish-content');
+        if (data.results.checkphish) {
+            const cp = data.results.checkphish;
+            cpCont.innerHTML = `
+                <div style="text-align:center;margin-bottom:10px;">
+                    <div style="font-size:1.5rem;color:${cp.disposition === 'clean' ? 'var(--accent-color)' : 'var(--danger-color)'};text-transform:uppercase;">${cp.disposition || 'DONE'}</div>
+                </div>
+                <div class="meta-item"><span class="meta-label">Brand:</span><span class="meta-value">${cp.brand || 'N/A'}</span></div>
+                ${cp.insights ? `<div style="margin-top:10px;text-align:center;"><a href="${cp.insights}" target="_blank" style="color:var(--accent-color);font-size:0.7rem;"><i class="fa-solid fa-shield"></i> VIEW INSIGHTS</a></div>` : ''}`;
+        } else {
+            cpCont.innerHTML = '<div style="text-align:center;opacity:0.5;padding:20px;">NO DATA</div>';
+        }
+
+        // Summary Status
+        const summaryMsg = document.getElementById('res-status-summary');
+        const isMalicious = (data.results.virustotal?.last_analysis_stats?.malicious > 0) || (data.results.threatfox?.length > 0) || (data.results.abuseipdb?.abuseConfidenceScore > 50);
+        if (isMalicious) {
+            summaryMsg.innerText = 'IOC STATUS: MALICIOUS ACTIVITY IDENTIFIED';
+            summaryMsg.style.color = 'var(--danger-color)';
+        } else {
+            summaryMsg.innerText = 'IOC STATUS: NO IMMEDIATE THREAT IDENTIFIED';
+            summaryMsg.style.color = 'var(--accent-color)';
+        }
+    }
+
+    function exportReport() {
+        if (!currentResults) return alert('No results.');
+        const blob = new Blob([JSON.stringify(currentResults, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `IOC_Report_${currentResults.indicator}.json`;
+        a.click();
+    }
+
+    document.getElementById('ioc-indicator').addEventListener('keypress', e => { if (e.key === 'Enter') checkIOC(); });
+</script>
+{% endblock %}

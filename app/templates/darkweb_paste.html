@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="scrollable-content">
+    <div class="inventory-container">
+        <div class="panel-header" style="margin-bottom: 25px;">
+            <h2 style="font-family: var(--font-mono); color: var(--accent-color); margin: 0;">
+                <i class="fa-solid fa-paste"></i> PASTE MONITOR
+            </h2>
+            <div
+                style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; font-family: var(--font-mono);">
+                MONITOR PASTE SITES (PASTEBIN, GHOSTBIN, ETC.) FOR KEYWORDS (VIA INTELX)
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <p style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 20px; line-height: 1.5;">
+                Search for your organization name, domain, or specific keywords to see if they've appeared on various
+                paste sites and data dumps.
+            </p>
+
+            <div style="display: flex; gap: 15px; margin-bottom: 30px;">
+                <input type="text" id="paste-query" placeholder="e.g., company.com or project_internal"
+                    style="flex: 1; padding: 12px 15px; background: #11111a; border: 1px solid rgba(0,255,204,0.2); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.9rem; border-radius: 4px; outline: none;">
+                <button onclick="searchPastes()" class="btn btn-add" id="search-btn" style="width: 150px;">
+                    <i class="fa-solid fa-magnifying-glass"></i> SEARCH
+                </button>
+            </div>
+
+            <div id="results-container" style="display: none;">
+                <h4 id="results-title"
+                    style="margin-bottom: 15px; color: var(--accent-color); font-family: var(--font-mono); text-transform: uppercase;">
+                </h4>
+
+                <div id="paste-list" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Results will be injected here -->
+                </div>
+            </div>
+
+            <div id="no-results"
+                style="display: none; padding: 40px; text-align: center; background: rgba(0,0,0,0.2); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+                <i class="fa-solid fa-magnifying-glass"
+                    style="font-size: 3rem; color: var(--accent-color); margin-bottom: 15px; opacity: 0.3;"></i>
+                <h3 style="color: var(--text-primary); margin-bottom: 10px;">NO MATCHES FOUND</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">No pastes matching this query were found in
+                    the recent archives.</p>
+            </div>
+
+            <div id="error-container"
+                style="display: none; padding: 20px; background: rgba(255,68,68,0.1); border: 1px solid var(--danger-color); border-radius: 4px; color: var(--danger-color); margin-top: 20px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> <span id="error-message"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .paste-card {
+        background: rgba(17, 17, 26, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .paste-card:hover {
+        background: rgba(26, 26, 46, 0.8);
+        border-color: rgba(0, 255, 204, 0.3);
+    }
+
+    .paste-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .paste-source {
+        font-family: var(--font-mono);
+        color: var(--accent-color);
+        font-size: 0.85rem;
+        background: rgba(0, 255, 204, 0.1);
+        padding: 3px 8px;
+        border-radius: 3px;
+    }
+
+    .paste-date {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+    }
+
+    .paste-name {
+        font-weight: bold;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+
+    .paste-actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .btn-view {
+        font-size: 0.7rem;
+        padding: 5px 10px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-view:hover {
+        background: var(--accent-color);
+        color: #000;
+        border-color: var(--accent-color);
+    }
+
+    .spinning {
+        animation: fa-spin 1s linear infinite;
+    }
+</style>
+
+<script>
+    function searchPastes() {
+        const query = document.getElementById('paste-query').value.trim();
+        const btn = document.getElementById('search-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const pasteList = document.getElementById('paste-list');
+        const noResults = document.getElementById('no-results');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+
+        if (!query) return;
+
+        // UI Reset
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner spinning"></i> ANALYZING...';
+        resultsContainer.style.display = 'none';
+        noResults.style.display = 'none';
+        errorContainer.style.display = 'none';
+        pasteList.innerHTML = '';
+
+        fetch('/darkweb/paste-monitor/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> SEARCH';
+
+                if (data.error) {
+                    errorMessage.innerText = data.error;
+                    errorContainer.style.display = 'block';
+                    return;
+                }
+
+                if (data.results && data.results.length > 0) {
+                    document.getElementById('results-title').innerText = `IDENTIFIED ENTRIES FOR "${data.query}" (${data.results.length})`;
+
+                    data.results.forEach(r => {
+                        const card = document.createElement('div');
+                        card.className = 'paste-card';
+
+                        const dateStr = r.date || 'Unknown Date';
+                        const viewUrl = `https://intelx.io/?s=${r.systemid || ''}`;
+
+                        card.innerHTML = `
+                        <div class="paste-header">
+                            <span class="paste-source">${r.source}</span>
+                            <span class="paste-date">${dateStr}</span>
+                        </div>
+                        <div class="paste-name">${r.name}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); font-family: var(--font-mono);">
+                            SIZE: ${(r.size / 1024).toFixed(2)} KB | TYPE: ${r.media_type || 'Text'}
+                        </div>
+                        <div class="paste-actions">
+                            <a href="${viewUrl}" target="_blank" class="btn-view">
+                                <i class="fa-solid fa-eye"></i> VIEW ON INTELX
+                            </a>
+                        </div>
+                    `;
+                        pasteList.appendChild(card);
+                    });
+
+                    resultsContainer.style.display = 'block';
+                } else {
+                    noResults.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> SEARCH';
+                errorMessage.innerText = 'Connection error. Please check your network and try again.';
+                errorContainer.style.display = 'block';
+            });
+    }
+
+    // Press enter to search
+    document.getElementById('paste-query').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            searchPastes();
+        }
+    });
+</script>
+{% endblock %}

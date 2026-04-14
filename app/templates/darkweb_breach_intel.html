@@ -1,0 +1,510 @@
+{% extends 'base.html' %}
+{% block title %}Cybermon | Breach Intel{% endblock %}
+
+{% block content %}
+<div style="display:flex; flex-direction:column; height:100%; flex:1; padding:0 30px 30px 30px; overflow:hidden;">
+
+    <!-- Header -->
+    <div style="margin-bottom:22px; flex-shrink:0;">
+        <h2 style="color:var(--accent-color); font-family:var(--font-mono); letter-spacing:2px; text-transform:uppercase; margin:0 0 4px 0;">
+            <i class="fa-solid fa-database"></i> BREACH INTEL
+        </h2>
+        <p style="color:var(--text-secondary); font-size:0.8rem; letter-spacing:1px; margin:0;">
+            Dark Web Data Market Monitor — HIBP Breach Database · Breach Lookup · Ransomware Tracker
+        </p>
+    </div>
+
+    <!-- Tab Bar -->
+    <div style="display:flex; gap:2px; flex-shrink:0; border-bottom:1px solid rgba(0,255,204,0.1); margin-bottom:20px;">
+        <button class="bi-tab active" id="tab-market"     onclick="switchTab('market')">
+            <i class="fa-solid fa-shop"></i> BREACH MARKET
+        </button>
+        <button class="bi-tab"        id="tab-lookup"     onclick="switchTab('lookup')">
+            <i class="fa-solid fa-magnifying-glass"></i> BREACH LOOKUP
+        </button>
+        <button class="bi-tab"        id="tab-indonesia" onclick="switchTab('indonesia')">
+            <i class="fa-solid fa-flag" style="color:#ce1126;"></i> INDONESIA BREACH
+        </button>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         TAB 1: BREACH MARKET (HIBP database)
+    ═══════════════════════════════════════════════════════ -->
+    <div id="panel-market" class="bi-panel" style="display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
+
+        <!-- Toolbar -->
+        <div style="display:flex; gap:10px; flex-shrink:0; margin-bottom:14px; align-items:center; flex-wrap:wrap;">
+            <div style="position:relative; flex:1; min-width:200px;">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-secondary); font-size:0.7rem;"></i>
+                <input id="mkt-search" type="text" placeholder="Filter by name, domain, or data type..."
+                    style="width:100%; padding:9px 12px 9px 34px; background:rgba(0,0,0,0.4); border:1px solid rgba(0,255,204,0.15); border-radius:7px; color:#fff; font-family:var(--font-mono); font-size:0.78rem; outline:none; box-sizing:border-box; transition:0.2s;"
+                    oninput="filterMarket()">
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button class="sort-btn active" id="sort-recent" onclick="setSort('recent', this)">
+                    <i class="fa-solid fa-clock"></i> RECENTLY ADDED
+                </button>
+                <button class="sort-btn" id="sort-risk" onclick="setSort('risk', this)">
+                    <i class="fa-solid fa-fire"></i> HIGHEST RISK
+                </button>
+                <button class="sort-btn" id="sort-size" onclick="setSort('size', this)">
+                    <i class="fa-solid fa-arrow-down-wide-short"></i> LARGEST
+                </button>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                <span style="font-family:var(--font-mono); font-size:0.58rem; color:var(--text-secondary); letter-spacing:1px; white-space:nowrap;">SHOW</span>
+                <select id="per-page-sel" onchange="setPerPage(this.value)"
+                    style="background:rgba(0,0,0,0.4); border:1px solid rgba(0,255,204,0.2); border-radius:6px; color:var(--accent-color); font-family:var(--font-mono); font-size:0.65rem; padding:6px 10px; cursor:pointer; outline:none;">
+                    <option value="10">10 / PAGE</option>
+                    <option value="25" selected>25 / PAGE</option>
+                    <option value="50">50 / PAGE</option>
+                    <option value="100">100 / PAGE</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Stats bar -->
+        <div id="mkt-stats" style="display:flex; gap:20px; flex-shrink:0; margin-bottom:12px; font-family:var(--font-mono); font-size:0.62rem; color:var(--text-secondary); align-items:center;"></div>
+
+        <!-- Table -->
+        <div style="flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--accent-color) transparent;">
+            <div id="mkt-table">
+                <div class="bi-empty"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.8rem; display:block; margin-bottom:14px;"></i>Loading breach database...</div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div id="mkt-pager" style="display:flex; gap:8px; justify-content:center; flex-shrink:0; margin-top:14px; font-family:var(--font-mono); font-size:0.7rem;"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         TAB 2: BREACH LOOKUP
+    ═══════════════════════════════════════════════════════ -->
+    <div id="panel-lookup" class="bi-panel" style="display:none; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
+        <div style="display:flex; gap:10px; flex-shrink:0; margin-bottom:16px;">
+            <div style="position:relative; flex:1;">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-secondary); font-size:0.75rem;"></i>
+                <input type="text" id="lookup-q" placeholder="Email, domain, or username..."
+                    style="width:100%; padding:11px 14px 11px 38px; background:rgba(0,0,0,0.4); border:1px solid rgba(0,255,204,0.2); border-radius:8px; color:#fff; font-family:var(--font-mono); font-size:0.82rem; outline:none; transition:0.2s; box-sizing:border-box;"
+                    onkeydown="if(event.key==='Enter') runLookup()">
+            </div>
+            <button id="lookup-btn" onclick="runLookup()" class="btn"
+                style="padding:11px 22px; border:1px solid var(--accent-color); background:rgba(0,255,204,0.05); color:var(--accent-color); font-family:var(--font-mono); font-size:0.72rem; letter-spacing:1px; border-radius:8px; font-weight:700; white-space:nowrap;">
+                <i class="fa-solid fa-satellite-dish"></i> SCAN
+            </button>
+        </div>
+        <div style="display:flex; gap:16px; font-family:var(--font-mono); font-size:0.62rem; color:var(--text-secondary); flex-shrink:0; margin-bottom:14px;">
+            <span><i class="fa-solid fa-circle" style="color:#ff4d4d; font-size:0.45rem;"></i> BreachDirectory.org</span>
+            <span><i class="fa-solid fa-circle" style="color:#ffaa00; font-size:0.45rem;"></i> LeakCheck.net</span>
+        </div>
+        <div id="lookup-results" style="flex:1; overflow-y:auto; scrollbar-width:thin;">
+            <div class="bi-empty"><i class="fa-solid fa-binoculars" style="font-size:2.2rem; display:block; margin-bottom:14px; opacity:0.4;"></i>Enter an email, domain, or username to scan breach databases</div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         TAB 3: INDONESIA BREACH INTELLIGENCE
+    ═══════════════════════════════════════════════════════ -->
+    <div id="panel-indonesia" class="bi-panel" style="display:none; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
+
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink:0; margin-bottom:14px;">
+            <div>
+                <div class="bi-section-label">
+                    <span style="color:#ce1126;">&#127470;&#127465;</span> INDONESIA DATA BREACH INTELLIGENCE
+                </div>
+                <div style="font-family:var(--font-mono); font-size:0.6rem; color:var(--text-secondary); margin-top:3px;">
+                    Verified HIBP records + Google News coverage — khusus kejadian di Indonesia
+                </div>
+            </div>
+            <button onclick="loadIndonesia()" class="btn"
+                style="font-size:0.62rem; border:1px solid rgba(206,17,38,0.4); color:#ce1126; padding:7px 14px; border-radius:6px;">
+                <i class="fa-solid fa-rotate"></i> REFRESH
+            </button>
+        </div>
+
+        <!-- 3-column layout: Incidents | HIBP | News -->
+        <div style="display:flex; gap:14px; flex:1; min-height:0; overflow:hidden;">
+
+            <!-- Col 1: INSIDEN NASIONAL (vertical scroll) -->
+            <div style="width:360px; flex-shrink:0; display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+                <div class="bi-section-label" style="margin-bottom:8px; flex-shrink:0;">
+                    <i class="fa-solid fa-fire" style="color:#ff4d4d;"></i> INSIDEN NASIONAL
+                    <div style="font-size:0.52rem; opacity:0.45; margin-top:3px; letter-spacing:0.5px;">Sumber: BSSN · CyberThreat.id</div>
+                </div>
+                <div id="id-incidents" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:7px; scrollbar-width:thin; scrollbar-color:rgba(206,17,38,0.4) transparent; padding-right:4px;"></div>
+            </div>
+
+            <!-- Col 2: HIBP Verified Indonesian breaches -->
+            <div style="width:380px; flex-shrink:0; display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+                <div class="bi-section-label" style="margin-bottom:8px; flex-shrink:0;">
+                    <i class="fa-solid fa-shield-check" style="color:#00ffcc;"></i> VERIFIED BREACHES (HIBP)
+                    <div style="font-size:0.52rem; opacity:0.45; margin-top:3px; letter-spacing:0.5px;">haveibeenpwned.com · Public API</div>
+                </div>
+                <div id="id-hibp" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:7px; scrollbar-width:thin; scrollbar-color:#ce1126 transparent; padding-right:4px;"></div>
+            </div>
+
+            <!-- Col 3: Google News -->
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+                <div class="bi-section-label" style="margin-bottom:8px; flex-shrink:0;">
+                    <i class="fa-solid fa-newspaper" style="color:#ffaa00;"></i> BERITA TERKINI — GOOGLE NEWS
+                    <div style="font-size:0.52rem; opacity:0.45; margin-top:3px; letter-spacing:0.5px;">Live RSS · Update otomatis</div>
+                </div>
+                <div id="id-news" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:7px; scrollbar-width:thin; scrollbar-color:#ffaa00 transparent; padding-right:4px;"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ─── Styles ─────────────────────────────────────────────── -->
+<style>
+.bi-tab { background:none; border:none; border-bottom:2px solid transparent; color:var(--text-secondary); font-family:var(--font-mono); font-size:0.7rem; letter-spacing:1px; padding:9px 18px; cursor:pointer; transition:all 0.2s; }
+.bi-tab:hover { color:var(--accent-color); }
+.bi-tab.active { color:var(--accent-color); border-bottom-color:var(--accent-color); }
+.bi-section-label { font-family:var(--font-mono); font-size:0.6rem; color:var(--text-secondary); letter-spacing:2px; text-transform:uppercase; }
+.bi-empty { padding:70px 20px; text-align:center; opacity:0.35; font-family:var(--font-mono); font-size:0.78rem; color:var(--text-secondary); }
+
+.sort-btn { background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08); border-radius:6px; color:var(--text-secondary); font-family:var(--font-mono); font-size:0.62rem; letter-spacing:1px; padding:7px 12px; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+.sort-btn:hover  { border-color:rgba(0,255,204,0.3); color:var(--accent-color); }
+.sort-btn.active { border-color:var(--accent-color); color:var(--accent-color); background:rgba(0,255,204,0.05); }
+
+.breach-row { display:grid; grid-template-columns:32px 200px 130px 1fr 110px 80px; gap:12px; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); font-family:var(--font-mono); font-size:0.72rem; transition:background 0.15s; cursor:default; }
+.breach-row:hover { background:rgba(0,255,204,0.02); }
+.breach-head { font-size:0.58rem; letter-spacing:1px; color:var(--accent-color); border-bottom:1px solid rgba(0,255,204,0.15) !important; background:rgba(0,10,10,0.5); position:sticky; top:0; z-index:2; }
+
+.risk-badge { display:inline-block; font-size:0.55rem; font-family:var(--font-mono); font-weight:700; letter-spacing:1px; padding:2px 7px; border-radius:3px; }
+.risk-CRITICAL { background:rgba(255,0,0,0.18);      color:#ff3333; border:1px solid rgba(255,0,0,0.3); }
+.risk-HIGH     { background:rgba(255,100,0,0.15);     color:#ff6600; border:1px solid rgba(255,100,0,0.3); }
+.risk-MEDIUM   { background:rgba(255,200,0,0.13);     color:#ffcc00; border:1px solid rgba(255,200,0,0.3); }
+.risk-LOW      { background:rgba(0,255,204,0.08);     color:var(--accent-color); border:1px solid rgba(0,255,204,0.2); }
+
+.dc-chip { display:inline-block; font-size:0.52rem; padding:2px 6px; border-radius:3px; margin:1px 2px; background:rgba(255,255,255,0.06); color:var(--text-secondary); border:1px solid rgba(255,255,255,0.08); }
+.dc-chip.danger { background:rgba(255,68,68,0.12); color:#ff6666; border-color:rgba(255,68,68,0.25); }
+
+.page-btn { background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:5px; color:var(--text-secondary); font-family:var(--font-mono); font-size:0.65rem; padding:6px 12px; cursor:pointer; transition:all 0.2s; }
+.page-btn:hover  { border-color:var(--accent-color); color:var(--accent-color); }
+.page-btn.active { border-color:var(--accent-color); color:var(--accent-color); background:rgba(0,255,204,0.06); }
+
+.rw-card { padding:11px 16px; border-left:3px solid rgba(255,51,133,0.3); border-radius:0 8px 8px 0; background:rgba(255,51,133,0.03); flex-shrink:0; transition:border-left-color 0.2s; }
+.rw-card:hover { border-left-color:#ff3385; }
+
+.lookup-row { display:grid; grid-template-columns:180px 1fr 90px; align-items:center; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.04); font-family:var(--font-mono); font-size:0.72rem; transition:background 0.15s; }
+.lookup-row:hover { background:rgba(0,255,204,0.02); }
+
+#mkt-search:focus, #lookup-q:focus { border-color:var(--accent-color); box-shadow:0 0 10px rgba(0,255,204,0.08); }
+</style>
+
+<!-- ─── Scripts ────────────────────────────────────────────── -->
+<script>
+let currentSort    = 'recent';
+let currentPage    = 1;
+let currentPerPage = 25;
+
+// ── Tab switching ────────────────────────────────────────────
+function switchTab(tab) {
+    document.querySelectorAll('.bi-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.bi-panel').forEach(p => p.style.display = 'none');
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('panel-' + tab).style.display = 'flex';
+    document.getElementById('panel-' + tab).style.flexDirection = 'column';
+    if (tab === 'indonesia' && !document.getElementById('panel-indonesia').dataset.loaded) {
+        loadIndonesia();
+        document.getElementById('panel-indonesia').dataset.loaded = '1';
+    }
+}
+
+// ── Breach Market ────────────────────────────────────────────
+function setPerPage(val) {
+    currentPerPage = parseInt(val);
+    currentPage    = 1;
+    loadMarket();
+}
+
+function setSort(sort, btn) {
+    currentSort = sort;
+    currentPage = 1;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadMarket();
+}
+
+function filterMarket() {
+    currentPage = 1;
+    loadMarket();
+}
+
+function loadMarket() {
+    const q     = document.getElementById('mkt-search').value.trim();
+    const table = document.getElementById('mkt-table');
+    const stats = document.getElementById('mkt-stats');
+    table.innerHTML = `<div class="bi-empty"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.4rem; display:block; margin-bottom:10px;"></i>Scanning breach database...</div>`;
+
+    const params = new URLSearchParams({ sort: currentSort, page: currentPage, per_page: currentPerPage });
+    if (q) params.set('q', q);
+
+    fetch('/darkweb/breach-intel/market?' + params)
+        .then(r => r.json())
+        .then(data => {
+            if (data.status !== 'success') { table.innerHTML = emptyHtml(data.error || 'Error'); return; }
+
+            stats.innerHTML = `
+                <span><i class="fa-solid fa-database" style="color:var(--accent-color);"></i> <strong style="color:var(--accent-color);">${data.total}</strong> BREACHES IN DATABASE</span>
+                <span style="opacity:0.5;">|</span>
+                <span>PAGE ${data.page} OF ${Math.ceil(data.total/data.per_page)}</span>
+                <span style="opacity:0.5;">|</span>
+                <span>SHOWING <strong style="color:var(--accent-color);">${data.per_page}</strong> PER PAGE</span>
+                <span style="opacity:0.5;">|</span>
+                <span>SOURCE: HAVE I BEEN PWNED — PUBLIC API</span>
+            `;
+
+            if (!data.results.length) {
+                table.innerHTML = `<div class="bi-empty"><i class="fa-solid fa-shield-check" style="font-size:2rem; display:block; margin-bottom:12px; color:var(--accent-color);"></i>No breaches match this filter</div>`;
+                buildPager(data);
+                return;
+            }
+
+            table.innerHTML = `
+                <div style="background:rgba(10,14,14,0.8); border:1px solid rgba(255,255,255,0.05); border-radius:10px; overflow:hidden;">
+                    <div class="breach-row breach-head">
+                        <div></div>
+                        <div>BREACH</div>
+                        <div>DATE</div>
+                        <div>DATA EXPOSED</div>
+                        <div style="text-align:right">VICTIMS</div>
+                        <div style="text-align:center">RISK</div>
+                    </div>
+                    ${data.results.map(b => `
+                        <div class="breach-row" title="Risk Score: ${b.risk_score}">
+                            <div style="text-align:center;">
+                                ${b.logo ? `<img src="${escHtml(b.logo)}" style="width:22px; height:22px; object-fit:contain; border-radius:3px;" onerror="this.style.display='none'">` : '<i class="fa-solid fa-circle-exclamation" style="color:rgba(255,255,255,0.2); font-size:0.9rem;"></i>'}
+                            </div>
+                            <div>
+                                <div style="font-weight:700; color:var(--text-primary); font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(b.title)}</div>
+                                <div style="font-size:0.58rem; opacity:0.5; margin-top:1px;">${escHtml(b.domain) || '—'}${b.is_stealer ? ' <span style="color:#b44dff;">STEALER</span>' : ''}${b.is_sensitive ? ' <span style="color:#ff6600;">SENSITIVE</span>' : ''}</div>
+                            </div>
+                            <div style="color:var(--text-secondary); font-size:0.68rem;">
+                                <div>${b.breach_date || '—'}</div>
+                                <div style="font-size:0.55rem; opacity:0.5; margin-top:1px;">Added ${b.added_date ? b.added_date.substring(0,10) : '—'}</div>
+                            </div>
+                            <div style="display:flex; flex-wrap:wrap; gap:2px; align-items:flex-start;">
+                                ${b.data_classes.map(dc => `<span class="dc-chip ${isDangerous(dc) ? 'danger' : ''}">${escHtml(dc)}</span>`).join('')}
+                            </div>
+                            <div style="text-align:right; font-weight:700; font-size:0.72rem; color:${b.pwn_count > 10000000 ? '#ff4d4d' : b.pwn_count > 1000000 ? '#ffaa00' : 'var(--text-primary)'};">
+                                ${fmtNum(b.pwn_count)}
+                            </div>
+                            <div style="text-align:center;">
+                                <span class="risk-badge risk-${b.risk_label}">${b.risk_label}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+
+            buildPager(data);
+        })
+        .catch(e => { table.innerHTML = emptyHtml('Error: ' + e.message); });
+}
+
+function buildPager(data) {
+    const pager = document.getElementById('mkt-pager');
+    const total = Math.ceil(data.total / data.per_page);
+    if (total <= 1) { pager.innerHTML = ''; return; }
+
+    let html = '';
+    if (currentPage > 1) html += `<button class="page-btn" onclick="goPage(${currentPage-1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+
+    const start = Math.max(1, currentPage - 2);
+    const end   = Math.min(total, currentPage + 2);
+    for (let p = start; p <= end; p++) {
+        html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+    }
+    if (currentPage < total) html += `<button class="page-btn" onclick="goPage(${currentPage+1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+    pager.innerHTML = html;
+}
+
+function goPage(p) {
+    currentPage = p;
+    loadMarket();
+    document.getElementById('panel-market').scrollTop = 0;
+}
+
+function isDangerous(dc) {
+    return ['Passwords','Credit cards','Bank account numbers','Social security numbers','Government issued IDs','Health records','Auth tokens'].includes(dc);
+}
+function fmtNum(n) {
+    if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
+    if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+    if (n >= 1e3) return (n/1e3).toFixed(0)+'K';
+    return n;
+}
+
+// ── Breach Lookup ─────────────────────────────────────────────
+function runLookup() {
+    const q   = document.getElementById('lookup-q').value.trim();
+    const btn = document.getElementById('lookup-btn');
+    const box = document.getElementById('lookup-results');
+    if (!q) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SCANNING';
+    box.innerHTML = `<div class="bi-empty"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem; display:block; margin-bottom:12px;"></i>Scanning breach databases for "${escHtml(q)}"...</div>`;
+
+    fetch('/darkweb/breach-intel/lookup', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:q})
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> SCAN';
+        if (!data.results?.length) {
+            box.innerHTML = `<div style="text-align:center; padding:70px 20px; font-family:var(--font-mono);">
+                <i class="fa-solid fa-shield-check" style="font-size:2.2rem; color:var(--accent-color); display:block; margin-bottom:14px;"></i>
+                <div style="color:var(--accent-color); font-size:0.82rem; margin-bottom:6px;">NO BREACHES DETECTED</div>
+                <div style="color:var(--text-secondary); font-size:0.68rem; opacity:0.6;">"${escHtml(q)}" not found in monitored databases</div>
+            </div>`; return;
+        }
+        box.innerHTML = `
+            <div style="padding:10px 16px; background:rgba(255,68,68,0.05); border:1px solid rgba(255,68,68,0.2); border-radius:8px; margin-bottom:14px; font-family:var(--font-mono); font-size:0.72rem; color:#ff6666;">
+                <i class="fa-solid fa-triangle-exclamation"></i> <strong>${data.count} RECORD(S) FOUND</strong> for "${escHtml(q)}"
+            </div>
+            <div style="background:rgba(10,14,14,0.6); border:1px solid rgba(255,255,255,0.05); border-radius:8px; overflow:hidden;">
+                <div class="lookup-row" style="border-bottom:1px solid rgba(0,255,204,0.12); color:var(--accent-color); font-size:0.6rem; letter-spacing:1px;">
+                    <div>SOURCE</div><div>RECORD</div><div style="text-align:center;">STATUS</div>
+                </div>
+                ${data.results.map(r => `
+                    <div class="lookup-row">
+                        <div style="color:var(--text-secondary); font-size:0.65rem;">${escHtml(r.source)}</div>
+                        <div style="color:#fff; font-family:monospace; font-size:0.7rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(r.record)}</div>
+                        <div style="text-align:center;"><span class="risk-badge" style="${statusStyle(r.type)}">${r.type}</span></div>
+                    </div>`).join('')}
+            </div>`;
+    })
+    .catch(e => { btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-satellite-dish"></i> SCAN'; box.innerHTML = emptyHtml('Error: '+e.message); });
+}
+
+function statusStyle(type) {
+    if (type === 'EXPOSED') return 'background:rgba(255,68,68,0.15);color:#ff4d4d;border:1px solid rgba(255,68,68,0.3)';
+    if (type === 'BREACH')  return 'background:rgba(255,170,0,0.15);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)';
+    return 'background:rgba(0,255,204,0.08);color:var(--accent-color);border:1px solid rgba(0,255,204,0.2)';
+}
+
+// ── Indonesia Breach Intelligence ────────────────────────────
+function loadIndonesia() {
+    const hibpEl = document.getElementById('id-hibp');
+    const newsEl = document.getElementById('id-news');
+    hibpEl.innerHTML = `<div style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-secondary); padding:20px; text-align:center;"><i class="fa-solid fa-spinner fa-spin" style="display:block; margin-bottom:8px;"></i>Fetching...</div>`;
+    newsEl.innerHTML = hibpEl.innerHTML;
+
+    fetch('/darkweb/breach-intel/indonesia')
+        .then(r => r.json())
+        .then(data => {
+            // Incidents timeline strip
+            const incEl = document.getElementById('id-incidents');
+            if (data.incidents?.length) {
+                const typeColor = {
+                    'RANSOMWARE': '#ff4d4d', 'BREACH': '#ffaa00',
+                    'DEFACEMENT': '#b44dff', 'APT': '#ff3385'
+                };
+                incEl.innerHTML = data.incidents.map(inc => `
+                    <div style="background:rgba(10,14,14,0.7); border:1px solid rgba(206,17,38,0.18);
+                        border-left:3px solid ${typeColor[inc.attack_type] || '#ff4d4d'};
+                        border-radius:0 7px 7px 0; padding:10px 11px; flex-shrink:0; transition:border-color 0.2s;"
+                        onmouseover="this.style.borderColor='rgba(206,17,38,0.5)'"
+                        onmouseout="this.style.borderColor='rgba(206,17,38,0.18)'">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <span class="risk-badge risk-${inc.risk}">${inc.risk}</span>
+                            <span style="font-family:var(--font-mono); font-size:0.55rem; color:var(--text-secondary);">${inc.date}</span>
+                        </div>
+                        <div style="font-weight:700; font-family:var(--font-mono); font-size:0.7rem; color:var(--text-primary); margin-bottom:4px; line-height:1.3;">${escHtml(inc.title)}</div>
+                        <div style="font-size:0.58rem; color:var(--text-secondary); margin-bottom:5px; opacity:0.65; line-height:1.4;">${escHtml(inc.impact)}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <span style="font-size:0.56rem; color:${typeColor[inc.attack_type] || '#ff4d4d'}; font-family:var(--font-mono); font-weight:700;">
+                                <i class="fa-solid fa-${inc.attack_type === 'RANSOMWARE' ? 'lock' : 'database'}"></i> ${inc.attack_type}
+                            </span>
+                            <span style="font-family:var(--font-mono); font-size:0.52rem; color:var(--text-secondary); opacity:0.55;">${escHtml(inc.org_type)}</span>
+                        </div>
+                        <div style="font-family:var(--font-mono); font-size:0.58rem; color:var(--text-secondary); margin-bottom:3px;">
+                            <i class="fa-solid fa-user-secret" style="font-size:0.48rem; opacity:0.7;"></i> ${escHtml(inc.attacker)}
+                        </div>
+                        <div style="font-family:var(--font-mono); font-size:0.58rem; color:#ffaa00; font-weight:700; margin-bottom:3px;">
+                            <i class="fa-solid fa-users" style="font-size:0.48rem;"></i> ${escHtml(inc.records)}
+                        </div>
+                        ${inc.ransom ? `<div style="font-family:var(--font-mono); font-size:0.56rem; color:#ff4d4d; margin-bottom:4px;">
+                            <i class="fa-solid fa-money-bill" style="font-size:0.45rem;"></i> ${escHtml(inc.ransom)}
+                        </div>` : ''}
+                        <div style="display:flex; flex-wrap:wrap; gap:2px; margin-bottom:4px;">
+                            ${inc.tags.slice(0,4).map(t => `<span style="font-size:0.48rem; padding:1px 4px; border-radius:2px; background:rgba(255,255,255,0.05); color:var(--text-secondary); border:1px solid rgba(255,255,255,0.07);">${escHtml(t)}</span>`).join('')}
+                        </div>
+                        ${inc.ref ? `<a href="${inc.ref}" target="_blank" rel="noopener"
+                            style="font-family:var(--font-mono); font-size:0.52rem; color:var(--accent-color); text-decoration:none; display:inline-flex; align-items:center; gap:3px; margin-top:1px;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Sumber
+                        </a>` : ''}
+                    </div>
+                `).join('');
+            }
+
+            // HIBP panel
+            if (!data.hibp?.length) {
+                hibpEl.innerHTML = emptyHtml('No Indonesian breaches in HIBP');
+            } else {
+                hibpEl.innerHTML = data.hibp.map(b => `
+                    <div style="background:rgba(10,14,14,0.6); border:1px solid rgba(206,17,38,0.15); border-radius:8px; padding:11px 13px; flex-shrink:0; transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(206,17,38,0.4)'" onmouseout="this.style.borderColor='rgba(206,17,38,0.15)'">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span class="risk-badge risk-${b.risk_label}">${b.risk_label}</span>
+                            <span style="font-family:var(--font-mono); font-size:0.58rem; color:var(--text-secondary);">${b.breach_date || '?'}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            ${b.logo ? `<img src="${escHtml(b.logo)}" style="width:20px; height:20px; object-fit:contain; border-radius:3px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                            <div style="font-weight:700; font-family:var(--font-mono); font-size:0.78rem; color:var(--text-primary);">${escHtml(b.title)}</div>
+                        </div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); opacity:0.6; margin-bottom:6px;">${escHtml(b.domain) || '—'}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-family:var(--font-mono); font-size:0.65rem; color:${b.pwn_count > 1000000 ? '#ff4d4d' : '#ffaa00'}; font-weight:700;">
+                                <i class="fa-solid fa-users" style="font-size:0.5rem;"></i> ${fmtNum(b.pwn_count)} victims
+                            </div>
+                            ${b.is_verified ? '<span style="font-family:var(--font-mono); font-size:0.52rem; color:#00ffcc;"><i class="fa-solid fa-check-circle"></i> VERIFIED</span>' : ''}
+                        </div>
+                        <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:2px;">
+                            ${b.data_classes.map(dc => `<span class="dc-chip ${isDangerous(dc)?'danger':''}}">${escHtml(dc)}</span>`).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // News panel
+            if (!data.news?.length) {
+                newsEl.innerHTML = emptyHtml('No news articles found');
+            } else {
+                newsEl.innerHTML = data.news.map(n => `
+                    <div style="background:rgba(10,14,14,0.5); border-left:3px solid rgba(255,170,0,0.3); border-radius:0 8px 8px 0; padding:10px 14px; flex-shrink:0; transition:border-left-color 0.2s;" onmouseover="this.style.borderLeftColor='#ffaa00'" onmouseout="this.style.borderLeftColor='rgba(255,170,0,0.3)'">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:8px;">
+                            <span class="risk-badge tag-${n.tag}" style="flex-shrink:0;">${n.tag}</span>
+                            <span style="font-family:var(--font-mono); font-size:0.58rem; color:var(--text-secondary); text-align:right; flex-shrink:0;">
+                                ${n.date ? new Date(n.date).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : ''}
+                                ${n.source ? '· ' + escHtml(n.source) : ''}
+                            </span>
+                        </div>
+                        <a href="${n.link}" target="_blank" rel="noopener"
+                            style="color:var(--text-primary); text-decoration:none; font-weight:700; font-size:0.78rem; line-height:1.4; display:block; margin-bottom:5px; transition:color 0.2s;"
+                            onmouseover="this.style.color='var(--accent-color)'" onmouseout="this.style.color='var(--text-primary)'">
+                            ${escHtml(n.title)}
+                        </a>
+                        ${n.summary ? `<div style="font-size:0.68rem; color:var(--text-secondary); opacity:0.7; line-height:1.5;">${escHtml(n.summary)}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+        })
+        .catch(e => { hibpEl.innerHTML = emptyHtml('Error: ' + e.message); newsEl.innerHTML = ''; });
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function emptyHtml(msg) {
+    return `<div class="bi-empty"><i class="fa-solid fa-satellite-dish" style="font-size:1.8rem; display:block; margin-bottom:12px;"></i>${escHtml(msg)}</div>`;
+}
+function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadMarket);
+</script>
+{% endblock %}

@@ -1,0 +1,466 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="scrollable-content">
+    <div class="inventory-container">
+        <div class="panel-header" style="margin-bottom: 25px;">
+            <h2 style="font-family: var(--font-mono); color: var(--accent-color); margin: 0;">
+                <i class="fa-solid fa-gears"></i> SYSTEM CONFIGURATION
+            </h2>
+            <a href="{{ url_for('monitoring.index') }}" class="btn btn-back">BACK TO THREAT INTEL</a>
+        </div>
+
+        <!-- Manage Feeds -->
+        <div class="settings-section">
+            <h3><i class="fa-solid fa-rss"></i> MANAGE THREAT SOURCES</h3>
+
+            <form action="{{ url_for('admin.add_feed') }}" method="POST" class="add-feed-form">
+                <input type="url" name="url" placeholder="https://example.com/rss" required>
+                <select name="category" class="source-selector" style="width: 180px;">
+                    <option value="threat">Threat Intelligence</option>
+                    <option value="monitoring.news">Cyber News</option>
+                    <option value="monitoring.ransomware">Ransomware</option>
+                </select>
+                <button type="submit" class="btn btn-add">ADD SOURCE</button>
+            </form>
+
+            <div class="active-sources-list">
+                <h4 style="margin: 20px 0 10px; color: var(--text-secondary); font-family: var(--font-mono);">ACTIVE
+                    SOURCES</h4>
+                <ul class="feed-list-settings" id="activeFeedsContainer">
+                    {% for feed in feeds %}
+                    <li class="feed-item">
+                        <div class="feed-info">
+                            <span class="feed-url">{{ feed.url }}</span>
+                            <div class="feed-status-line">
+                                <span class="badge"
+                                    style="background: {% if feed.category == 'monitoring.news' %}var(--warning-color){% elif feed.category == 'monitoring.ransomware' %}var(--danger-color){% else %}var(--info-color){% endif %}; color: #000;">
+                                    {{ feed.category|upper if feed.category else 'THREAT' }}
+                                </span>
+                                {% if feed.status == 'OK' %}
+                                <span class="status-badge status-ok">ONLINE</span>
+                                {% elif feed.status == 'Error' %}
+                                <span class="status-badge status-error" title="{{ feed.last_error }}">ERROR</span>
+                                {% else %}
+                                <span class="status-badge status-unknown">UNKNOWN</span>
+                                {% endif %}
+                                <span class="last-checked">Last Checked: {{ feed.last_checked or 'Never' }}</span>
+                            </div>
+                        </div>
+                        <div class="feed-actions">
+                            <button onclick="testFeed('{{ feed.url }}')" class="btn btn-test">TEST</button>
+
+                            <div id="terminate-control-{{ loop.index }}" style="display: inline-block;">
+                                <button type="button" class="btn btn-remove"
+                                    style="border: 1px solid var(--danger-color); color: var(--danger-color); width: auto;"
+                                    onclick="showTerminateConfirm({{ loop.index | tojson }})">
+                                    TERMINATE
+                                </button>
+                            </div>
+
+                            <div id="terminate-confirm-{{ loop.index }}"
+                                style="display: none; align-items: center; gap: 10px;">
+                                <span
+                                    style="font-size: 0.7em; color: var(--danger-color); font-weight: bold;">SURE?</span>
+                                <form action="{{ url_for('admin.remove_feed') }}" method="POST" style="display:inline;">
+                                    <input type="hidden" name="url" value="{{ feed.url }}">
+                                    <button type="submit" class="btn"
+                                        style="background: var(--danger-color); color: #000; border: none; padding: 5px 10px; font-size: 0.7em; font-weight: bold;">CONFIRM</button>
+                                </form>
+                                <button type="button" onclick="cancelTerminateConfirm({{ loop.index | tojson }})"
+                                    style="background: none; border: none; color: #fff; cursor: pointer; font-size: 0.8em; opacity: 0.6;">X</button>
+                            </div>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="empty-state">No active feeds configured.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Dark Web API Keys Section (Admin Only) -->
+        <div class="settings-section" style="margin-top: 30px;">
+            <h3><i class="fa-solid fa-mask"></i> DARK WEB API KEYS</h3>
+            <p style="font-size: 0.9em; opacity: 0.7; margin-bottom: 20px;">Configure API keys for external threat
+                intelligence providers</p>
+
+            {% macro render_key_field(label, name, value_str) %}
+            <div class="setting-item" id="container-{{ name }}" style="align-items: flex-start;">
+                <div style="width:200px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
+                    <label style="margin:0; width:100%;">{{ label }}</label>
+                    <button type="button" class="btn" style="background:transparent; border:1px solid var(--accent-color); color:var(--accent-color); font-size:0.6rem; padding: 4px 8px;" onclick="addKeyField('{{ name }}', '{{ label }}')"><i class="fa-solid fa-plus"></i> ADD KEY</button>
+                </div>
+                <div id="fields-{{ name }}" style="flex:1; display:flex; flex-direction:column; gap:8px;">
+                    {% set keys = value_str.split(',') if value_str else [''] %}
+                    {% for k in keys %}
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="password" name="{{ name }}" value="{{ k }}" placeholder="{{ label }}" style="flex:1; margin:0;" autocomplete="off">
+                        <button type="button" class="btn btn-remove" style="padding: 0 15px; border:1px solid var(--danger-color); color:var(--danger-color); background:transparent; width:auto; height:38px;" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endmacro %}
+
+            <form action="{{ url_for('admin.save_keys') }}" method="POST" class="add-feed-form"
+                style="display: flex; flex-direction: column; gap: 20px;">
+                {{ render_key_field('HIBP API KEY', 'hibp_api_key', darkweb_config.hibp_api_key) }}
+                {{ render_key_field('INTELX API KEY', 'intelx_api_key', darkweb_config.intelx_api_key) }}
+                {{ render_key_field('HUDSON ROCK API KEY', 'hudsonrock_api_key', darkweb_config.hudsonrock_api_key) }}
+                {{ render_key_field('VIRUSTOTAL API KEY', 'vt_api_key', darkweb_config.vt_api_key) }}
+                {{ render_key_field('ABUSEIPDB API KEY', 'abuseipdb_api_key', darkweb_config.abuseipdb_api_key) }}
+                {{ render_key_field('CHECKPHISH API KEY', 'checkphish_api_key', darkweb_config.checkphish_api_key) }}
+                {{ render_key_field('URLSCAN.IO API KEY', 'urlscan_api_key', darkweb_config.urlscan_api_key) }}
+                {{ render_key_field('ABUSE.CH AUTH-KEY', 'abuse_ch_api_key', darkweb_config.abuse_ch_api_key) }}
+                {{ render_key_field('CRIMINAL IP API KEY', 'criminalip_api_key', darkweb_config.criminalip_api_key) }}
+                <div style="margin-top: 20px; border-top: 1px solid rgba(0,255,204,0.1); padding-top: 20px;">
+                    <h4
+                        style="margin: 0 0 15px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 1px;">
+                        VISIBLE TOOLS</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_credentials" {% if darkweb_config.show_credentials
+                                %}checked{% endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-key"></i> CREDENTIAL LEAK</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_ransomware" {% if darkweb_config.show_ransomware
+                                %}checked{% endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-skull-crossbones"></i> RANSOMWARE
+                                VICTIMS</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_paste" {% if darkweb_config.show_paste %}checked{% endif
+                                %}>
+                            <span class="toggle-box"><i class="fa-solid fa-paste"></i> PASTE MONITOR</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_stealer" {% if darkweb_config.show_stealer %}checked{%
+                                endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-virus"></i> STEALER LOGS</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_passwords" {% if darkweb_config.show_passwords %}checked{%
+                                endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-shield-halved"></i> PASSWORD CHECK</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_infra" {% if darkweb_config.show_infra %}checked{% endif
+                                %}>
+                            <span class="toggle-box"><i class="fa-solid fa-network-wired"></i> COMPROMISED INFRA</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_defacements" {% if darkweb_config.show_defacements
+                                %}checked{% endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-bug"></i> DEFACEMENT MONITOR</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_ioc_intel" {% if darkweb_config.show_ioc_intel %}checked{%
+                                endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-virus"></i> IOC INTELLIGENCE</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_wayback" {% if darkweb_config.show_wayback %}checked{%
+                                endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-clock-rotate-left"></i> WAYBACK DISCOVERY</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_infra_recon" {% if darkweb_config.show_infra_recon %}checked{% endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-ghost"></i> PHANTOM SCAN</span>
+                        </label>
+                        <label class="infra-toggle">
+                            <input type="checkbox" name="show_breach_intel" {% if darkweb_config.show_breach_intel %}checked{% endif %}>
+                            <span class="toggle-box"><i class="fa-solid fa-database"></i> BREACH INTEL</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+                    <button type="submit" class="btn btn-add" style="width: auto;">SAVE DARKWEB SETTINGS</button>
+                </div>
+            </form>
+        </div>
+
+        <style>
+            .infra-toggle {
+                cursor: pointer;
+                display: block;
+                user-select: none;
+            }
+
+            .infra-toggle input {
+                display: none;
+            }
+
+            .toggle-box {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 15px;
+                background: rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(0, 255, 204, 0.1);
+                border-radius: 6px;
+                color: var(--text-secondary);
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
+                transition: all 0.2s ease;
+            }
+
+            .infra-toggle input:checked+.toggle-box {
+                background: rgba(0, 255, 204, 0.05);
+                border-color: var(--accent-color);
+                color: var(--accent-color);
+                box-shadow: 0 0 10px rgba(0, 255, 204, 0.1);
+            }
+
+            .infra-toggle:hover .toggle-box {
+                border-color: rgba(0, 255, 204, 0.4);
+            }
+        </style>
+
+        <!-- Database Management Section (Admin Only) -->
+        <div class="settings-section" style="margin-top: 30px;">
+            <h3><i class="fa-solid fa-database"></i> DATABASE MANAGEMENT</h3>
+            <p style="font-size: 0.9em; opacity: 0.7; margin-bottom: 20px;">Backup your system configurations, user accounts, and inventory records, or restore them from a previous backup. Please note that restoring a database will permanently overwrite current active data.</p>
+            
+            <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+                <!-- Export Card -->
+                <div style="flex: 1; min-width: 300px; background: rgba(0,255,204,0.05); border: 1px solid rgba(0,255,204,0.2); padding: 20px; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px; color: var(--accent-color); font-family: var(--font-mono);"><i class="fa-solid fa-download"></i> EXPORT DATABASE (ENCRYPTED)</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px;">Download a complete snapshot of the current Cybermon database. It will be AES-256 encrypted using the password below.</p>
+                    <form action="{{ url_for('admin.export_database') }}" method="POST" style="display: flex; gap: 10px; align-items: center;">
+                        <input type="password" name="admin_password" placeholder="Admin Password" required style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px; font-family: var(--font-mono);">
+                        <button type="submit" class="btn btn-add"><i class="fa-solid fa-file-export"></i> EXPORT</button>
+                    </form>
+                </div>
+
+                <!-- Import Card -->
+                <div style="flex: 1; min-width: 300px; background: rgba(255,100,100,0.05); border: 1px solid rgba(255,100,100,0.2); padding: 20px; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px; color: var(--danger-color); font-family: var(--font-mono);"><i class="fa-solid fa-upload"></i> IMPORT DATABASE (DECRYPT)</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px;">Upload a previously AES-encrypted <code>.db.enc</code> file. The encryption password is required to decrypt it.</p>
+                    <form action="{{ url_for('admin.import_database') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 10px;" onsubmit="return confirm('WARNING: Overwriting the database will replace all user accounts, settings, and logs. Are you absolutely sure?');">
+                        <input type="file" name="database" accept=".enc" required style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px; font-family: var(--font-mono);">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="password" name="admin_password" placeholder="Encryption Password" required style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px; font-family: var(--font-mono);">
+                            <button type="submit" class="btn" style="background: var(--danger-color); color: #000; border: none; font-weight: bold;"><i class="fa-solid fa-lock-open"></i> OVERWRITE</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Logs Section (Admin Only) -->
+        <div class="settings-section" style="margin-top: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3><i class="fa-solid fa-terminal"></i> SYSTEM AUDIT LOG</h3>
+                    <p style="font-size: 0.9em; opacity: 0.7; margin-bottom: 20px;">Persistent record of operational activities within the network</p>
+                </div>
+                <div id="clear-logs-control">
+                    <button type="button" class="btn btn-remove" style="border: 1px solid var(--danger-color); color: var(--danger-color); font-size: 0.8em;" onclick="showClearLogsConfirm()">
+                        CLEAR ALL LOGS
+                    </button>
+                </div>
+                <div id="clear-logs-confirm" style="display: none; align-items: center; gap: 10px;">
+                    <span style="font-size: 0.8em; color: var(--danger-color); font-weight: bold;">PURGE ALL LOGS?</span>
+                    <form action="{{ url_for('admin.clear_system_logs') }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn" style="background: var(--danger-color); color: #000; border: none; padding: 8px 15px; font-size: 0.8em; font-weight: bold; cursor:pointer;">YES, PURGE</button>
+                    </form>
+                    <button type="button" onclick="cancelClearLogsConfirm()" style="background: none; border: none; color: #fff; cursor: pointer; font-size: 0.9em; opacity: 0.6;">X</button>
+                </div>
+            </div>
+
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table
+                    style="width: 100%; border-collapse: collapse; font-size: 0.85em; font-family: 'Share Tech Mono', monospace;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--accent-color); text-align: left; opacity: 0.8;">
+                            <th style="padding: 10px; width: 160px; color: var(--accent-color);">TIMESTAMP</th>
+                            <th style="padding: 10px; width: 100px; color: var(--accent-color);">OPERATOR</th>
+                            <th style="padding: 10px; width: 80px; color: var(--accent-color);">STATUS</th>
+                            <th style="padding: 10px; color: var(--accent-color);">ACTIVITY MESSAGE</th>
+                            <th style="padding: 10px; width: 50px; text-align: right; color: var(--accent-color);">ACT
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.1);">
+                            <td style="padding: 8px 10px; opacity: 0.7;">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                                }}</td>
+                            <td style="padding: 8px 10px;">{{ log.user.username if log.user else 'SYSTEM' }}</td>
+                            <td style="padding: 8px 10px;">
+                                {% if log.category == 'success' %}
+                                <span style="color: var(--primary-color);">[ OK ]</span>
+                                {% elif log.category == 'danger' %}
+                                <span style="color: var(--danger-color);">[ ERR ]</span>
+                                {% elif log.category == 'warning' %}
+                                <span style="color: #ffaa00;">[ WRN ]</span>
+                                {% else %}
+                                <span style="color: var(--info-color);">[ INF ]</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 8px 10px;">{{ log.message }}</td>
+                            <td style="padding: 8px 10px; text-align: right;">
+                                <div id="log-delete-control-{{ log.id }}" style="display: inline-block;">
+                                    <button type="button"
+                                        style="background:none; border:none; color:var(--danger-color); cursor:pointer; opacity:0.6; transition:opacity 0.2s;"
+                                        onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"
+                                        onclick="showLogConfirm({{ log.id }})">
+                                        <i class="fa-solid fa-trash-can" style="font-size: 0.9em;"></i>
+                                    </button>
+                                </div>
+                                <div id="log-confirm-control-{{ log.id }}"
+                                    style="display: none; align-items: center; gap: 5px; justify-content: flex-end;">
+                                    <form action="{{ url_for('admin.delete_log', id=log.id) }}" method="POST"
+                                        style="margin:0;">
+                                        <button type="submit" class="btn"
+                                            style="background: var(--danger-color); color: #000; border: none; padding: 2px 5px; font-size: 0.6em; font-weight: bold; cursor:pointer;">PURGE</button>
+                                    </form>
+                                    <button type="button" onclick="cancelLogConfirm({{ log.id }})"
+                                        style="background: none; border: none; color: #fff; cursor: pointer; font-size: 0.7em; opacity: 0.6;">X</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not logs %}
+                        <tr>
+                            <td colspan="5" style="padding: 20px; text-align: center; opacity: 0.5;">NO LOG ENTRIES
+                                IDENTIFIED</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal / Overlay for Test Results -->
+<div id="testResultOverlay" class="scan-line"
+    style="display:none; background: rgba(0,0,0,0.8); z-index: 200; position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: none; justify-content: center; align-items: center; pointer-events: auto;">
+    <div class="panel" style="width: 400px; padding: 20px; border: 2px solid var(--accent-color);">
+        <h3 style="color: var(--accent-color); margin-bottom: 15px;">CONNECTION TEST</h3>
+        <div id="testResultContent"
+            style="color: var(--text-primary); margin-bottom: 20px; font-family: var(--font-mono);">
+            Testing connection...
+        </div>
+        <button onclick="closeTestOverlay()" class="btn btn-back" style="width: 100%;">CLOSE</button>
+    </div>
+</div>
+
+<script>
+    function testFeed(url) {
+        const overlay = document.getElementById('testResultOverlay');
+        const content = document.getElementById('testResultContent');
+
+        overlay.style.display = 'flex';
+        content.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testing connection to ' + url + '...';
+
+        fetch("{{ url_for('admin.test_feed') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: url }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    content.innerHTML = '<div style="color: var(--accent-color);"><i class="fa-solid fa-check"></i> ' + data.message + '</div>';
+                } else {
+                    content.innerHTML = '<div style="color: var(--danger-color);"><i class="fa-solid fa-times"></i> ' + data.message + '</div>';
+                }
+            })
+            .catch((error) => {
+                content.innerHTML = '<div style="color: var(--danger-color);">Error: ' + error + '</div>';
+            });
+    }
+
+    function closeTestOverlay() {
+        document.getElementById('testResultOverlay').style.display = 'none';
+    }
+
+    function showLogConfirm(id) {
+        document.getElementById('log-delete-control-' + id).style.display = 'none';
+        document.getElementById('log-confirm-control-' + id).style.display = 'flex';
+    }
+
+    function cancelLogConfirm(id) {
+        document.getElementById('log-delete-control-' + id).style.display = 'inline-block';
+        document.getElementById('log-confirm-control-' + id).style.display = 'none';
+    }
+
+    function showClearLogsConfirm() {
+        document.getElementById('clear-logs-control').style.display = 'none';
+        document.getElementById('clear-logs-confirm').style.display = 'flex';
+    }
+
+    function cancelClearLogsConfirm() {
+        document.getElementById('clear-logs-control').style.display = 'block';
+        document.getElementById('clear-logs-confirm').style.display = 'none';
+    }
+
+    function showTerminateConfirm(index) {
+        document.getElementById('terminate-control-' + index).style.display = 'none';
+        document.getElementById('terminate-confirm-' + index).style.display = 'flex';
+    }
+
+    function cancelTerminateConfirm(index) {
+        document.getElementById('terminate-control-' + index).style.display = 'inline-block';
+        document.getElementById('terminate-confirm-' + index).style.display = 'none';
+    }
+
+    // Keyboard Navigation for Settings Feed List
+    document.addEventListener('keydown', function (e) {
+        const feedList = document.getElementById('activeFeedsContainer');
+        const scrollAmount = 50; // Pixels per key press
+
+        if (!feedList) return;
+
+        // Check if user is typing in an input (don't scroll then)
+        if (document.activeElement.tagName === 'INPUT') {
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowDown':
+                feedList.scrollTop += scrollAmount;
+                e.preventDefault();
+                break;
+            case 'ArrowUp':
+                feedList.scrollTop -= scrollAmount;
+                e.preventDefault();
+                break;
+            case 'PageDown':
+                feedList.scrollTop += feedList.clientHeight;
+                e.preventDefault();
+                break;
+            case 'PageUp':
+                feedList.scrollTop -= feedList.clientHeight;
+                e.preventDefault();
+                break;
+            case 'Home':
+                feedList.scrollTop = 0;
+                e.preventDefault();
+                break;
+            case 'End':
+                feedList.scrollTop = feedList.scrollHeight;
+                e.preventDefault();
+                break;
+        }
+    });
+
+    function addKeyField(name, label) {
+        const container = document.getElementById('fields-' + name);
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex; gap:8px; align-items:center;';
+        div.innerHTML = `
+            <input type="password" name="${name}" value="" placeholder="${label}" style="flex:1; margin:0;" autocomplete="off">
+            <button type="button" class="btn btn-remove" style="padding: 0 15px; border:1px solid var(--danger-color); color:var(--danger-color); background:transparent; width:auto; height:38px;" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+        `;
+        container.appendChild(div);
+    }
+</script>
+{% endblock %}

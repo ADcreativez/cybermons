@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="scrollable-content">
+    <div class="inventory-container" style="max-width: none;">
+        <div class="panel-header"
+            style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h2 style="font-family: var(--font-mono); color: var(--accent-color); margin: 0;">
+                    <i class="fa-solid fa-skull-crossbones"></i> RANSOMWARE VICTIM FEED
+                </h2>
+                <div
+                    style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; font-family: var(--font-mono);">
+                    LIVE INTEL FROM RANSOMWARE LEAK SITES — 30-DAY LOCAL CACHE
+                </div>
+            </div>
+            <button onclick="syncFeed()" id="sync-btn" class="btn btn-add"
+                style="font-size: 0.75rem; padding: 8px 16px;">
+                <i class="fa-solid fa-cloud-arrow-down" id="sync-icon"></i> SYNC FEED
+            </button>
+        </div>
+
+        <div id="sync-status"
+            style="display:none; padding: 10px 15px; background: rgba(0,255,204,0.08); border: 1px solid rgba(0,255,204,0.2); border-radius: 4px; margin-bottom: 15px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-color);">
+        </div>
+
+        <div class="settings-section">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                <input type="text" id="victim-search" placeholder="Filter by victim or group..."
+                    style="padding: 10px 15px; background: #11111a; border: 1px solid rgba(0,255,204,0.2); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.85rem; border-radius: 4px; outline: none; width: 250px;"
+                    oninput="filterVictims(this.value)">
+
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="id-priority"
+                            onchange="filterVictims(document.getElementById('victim-search').value)"
+                            style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-color);">
+                        <label for="id-priority"
+                            style="font-family: var(--font-mono); font-size: 0.75rem; color: #ff4d4d; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                            <i class="fa-solid fa-flag"></i> INDONESIA PRIORITY
+                        </label>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span
+                            style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">DATE:</span>
+                        <select id="date-select" onchange="loadFeedForDate(this.value)"
+                            style="padding: 8px 12px; background: #11111a; border: 1px solid rgba(0,255,204,0.2); color: var(--accent-color); font-family: var(--font-mono); font-size: 0.8rem; border-radius: 4px; outline: none; min-width: 145px;">
+                            <option value="0">Loading...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="feed-status"
+                style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px;">
+            </div>
+
+            <div class="table-container"
+                style="max-height: 680px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.05); border-radius: 4px;">
+                <table
+                    style="width: 100%; border-collapse: collapse; font-size: 0.85rem; font-family: var(--font-mono);">
+                    <thead>
+                        <tr
+                            style="border-bottom: 2px solid var(--accent-color); text-align: left; background: rgba(26, 26, 46, 0.95);">
+                            <th
+                                style="padding: 14px 15px; color: var(--accent-color); position: sticky; top: 0; background: inherit; z-index: 10;">
+                                DISCOVERED</th>
+                            <th
+                                style="padding: 14px 15px; color: var(--accent-color); position: sticky; top: 0; background: inherit; z-index: 10;">
+                                VICTIM</th>
+                            <th
+                                style="padding: 14px 15px; color: var(--accent-color); position: sticky; top: 0; background: inherit; z-index: 10;">
+                                RANSOMWARE GROUP</th>
+                            <th
+                                style="padding: 14px 15px; color: var(--accent-color); position: sticky; top: 0; background: inherit; z-index: 10;">
+                                COUNTRY</th>
+                            <th
+                                style="padding: 14px 15px; color: var(--accent-color); text-align: center; position: sticky; top: 0; background: inherit; z-index: 10;">
+                                SOURCE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="victim-tbody">
+                        <tr>
+                            <td colspan="5" style="padding: 50px; text-align: center;">
+                                <i class="fa-solid fa-spinner fa-spin"
+                                    style="font-size: 2rem; color: var(--accent-color);"></i>
+                                <div
+                                    style="color: var(--text-secondary); font-family: var(--font-mono); margin-top: 10px; font-size:0.85rem;">
+                                    LOADING FEED...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .victim-row {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        transition: background 0.2s ease;
+    }
+
+    .victim-row:hover {
+        background: rgba(0, 255, 204, 0.04);
+    }
+
+    .group-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        background: rgba(255, 68, 68, 0.15);
+        color: #ff4d4d;
+        border: 1px solid rgba(255, 68, 68, 0.3);
+        border-radius: 3px;
+        font-weight: bold;
+        font-size: 0.72rem;
+    }
+
+    .id-row {
+        background: rgba(255, 68, 68, 0.05) !important;
+    }
+
+    .id-badge {
+        background: rgba(255, 255, 255, 0.9);
+        color: #ff0000;
+        padding: 2px 4px;
+        border-radius: 2px;
+        font-weight: bold;
+        margin-right: 5px;
+        border: 1px solid #ff0000;
+        font-size: 0.7rem;
+    }
+
+    .source-link {
+        color: var(--accent-color);
+        text-decoration: none;
+        opacity: 0.7;
+    }
+
+    .source-link:hover {
+        opacity: 1;
+    }
+
+    #date-select option {
+        background: #11111a;
+        color: var(--accent-color);
+    }
+
+    .spinning {
+        animation: fa-spin 1s linear infinite;
+    }
+</style>
+
+<script>
+    let currentDate = null;
+
+    // Build the date dropdown from today going back 30 days
+    function buildDateDropdown(highlightDates) {
+        const sel = document.getElementById('date-select');
+        sel.innerHTML = '';
+        const today = new Date();
+        for (let i = 0; i < 30; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const iso = d.toISOString().split('T')[0];
+            const opt = document.createElement('option');
+            opt.value = i;
+            const cached = highlightDates && highlightDates.includes(iso);
+            opt.textContent = iso + (cached ? ' ✓' : '');
+            if (i === 0) opt.textContent = iso + ' (TODAY)' + (cached ? ' ✓' : '');
+            if (i === 1) opt.textContent = iso + ' (YESTERDAY)' + (cached ? ' ✓' : '');
+            sel.appendChild(opt);
+        }
+    }
+
+    function loadFeedForDate(daysBack) {
+        currentDate = parseInt(daysBack);
+        const tbody = document.getElementById('victim-tbody');
+        const status = document.getElementById('feed-status');
+
+        tbody.innerHTML = `<tr><td colspan="5" style="padding: 40px; text-align: center;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem; color: var(--accent-color);"></i>
+            <div style="color: var(--text-secondary); margin-top: 8px; font-family: var(--font-mono); font-size: 0.85rem;">FETCHING...</div>
+        </td></tr>`;
+        status.innerText = '';
+
+        fetch(`/darkweb/ransomware-victims/feed?days=${daysBack}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--danger-color);">
+                        <i class="fa-solid fa-triangle-exclamation"></i> ${data.error}</td></tr>`;
+                    return;
+                }
+
+                const src = data.source === 'cache' ? '📦 CACHE' : '🌐 LIVE';
+                const days = data.total_cached_days || 0;
+                status.innerText = `DATE: ${data.date} | ${data.results.length} VICTIM(S) | SOURCE: ${src} | ${days} DAYS CACHED`;
+
+                if (data.results && data.results.length > 0) {
+                    tbody.innerHTML = '';
+                    data.results.forEach(v => {
+                        const isID = (v.country || '').toUpperCase() === 'ID';
+                        const row = document.createElement('tr');
+                        row.className = 'victim-row' + (isID ? ' id-row' : '');
+                        row.dataset.victim = (v.name || '').toLowerCase();
+                        row.dataset.group = (v.group || '').toLowerCase();
+                        row.dataset.country = (v.country || '').toUpperCase();
+
+                        const sourceHtml = v.url
+                            ? `<a href="${v.url}" target="_blank" class="source-link"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>`
+                            : `<span style="opacity:0.3;">—</span>`;
+
+                        const countryHtml = isID
+                            ? `<span class="id-badge">ID</span><span style="color: #ff4d4d; font-weight: bold;">INDONESIA</span>`
+                            : (v.country || '—');
+
+                        row.innerHTML = `
+                            <td style="padding: 11px 15px; color: var(--text-secondary); font-size: 0.78rem;">${v.date || '—'}</td>
+                            <td style="padding: 11px 15px; color: var(--text-primary); font-weight: bold;">${v.name || '—'}</td>
+                            <td style="padding: 11px 15px;"><span class="group-badge">${v.group || 'Unknown'}</span></td>
+                            <td style="padding: 11px 15px; color: var(--text-secondary);">${countryHtml}</td>
+                            <td style="padding: 11px 15px; text-align: center;">${sourceHtml}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    const msg = data.message || 'No data for this date.';
+                    tbody.innerHTML = `<tr><td colspan="5" style="padding: 40px; text-align: center; opacity: 0.5; font-family: var(--font-mono); font-size: 0.85rem;">${msg}</td></tr>`;
+                }
+            })
+            .catch(() => {
+                tbody.innerHTML = `<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--danger-color);">CONNECTION ERROR</td></tr>`;
+            });
+    }
+
+    function filterVictims(query) {
+        const q = query.toLowerCase().trim();
+        const idOnly = document.getElementById('id-priority').checked;
+
+        document.querySelectorAll('.victim-row').forEach(row => {
+            const rowText = row.innerText.toLowerCase();
+            const countryMatch = !idOnly || row.dataset.country === 'ID';
+            const textMatch = !q || rowText.includes(q);
+
+            row.style.display = (countryMatch && textMatch) ? '' : 'none';
+        });
+    }
+
+    function syncFeed() {
+        const btn = document.getElementById('sync-btn');
+        const icon = document.getElementById('sync-icon');
+        const statusEl = document.getElementById('sync-status');
+
+        btn.disabled = true;
+        icon.classList.add('spinning');
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'SYNCING FEED FROM RANSOMWARE.LIVE...';
+
+        fetch('/darkweb/ransomware-victims/sync', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                icon.classList.remove('spinning');
+
+                if (data.success) {
+                    statusEl.textContent = `✓ SYNC COMPLETE — +${data.new_records} new records | ${data.total_cached_days} days in cache`;
+                    // Update dropdown checkmarks
+                    buildDateDropdown(data.dates_available || []);
+                    // Reload current view
+                    loadFeedForDate(currentDate || 0);
+                } else {
+                    statusEl.style.color = 'var(--danger-color)';
+                    statusEl.textContent = `✗ SYNC FAILED: ${data.error || data.message}`;
+                }
+
+                setTimeout(() => { statusEl.style.display = 'none'; statusEl.style.color = ''; }, 6000);
+            })
+            .catch(() => {
+                btn.disabled = false;
+                icon.classList.remove('spinning');
+                statusEl.style.color = 'var(--danger-color)';
+                statusEl.textContent = '✗ CONNECTION ERROR';
+                setTimeout(() => { statusEl.style.display = 'none'; statusEl.style.color = ''; }, 4000);
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        buildDateDropdown([]);
+        loadFeedForDate(0);
+    });
+</script>
+{% endblock %}

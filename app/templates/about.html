@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="scrollable-content">
+    <style>
+        .about-hero {
+            background: linear-gradient(135deg, rgba(0, 255, 204, 0.05) 0%, rgba(0, 0, 0, 0) 60%);
+            border: 1px solid rgba(0, 255, 204, 0.15);
+            border-left: 4px solid var(--accent-color);
+            padding: 40px;
+            margin-bottom: 35px;
+            position: relative;
+            overflow: hidden;
+        }
+        .about-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(0,255,204,0.04) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .about-hero h1 {
+            font-family: var(--font-mono);
+            color: var(--accent-color);
+            font-size: 2.2rem;
+            letter-spacing: 4px;
+            margin: 0 0 10px 0;
+        }
+        .about-hero .version-badge {
+            display: inline-block;
+            background: rgba(0,255,204,0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 3px 12px;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        .about-hero p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.8;
+            max-width: 800px;
+        }
+        .about-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 35px;
+        }
+        .about-card {
+            background: rgba(17, 17, 26, 0.6);
+            border: 1px solid var(--border-color);
+            border-top: 2px solid var(--accent-color);
+            padding: 25px;
+        }
+        .about-card h3 {
+            font-family: var(--font-mono);
+            color: var(--accent-color);
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin: 0 0 20px 0;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .feature-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .feature-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(0,255,204,0.08);
+            border: 1px solid rgba(0,255,204,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--accent-color);
+            font-size: 0.9rem;
+        }
+        .feature-text h4 {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            margin: 0 0 4px 0;
+            letter-spacing: 1px;
+        }
+        .feature-text p {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.6;
+        }
+        .dev-card {
+            background: rgba(17, 17, 26, 0.6);
+            border: 1px solid var(--border-color);
+            border-top: 2px solid rgba(0,255,204,0.5);
+            padding: 30px;
+            margin-bottom: 35px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        .dev-avatar {
+            width: 80px;
+            height: 80px;
+            background: rgba(0,255,204,0.08);
+            border: 2px solid var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: var(--accent-color);
+            flex-shrink: 0;
+        }
+        .dev-info h3 {
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            margin: 0 0 5px 0;
+        }
+        .dev-info .dev-title {
+            color: var(--accent-color);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+        .dev-info p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin: 0;
+            line-height: 1.7;
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 35px;
+        }
+        .stat-chip {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            padding: 18px;
+            text-align: center;
+        }
+        .stat-chip .chip-value {
+            font-family: var(--font-mono);
+            color: var(--accent-color);
+            font-size: 1.6rem;
+            font-weight: bold;
+            display: block;
+        }
+        .stat-chip .chip-label {
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            display: block;
+            margin-top: 5px;
+        }
+    </style>
+
+    <!-- Hero Section -->
+    <div class="about-hero">
+        <h1><i class="fa-solid fa-shield-virus"></i> i3-CYBERMON</h1>
+        <span class="version-badge">VERSION 2.1.0 // UNIFIED CYBER DEFENSE PLATFORM</span>
+        <p>Cybermon adalah platform intelijen ancaman siber terpadu yang dirancang khusus untuk membantu tim keamanan Indonesia dalam melakukan monitoring, analisis, dan respons terhadap ancaman digital secara proaktif dan real-time. Dibangun di atas prinsip kemudahan operasional dan kedalaman data, Cybermon mengkonsolidasikan berbagai sumber intelijen ke dalam satu antarmuka yang terpadu.</p>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-chip">
+            <span class="chip-value">10+</span>
+            <span class="chip-label">INTELLIGENCE MODULES</span>
+        </div>
+        <div class="stat-chip">
+            <span class="chip-value">15+</span>
+            <span class="chip-label">API INTEGRATIONS</span>
+        </div>
+        <div class="stat-chip">
+            <span class="chip-value">AES-256</span>
+            <span class="chip-label">ENCRYPTION STANDARD</span>
+        </div>
+        <div class="stat-chip">
+            <span class="chip-value">2.1.0</span>
+            <span class="chip-label">CURRENT VERSION</span>
+        </div>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="about-grid">
+        <!-- Core Features -->
+        <div class="about-card">
+            <h3><i class="fa-solid fa-puzzle-piece"></i> CORE FEATURES</h3>
+
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-radiation"></i></div>
+                <div class="feature-text">
+                    <h4>THREAT MONITORING</h4>
+                    <p>Aggregasi feed ancaman siber global secara real-time dari berbagai sumber terpercaya dengan klasifikasi severity otomatis.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-fingerprint"></i></div>
+                <div class="feature-text">
+                    <h4>IOC INTELLIGENCE ENGINE</h4>
+                    <p>Analisis Indicator of Compromise (IP, domain, hash) melalui VirusTotal, AbuseIPDB, ThreatFox, URLScan, dan CheckPhish.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-database"></i></div>
+                <div class="feature-text">
+                    <h4>BREACH INTELLIGENCE</h4>
+                    <p>Monitoring insiden siber Indonesia, data HIBP, dan threat news untuk memastikan aset organisasi tidak terekspos.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-ghost"></i></div>
+                <div class="feature-text">
+                    <h4>PHANTOM SCAN (RECON)</h4>
+                    <p>Rekognisi infrastruktur target secara pasif menggunakan Criminal IP, HackerTarget, dan local Nmap untuk port intelligence.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dark Intelligence -->
+        <div class="about-card">
+            <h3><i class="fa-solid fa-mask"></i> DARK INTELLIGENCE</h3>
+
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-skull-crossbones"></i></div>
+                <div class="feature-text">
+                    <h4>RANSOMWARE VICTIMS</h4>
+                    <p>Tracking korban ransomware global dari Ransomlooker untuk identifikasi potensi ancaman terhadap industri sejenis.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-paste"></i></div>
+                <div class="feature-text">
+                    <h4>PASTE MONITOR</h4>
+                    <p>Monitoring platform publik seperti Pastebin untuk mendeteksi kebocoran data atau dokumen sensitif secara otomatis.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-virus"></i></div>
+                <div class="feature-text">
+                    <h4>STEALER LOGS TRACKER</h4>
+                    <p>Identifikasi aset organisasi yang muncul dalam log infostealer yang beredar di darkweb dan forum underground.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                <div class="feature-text">
+                    <h4>WAYBACK DISCOVERY</h4>
+                    <p>Eksplorasi snapshot historis target menggunakan Wayback Machine untuk rekognisi aset tersembunyi dan endpoint lama.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security & Management -->
+        <div class="about-card">
+            <h3><i class="fa-solid fa-shield-halved"></i> SECURITY & MANAGEMENT</h3>
+
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-table-cells"></i></div>
+                <div class="feature-text">
+                    <h4>ATT&CK MATRIX</h4>
+                    <p>Pemetaan taktik dan teknik MITRE ATT&CK untuk konteks analisis ancaman yang lebih dalam dan terstruktur.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-user-shield"></i></div>
+                <div class="feature-text">
+                    <h4>ANTIBOT & ACCESS CONTROL</h4>
+                    <p>Proteksi lapis pertama dengan geo-blocking, IP blacklisting, visitor logging, dan rate-limit detection otomatis.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-database"></i></div>
+                <div class="feature-text">
+                    <h4>ENCRYPTED BACKUP</h4>
+                    <p>Ekspor dan impor database terenkripsi AES-256 menggunakan password admin aktif untuk keamanan data saat migrasi atau update.</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon"><i class="fa-solid fa-key"></i></div>
+                <div class="feature-text">
+                    <h4>MULTI-KEY API ROTATION</h4>
+                    <p>Sistem rotasi multi API key otomatis dengan fallback round-robin untuk meminimalkan downtime akibat rate limit.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Developer Card -->
+    <div class="dev-card">
+        <div class="dev-avatar">
+            <i class="fa-solid fa-building"></i>
+        </div>
+        <div class="dev-info">
+            <div class="dev-title"><i class="fa-solid fa-code"></i> DEVELOPED BY</div>
+            <h3>PT Inovasi Informatika Indonesia (i3)</h3>
+            <p>Cybermon dikembangkan oleh tim <strong>PT Inovasi Informatika Indonesia (i3)</strong> sebagai solusi intelijen ancaman siber yang berfokus pada kebutuhan spesifik organisasi Indonesia. Platform ini terus berkembang mengikuti lanskap ancaman siber yang dinamis, dengan komitmen untuk menghadirkan kapabilitas monitoring kelas enterprise yang mudah dioperasikan oleh tim keamanan dari berbagai skala.</p>
+        </div>
+        <div style="margin-left: auto; text-align: center; flex-shrink: 0;">
+            <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 8px;">SYSTEM BUILD</div>
+            <div style="font-family: var(--font-mono); color: var(--accent-color); font-size: 1.1rem; border: 1px solid var(--accent-color); padding: 8px 20px;">v2.1.0 STABLE</div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

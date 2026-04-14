@@ -1,0 +1,23 @@
+{
+    "hibp_api_key": "YOUR_HIBP_KEY",
+    "intelx_api_key": "YOUR_INTELX_KEY",
+    "hudsonrock_api_key": "YOUR_HUDSONROCK_KEY",
+    "abuse_ch_api_key": "YOUR_THREATFOX_KEY",
+    "vt_api_key": "YOUR_VIRUSTOTAL_KEY",
+    "abuseipdb_api_key": "YOUR_ABUSEIPDB_KEY",
+    "checkphish_api_key": "YOUR_CHECKPHISH_KEY",
+    "urlscan_api_key": "YOUR_URLSCAN_KEY",
+    "criminalip_api_key": "YOUR_CRIMINALIP_KEY",
+    "breachdirectory_api_key": "YOUR_BREACHDIRECTORY_KEY",
+    "show_credentials": false,
+    "show_ransomware": true,
+    "show_paste": false,
+    "show_stealer": false,
+    "show_passwords": true,
+    "show_infra": false,
+    "show_defacements": true,
+    "show_ioc_intel": true,
+    "show_wayback": true,
+    "show_infra_recon": true,
+    "show_breach_intel": true
+}

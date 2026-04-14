@@ -1,0 +1,586 @@
+{% extends "base.html" %}
+
+{% block title %}Cybermon | Phantom Scan{% endblock %}
+
+{% block content %}
+<!-- Main Content Layout -->
+<div style="display: flex; flex-direction: column; height: 100%; flex: 1; padding: 0 30px 40px 30px; overflow: hidden;">
+    <div style="margin-bottom: 25px; flex-shrink: 0;">
+        <h2 style="color: var(--accent-color); font-family: var(--font-mono); letter-spacing: 2px; text-transform: uppercase;">
+            <i class="fa-solid fa-ghost"></i> PHANTOM SCAN
+        </h2>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; letter-spacing: 1px;">Unified Intelligence Suite: Cloud Intelligence & Active Asset Profiling.</p>
+    </div>
+
+    <!-- Layout Grid -->
+    <div style="display: flex; gap: 30px; width: 100%; flex: 1; min-height: 0; overflow: hidden;">
+        
+        <!-- Left Sidebar: Controller -->
+        <div style="width: 330px; flex-shrink: 0; min-height: 0; display: flex; flex-direction: column; gap: 20px;">
+            <!-- Controller Panel (Non-scrollable top part) -->
+            <div class="panel" style="background: rgba(0, 255, 204, 0.01); backdrop-filter: blur(10px); border: 1px solid rgba(0, 255, 204, 0.1); padding: 25px 20px; border-radius: 12px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); flex-shrink: 0;">
+                <div style="margin-bottom: 20px;">
+                    <i class="fa-solid fa-radar" style="font-size: 2rem; color: var(--accent-color); opacity: 0.8;"></i>
+                </div>
+                <h5 style="color: #fff; font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 2px; margin-bottom: 15px; text-transform: uppercase;">Asset Profiler</h5>
+                <input type="text" id="recon-query" placeholder="Enter IP or Domain..." 
+                       style="width: 100%; padding: 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(0,255,204,0.2); border-radius: 8px; color: #fff; font-family: var(--font-mono); font-size: 0.9rem; margin-bottom: 15px; outline: none; transition: 0.4s; text-align: center;">
+                <button onclick="startRecon()" id="search-btn" class="btn" style="width: 100%; border: 1px solid var(--accent-color); background: rgba(0,255,204,0.05); color: var(--accent-color); font-weight: bold; padding: 12px; letter-spacing: 1px; text-transform: uppercase; font-size: 0.75rem;">
+                    <i class="fa-solid fa-satellite-dish"></i> INITIATE RECON
+                </button>
+                
+                <!-- Progress & Loading -->
+                <div id="loading-spinner" style="display: none; margin-top: 20px; text-align: left;">
+                    <div class="progress-container" style="margin-bottom: 8px;">
+                        <div id="recon-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <div id="recon-status-text" class="progress-status" style="text-align: left; font-size: 0.5rem;">SYNCHRONIZING FEED...</div>
+                </div>
+            </div>
+
+            <!-- Scrollable Sidebar Stats Section -->
+            <div style="flex: 1; overflow-y: auto; scrollbar-width: thin; padding-right: 5px;">
+                <!-- Recon Summary Stats -->
+                <div id="recon-summary" style="display: none; padding: 20px; background: rgba(0,255,204,0.03); border: 1px solid rgba(0,255,204,0.1); border-radius: 8px; margin-bottom: 20px;">
+                    <div style="font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Scan Metrics</div>
+                    <div id="summary-items"></div>
+                </div>
+
+                <!-- Mail Protection Stats -->
+                <div id="mail-summary" style="display: none; padding: 20px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 20px;">
+                    <div style="font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Mail Protection (DNS)</div>
+                    <div id="mail-items" style="font-family: var(--font-mono); font-size: 0.65rem;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <!-- Initial Empty State -->
+            <div id="results-empty" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.1); border: 1px dashed rgba(255,255,255,0.05); border-radius: 12px; text-align: center;">
+                <i class="fa-solid fa-microscope" style="font-size: 3rem; color: var(--text-secondary); opacity: 0.2; margin-bottom: 20px;"></i>
+                <h3 style="color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.9rem; letter-spacing: 3px; text-transform: uppercase;">Awaiting Parameters</h3>
+                <p id="empty-text" style="color: var(--text-secondary); opacity: 0.5; font-size: 0.75rem; max-width: 350px; margin: 10px auto;">Input an IP address or Domain on the left to begin gathering intel.</p>
+            </div>
+
+            <!-- Results Grid -->
+            <div id="results-content" style="display: none; height: 100%; flex: 1; min-height: 0; overflow: hidden;">
+                <div style="display: grid; grid-template-columns: 1fr 380px 380px; grid-template-rows: 1fr; gap: 20px; height: 100%;">
+                    
+                    <!-- Domain Footprint Panel -->
+                    <div class="panel" style="background: rgba(10, 15, 15, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; min-height: 0;">
+                        <div class="panel-header" style="background: rgba(0,255,204,0.02); padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                            <span id="dns-header-text" style="color: var(--accent-color); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 1px;">
+                                <i class="fa-solid fa-diagram-project"></i> SUBDOMAIN FOOTPRINT
+                            </span>
+                            <div id="dns-badge" style="background: rgba(0,255,204,0.1); color: var(--accent-color); padding: 2px 8px; border-radius: 20px; font-size: 0.6rem;">0 ASSETS</div>
+                        </div>
+                        <div id="dns-body" style="flex: 1; overflow-y: auto; scrollbar-width: thin; padding-bottom: 20px;">
+                            <div style="padding: 50px; text-align:center; opacity:0.3;">DEEP DISCOVERY IN PROGRESS...</div>
+                        </div>
+                    </div>
+
+                    <!-- Live Scan Panel -->
+                    <div class="panel" id="recon-ports" style="display: none; background: rgba(10, 15, 15, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; min-height: 0;">
+                        <div class="panel-header" id="live-scan-header" style="background: rgba(255,170,0,0.02); padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--warning-color); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 1px; font-weight: bold;">
+                             <i class="fa-solid fa-bolt-lightning"></i> ASSET INTELLIGENCE
+                        </div>
+                        <div style="padding: 15px; flex: 1; overflow-y: auto; scrollbar-width: thin; padding-bottom: 20px;">
+                           <div style="display: grid; grid-template-columns: 80px 1fr 50px; padding: 0 10px 10px 10px; border-bottom: 1px solid rgba(255,170,0,0.1); margin-bottom: 10px; font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-secondary); text-transform: uppercase;">
+                                <div>Port</div>
+                                <div>Service</div>
+                                <div style="text-align: right;">Status</div>
+                            </div>
+                            <div id="ports-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Host Identity Panel -->
+                    <div class="panel" style="background: rgba(10, 15, 15, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; min-height: 0;">
+                        <div class="panel-header" style="background: rgba(0,255,204,0.02); padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--accent-color); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 1px;">
+                            <i class="fa-solid fa-id-card"></i> IDENTITY & REPUTATION
+                        </div>
+                        <div id="whois-body" style="padding: 20px; flex: 1; overflow-y: auto; scrollbar-width: thin; padding-bottom: 20px;">
+                            <div style="text-align: center; opacity: 0.3; padding-top: 80px;">NO DATA AVAILABLE</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #recon-query:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 15px rgba(0, 255, 204, 0.1);
+    }
+    
+    /* FORCE FULL WIDTH DASHBOARD */
+    .container {
+        max-width: 100% !important;
+        padding-left: 40px !important;
+        padding-right: 40px !important;
+    }
+
+    .recon-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 0.75rem;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        padding-bottom: 4px;
+    }
+    .recon-label { color: var(--text-secondary); font-weight: bold; width: 40%; }
+    .recon-val { color: #fff; text-align: right; width: 60%; overflow-wrap: break-word; }
+    
+    .port-badge {
+        display: inline-block;
+        background: rgba(0,255,204,0.05);
+        color: var(--accent-color);
+        border: 1px solid rgba(0,255,204,0.3);
+        padding: 4px 12px;
+        border-radius: 8px;
+        margin: 0 8px 8px 0;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+    }
+    .vuln-badge {
+        display: inline-block;
+        background: rgba(255,68,68,0.1);
+        color: var(--danger-color);
+        border: 1px solid rgba(255,68,68,0.3);
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-bottom: 5px;
+        font-size: 0.65rem;
+        font-weight: bold;
+    }
+    
+    .pulse-active {
+        animation: card-pulse 2s infinite ease-in-out;
+    }
+    @keyframes card-pulse {
+        0% { box-shadow: 0 0 5px rgba(255, 170, 0, 0.05); border-color: rgba(255, 170, 0, 0.1); }
+        50% { box-shadow: 0 0 15px rgba(255, 170, 0, 0.15); border-color: rgba(255, 170, 0, 0.3); }
+        100% { box-shadow: 0 0 5px rgba(255, 170, 0, 0.05); border-color: rgba(255, 170, 0, 0.1); }
+    }
+
+    /* Progress Bar Styles */
+    .progress-container {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.15); /* Increased contrast */
+        height: 6px; /* Slightly taller */
+        border-radius: 6px;
+        overflow: hidden;
+        margin: 20px 0;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+    }
+    .progress-bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #00ffcc, #00b3ff); /* Brighter gradient */
+        transition: width 0.4s ease;
+        box-shadow: 0 0 12px #00ffcc;
+    }
+    .progress-status {
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-align: center;
+    }
+</style>
+
+<script>
+    async function startRecon() {
+        const query = document.getElementById('recon-query').value.trim();
+        if (!query) return;
+
+        const btn = document.getElementById('search-btn');
+        const spinner = document.getElementById('loading-spinner');
+        const emptyCont = document.getElementById('results-empty');
+        const resCont = document.getElementById('results-content');
+        const dnsHeader = document.getElementById('dns-header-text');
+        
+        btn.disabled = true;
+        spinner.style.display = 'block';
+        dnsHeader.style.display = 'flex';
+        emptyCont.style.display = 'none';
+        resCont.style.display = 'none';
+        document.getElementById('recon-summary').style.display = 'none';
+        document.getElementById('mail-summary').style.display = 'none';
+        document.getElementById('recon-ports').style.display = 'none';
+        
+        // CLEAR ALL PREVIOUS DATA IMMEDIATELY
+        document.getElementById('summary-items').innerHTML = '';
+        document.getElementById('mail-items').innerHTML = '';
+        document.getElementById('whois-body').innerHTML = '';
+        document.getElementById('dns-body').innerHTML = '';
+        document.getElementById('live-scan-header').innerHTML = '<i class="fa-solid fa-bolt-lightning"></i> Live Scan';
+        
+        // Show ports as 'Scanning'
+        const portsCont = document.getElementById('recon-ports');
+        const portsList = document.getElementById('ports-list');
+        portsCont.style.display = 'block';
+        portsCont.classList.add('pulse-active');
+        portsList.innerHTML = '';
+
+        // PROGRESS ANIMATION
+        let progress = 0;
+        const progressBar = document.getElementById('recon-progress-bar');
+        const statusText = document.getElementById('recon-status-text');
+        
+        const stages = [
+            { threshold: 15, text: "Resolving Infrastructure Identity..." },
+            { threshold: 40, text: "Mapping Network Assets (Subfinder + Native)..." },
+            { threshold: 70, text: "Analyzing Web Protection & WAF Security..." },
+            { threshold: 90, text: "Performing High-Fidelity Port Fingerprinting..." }
+        ];
+
+        const progressTimer = setInterval(() => {
+            if (progress < 95) {
+                progress += Math.random() * 2;
+                progressBar.style.width = progress + '%';
+                
+                const currentStage = stages.find(s => progress <= s.threshold) || stages[stages.length-1];
+                statusText.innerText = currentStage.text;
+            }
+        }, 300);
+
+        try {
+            const resp = await fetch('/darkweb/recon/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
+            });
+            const data = await resp.json();
+
+            clearInterval(progressTimer);
+            progressBar.style.width = '100%';
+            statusText.innerText = 'DISCOVERY COMPLETE';
+            
+            setTimeout(() => {
+                spinner.style.display = 'none';
+                
+                if (data.error) {
+                    emptyCont.style.display = 'block';
+                    document.getElementById('empty-text').innerText = data.error;
+                } else {
+                    resCont.style.display = 'block';
+                    renderRecon(data.results, data.type);
+                }
+            }, 500);
+
+        } catch (e) {
+            console.error(e);
+            clearInterval(progressTimer);
+            spinner.style.display = 'none';
+            dnsHeader.style.display = 'flex';
+            emptyCont.style.display = 'block';
+            document.getElementById('empty-text').innerText = "SCAN FAILED: Service connection error.";
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function renderRecon(results, type) {
+        // 0. Update Summary Stats
+        const summaryCont = document.getElementById('recon-summary');
+        const summaryItems = document.getElementById('summary-items');
+        summaryCont.style.display = 'block';
+        
+        let summaryHtml = `
+            <div class="recon-item"><span class="recon-label">Search Type:</span><span class="recon-val">${type.toUpperCase()}</span></div>
+        `;
+        if (results.resolved_ip) {
+            summaryHtml += `<div class="recon-item"><span class="recon-label">Resolved IP:</span><span class="recon-val" style="color: var(--accent-color);">${results.resolved_ip}</span></div>`;
+        }
+        
+        // Add Interference Warning to Metrics if detected
+        if (results.nmap_interference) {
+            summaryHtml += `<div style="margin-top: 10px; font-size: 0.55rem; color: var(--warning-color); border: 1px dashed rgba(255,170,0,0.2); padding: 8px; border-radius: 6px;">
+                <i class="fa-solid fa-biohazard"></i> FIREWALL INTERFERENCE: Nmap results show suspicious port manipulation. Data may be spoofed.
+            </div>`;
+        }
+        
+        summaryItems.innerHTML = summaryHtml;
+        
+        // Render Mail Protection Stats
+        const mailCont = document.getElementById('mail-summary');
+        const mailItems = document.getElementById('mail-items');
+        if (results.mail_protection && type === 'domain') {
+            let mailHtml = '';
+            const spf = results.mail_protection.spf;
+            const dmarc = results.mail_protection.dmarc;
+            const dkim = results.mail_protection.dkim;
+            
+            mailHtml += `<div style="margin-bottom: 8px; word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">SPF:</span><br> ${spf ? `<span style="color: var(--accent-color);">${spf}</span>` : `<span style="color: var(--danger-color);">Not Configured / Missing</span>`}</div>`;
+            mailHtml += `<div style="margin-bottom: 8px; word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">DMARC:</span><br> ${dmarc ? `<span style="color: var(--accent-color);">${dmarc}</span>` : `<span style="color: var(--danger-color);">Not Configured / Missing</span>`}</div>`;
+            mailHtml += `<div style="word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">DKIM (Auto-Detect):</span><br> ${dkim ? `<span style="color: var(--accent-color);">${dkim}</span>` : `<span style="color: var(--warning-color);">Selector Unknown (Passive Check Failed)</span>`}</div>`;
+            
+            mailItems.innerHTML = mailHtml;
+            mailCont.style.display = 'block';
+        } else {
+            mailCont.style.display = 'none';
+        }
+        const scanTimestamp = new Date().toLocaleTimeString();
+
+        // 1. Render Host Identity (WHOIS + VT Reputation)
+        const identityCont = document.getElementById('whois-body');
+        let identityHtml = `
+            <div style="text-align: right; font-size: 0.5rem; color: var(--text-secondary); margin-bottom: 10px; font-family: var(--font-mono); opacity: 0.5;">
+                <i class="fa-solid fa-clock"></i> DATA AS OF: ${scanTimestamp}
+            </div>
+        `;
+
+        // VirusTotal Reputation Section
+        if (results.vt_intel) {
+            const vt = results.vt_intel;
+            const stats = vt.last_analysis_stats || {};
+            const isMalicious = stats.malicious > 0;
+            
+            identityHtml += `
+                <div style="margin-bottom: 20px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 0.6rem; color: var(--accent-color); font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">VT REPUTATION</span>
+                        <span class="vuln-badge" style="background: ${isMalicious ? 'rgba(255,68,68,0.2)' : 'rgba(0,255,204,0.1)'}; color: ${isMalicious ? 'var(--danger-color)' : 'var(--accent-color)'}; margin: 0; padding: 1px 6px; font-size: 0.5rem; border: 1px solid ${isMalicious ? 'rgba(255,68,68,0.3)' : 'rgba(0,255,204,0.3)'};">
+                            ${isMalicious ? 'SUSPICIOUS' : 'CLEAN'}
+                        </span>
+                    </div>
+                    <div class="recon-item" style="font-size: 0.7rem;"><span class="recon-label">Provider:</span><span class="recon-val">${vt.as_owner || 'N/A'}</span></div>
+                    <div class="recon-item" style="font-size: 0.7rem;"><span class="recon-label">Reputation:</span><span class="recon-val" style="color: ${vt.reputation < 0 ? 'var(--danger-color)' : 'var(--success-color)'}">${vt.reputation}</span></div>
+                </div>
+            `;
+        }
+
+        // RDAP/Whois Section
+        if (results.whois) {
+            const w = results.whois;
+            if (w.raw_text) {
+                let formattedRawText = w.raw_text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                // Colorize keys green, leaves values white
+                formattedRawText = formattedRawText.replace(/^(\s*[a-zA-Z0-9\s_-]+):/gm, '<span style="color:var(--accent-color); font-weight:bold;">$1:</span>');
+                
+                identityHtml += `
+                    <div style="font-family: var(--font-mono); font-size: 0.6rem; color: #ffffff; white-space: pre-wrap; overflow-x: auto; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 6px;">
+                        ${formattedRawText}
+                    </div>
+                `;
+            } else if (type === 'domain') {
+                 identityHtml += `
+                    <div style="font-family: var(--font-mono); font-size: 0.75rem;">
+                        <div class="recon-item"><span class="recon-label">Domain:</span><span class="recon-val">${w.ldhName || 'N/A'}</span></div>
+                        <div class="recon-item"><span class="recon-label">Registrar:</span><span class="recon-val">${w.entities ? (w.entities[0].vcardArray ? w.entities[0].vcardArray[1][1][3] : 'N/A') : 'N/A'}</span></div>
+                        <div class="recon-item"><span class="recon-label">Status:</span><span class="recon-val">${w.status ? w.status.join(', ') : 'N/A'}</span></div>
+                    </div>
+                `;
+            } else {
+                identityHtml += `
+                    <div style="font-family: var(--font-mono); font-size: 0.75rem;">
+                        <div class="recon-item"><span class="recon-label">NetName:</span><span class="recon-val">${w.name || 'N/A'}</span></div>
+                        <div class="recon-item"><span class="recon-label">Range:</span><span class="recon-val">${w.startAddress} - ${w.endAddress}</span></div>
+                        <div class="recon-item"><span class="recon-label">Country:</span><span class="recon-val">${w.country || 'N/A'}</span></div>
+                    </div>
+                `;
+            }
+        } else {
+            identityHtml += '<div style="opacity:0.3; text-align:center; padding: 20px; font-size:0.7rem;">WHOIS DATA FAILED</div>';
+        }
+
+
+
+        // 4. Render Web Protection (WAF)
+        if (results.web_protection) {
+            const wp = results.web_protection;
+            let statusBadge = wp.is_protected ? 
+                `<span class="badge" style="background: rgba(0, 255, 204, 0.1); color: var(--accent-color); border: 1px solid rgba(0, 255, 204, 0.3); font-size: 0.55rem; padding: 2px 8px;">PROTECTED</span>` :
+                `<span class="badge" style="background: rgba(255, 170, 0, 0.1); color: var(--warning-color); border: 1px solid rgba(255, 170, 0, 0.3); font-size: 0.55rem; padding: 2px 8px;">EXPOSED</span>`;
+
+            identityHtml += `
+                <div style="margin-top: 25px; padding: 15px; background: rgba(0, 255, 204, 0.02); border: 1px solid rgba(0, 255, 204, 0.1); border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div style="font-size: 0.65rem; color: #fff; font-family: var(--font-mono); letter-spacing: 1px;">
+                            <i class="fa-solid fa-cloud-shield" style="color: var(--accent-color); margin-right: 8px;"></i> EDGE SECURITY
+                        </div>
+                        ${statusBadge}
+                    </div>
+                    <div class="recon-item"><span class="recon-label">WAF Type:</span><span class="recon-val">${wp.waf}</span></div>
+                    <div class="recon-item"><span class="recon-label">Provider:</span><span class="recon-val" style="color:var(--accent-color)">${wp.provider}</span></div>
+                    <div style="margin-top: 10px; font-size: 0.55rem; color: var(--text-secondary); opacity: 0.7; font-family: var(--font-mono); line-height: 1.4; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+                        ${wp.is_protected ? `<i class="fa-solid fa-shield-virus"></i> Protected by ${wp.provider} edge nodes.` : `<i class="fa-solid fa-triangle-exclamation"></i> No active WAF detected.`}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 5. Render Mail Security (SPF/DMARC)
+        if (results.mail_security) {
+            const ms = results.mail_security;
+            let mailBadge = ms.is_secure ? 
+                `<span class="badge" style="background: rgba(0, 255, 204, 0.1); color: var(--accent-color); border: 1px solid rgba(0, 255, 204, 0.3); font-size: 0.55rem; padding: 2px 8px;">SECURE</span>` :
+                `<span class="badge" style="background: rgba(255, 68, 68, 0.1); color: var(--danger-color); border: 1px solid rgba(255, 68, 68, 0.3); font-size: 0.55rem; padding: 2px 8px;">VULNERABLE</span>`;
+
+            identityHtml += `
+                <div style="margin-top: 20px; padding: 15px; background: rgba(0, 150, 255, 0.02); border: 1px solid rgba(0, 150, 255, 0.1); border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div style="font-size: 0.65rem; color: #fff; font-family: var(--font-mono); letter-spacing: 1px;">
+                            <i class="fa-solid fa-envelope-shield" style="color: #0096ff; margin-right: 8px;"></i> MAIL PROTECTION
+                        </div>
+                        ${mailBadge}
+                    </div>
+                    <div class="recon-item" style="margin-bottom: 8px;">
+                        <span class="recon-label">SPF:</span>
+                        <span class="recon-val" style="color: ${ms.spf.includes('v=spf1') ? 'var(--success-color)' : 'var(--danger-color)'}; font-size: 0.6rem; word-break: break-all;">
+                            ${ms.spf}
+                        </span>
+                    </div>
+                    <div class="recon-item" style="margin-bottom: 8px;">
+                        <span class="recon-label">DKIM:</span>
+                        <span class="recon-val" style="color: ${ms.dkim !== 'Not Detected' && ms.dkim !== 'N/A' ? 'var(--success-color)' : 'var(--text-secondary)'}; font-size: 0.6rem; word-break: break-all;">
+                            ${ms.dkim}
+                        </span>
+                    </div>
+                    <div class="recon-item">
+                        <span class="recon-label">DMARC:</span>
+                        <span class="recon-val" style="color: ${ms.dmarc.includes('v=DMARC1') ? 'var(--success-color)' : 'var(--danger-color)'}; font-size: 0.6rem; word-break: break-all;">
+                            ${ms.dmarc}
+                        </span>
+                    </div>
+                    
+                    <div style="margin-top: 10px; font-size: 0.55rem; color: var(--text-secondary); opacity: 0.7; font-family: var(--font-mono); line-height: 1.4; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+                        ${ms.is_secure ? 
+                            `<i class="fa-solid fa-shield-check"></i> Anti-spoofing records detected. Domain has foundational phishing protection.` : 
+                            `<i class="fa-solid fa-triangle-exclamation"></i> Missing critical email security records. Domain is susceptible to spoofing.`
+                        }
+                    </div>
+                </div>
+            `;
+        }
+
+        // AI Intelligence Section
+        if (results.ai_intelligence) {
+            identityHtml += `
+                <div style="margin-top: 25px; padding: 15px; background: rgba(0, 255, 204, 0.05); border: 1px solid var(--accent-color); border-radius: 12px; box-shadow: 0 0 15px rgba(0,255,204,0.1);">
+                    <div style="font-size: 0.65rem; color: var(--accent-color); font-family: var(--font-mono); letter-spacing: 2px; margin-bottom: 12px; text-transform: uppercase; font-weight: bold;">
+                        <i class="fa-solid fa-brain"></i> CYBERMON AI INTEL
+                    </div>
+                    <div style="font-size: 0.65rem; color: #fff; line-height: 1.6; font-family: var(--font-mono); font-style: italic; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; border-left: 2px solid var(--accent-color);">
+                        ${results.ai_intelligence}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.5rem; color: var(--text-secondary); opacity: 0.6; text-align: right;">
+                        <i class="fa-solid fa-sparkles"></i> High-Fidelity OSINT Synthesis
+                    </div>
+                </div>
+            `;
+        }
+        
+        identityCont.innerHTML = identityHtml;
+
+        // 2. Render Ports & Services
+        const portsCont = document.getElementById('recon-ports');
+        const portsList = document.getElementById('ports-list');
+        const liveHeader = document.getElementById('live-scan-header');
+        portsCont.classList.remove('pulse-active');
+        portsCont.style.display = 'flex';
+        
+        let portContent = "";
+        let foundPorts = false;
+
+        // --- 0. CRIMINAL IP RESULTS (NEW PRIMARY) ---
+        if (results.cip_parsed && results.cip_parsed.length > 0) {
+            foundPorts = true;
+            portContent += results.cip_parsed.map(p => `
+                <div style="display: grid; grid-template-columns: 80px 1fr 50px; padding: 10px 12px; border-bottom: 1px solid rgba(0,255,204,0.05); align-items: center; font-family: var(--font-mono); background: rgba(0,255,204,0.03);">
+                    <div style="font-size: 0.75rem; color: var(--accent-color); font-weight: bold;">${p.port}</div>
+                    <div style="font-size: 0.6rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">
+                        ${p.service} <span style="font-size: 0.45rem; color: var(--accent-color); opacity: 0.8; letter-spacing: 1px;">[CIP]</span>
+                    </div>
+                    <div style="font-size: 0.55rem; color: var(--accent-color); text-align: right; font-weight: bold;">ACTIVE</div>
+                </div>
+            `).join('');
+        }
+
+        // --- 3. HACKERTARGET RESULTS (FREE FALLBACK) ---
+        if (results.ht_parsed && results.ht_parsed.length > 0) {
+            foundPorts = true;
+            portContent += results.ht_parsed.map(p => `
+                <div style="display: grid; grid-template-columns: 80px 1fr 50px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); align-items: center; font-family: var(--font-mono); background: rgba(0,255,102,0.02);">
+                    <div style="font-size: 0.75rem; color: #00ff66; font-weight: bold;">${p.port}</div>
+                    <div style="font-size: 0.6rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">
+                        ${p.service} <span style="font-size: 0.45rem; color: #00ff66; opacity: 0.8; letter-spacing: 1px;">[HT]</span>
+                    </div>
+                    <div style="font-size: 0.55rem; color: #00ff66; text-align: right; font-weight: bold;">DETECTED</div>
+                </div>
+            `).join('');
+        }
+
+        // --- 4. LOCAL NMAP RESULTS (LAST RESORT) ---
+        if (results.nmap_parsed && results.nmap_parsed.length > 0) {
+            foundPorts = true;
+            portContent += results.nmap_parsed.map(p => `
+                <div style="display: grid; grid-template-columns: 80px 1fr 50px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); align-items: center; font-family: var(--font-mono); background: rgba(0,255,204,0.02);">
+                    <div style="font-size: 0.75rem; color: var(--accent-color); font-weight: bold;">${p.port}</div>
+                    <div style="font-size: 0.6rem; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">
+                        ${p.service} <span style="font-size: 0.45rem; color: var(--accent-color); opacity: 0.9; font-weight: bold; letter-spacing: 1px;">[LIVE] ${p.verified ? '✓' : ''}</span>
+                    </div>
+                    <div style="font-size: 0.55rem; color: var(--accent-color); text-align: right; font-weight: bold;">OPEN</div>
+                </div>
+            `).join('');
+        }
+
+        if (foundPorts) {
+            liveHeader.innerHTML = `<i class="fa-solid fa-cloud-bolt"></i> ASSET INTELLIGENCE (TARGET: ${results.resolved_ip})`;
+            portsList.innerHTML = portContent;
+            
+            // Show errors even if some ports found
+            if (results.errors && results.errors.length > 0) {
+                portsList.innerHTML += results.errors.map(err => `
+                    <div style="padding: 10px; background: rgba(255,68,68,0.03); border: 1px dashed rgba(255,68,68,0.2); margin: 10px; border-radius: 8px; font-size: 0.55rem; color: #ff4444; font-family: var(--font-mono);">
+                        <i class="fa-solid fa-triangle-exclamation"></i> ${err}
+                    </div>
+                `).join('');
+            }
+        } else {
+            liveHeader.innerHTML = `<i class="fa-solid fa-cloud-slash"></i> ASSET INTELLIGENCE`;
+            let emptyMsg = `<div style="padding: 40px 20px; text-align: center; opacity: 0.3; font-size: 0.65rem;">
+                <i class="fa-solid fa-plug-circle-exclamation" style="font-size: 1.5rem; margin-bottom: 10px; display: block;"></i>
+                NO ACTIVE PORT DATA FOUND
+            </div>`;
+            
+            if (results.errors && results.errors.length > 0) {
+                emptyMsg += results.errors.map(err => `
+                    <div style="padding: 15px; background: rgba(255,68,68,0.05); border: 1px solid rgba(255,68,68,0.3); margin: 20px; border-radius: 8px; font-size: 0.6rem; color: #ff4444; font-family: var(--font-mono); text-align: center;">
+                        <i class="fa-solid fa-lock" style="font-size: 1.2rem; margin-bottom: 8px; display: block;"></i>
+                        <strong>ENGINE LIMITATION:</strong><br>${err}
+                    </div>
+                `).join('');
+            }
+            portsList.innerHTML = emptyMsg;
+        }
+
+        // 3. Render DNS
+        const dnsCont = document.getElementById('dns-body');
+        const dnsBadge = document.getElementById('dns-badge');
+        if (results.dns && results.dns.length > 0) {
+            dnsBadge.innerText = `${results.dns.length} ASSETS`;
+            dnsCont.innerHTML = `
+                <table class="table" style="width:100%; font-family:var(--font-mono); font-size: 0.75rem; margin:0; border-collapse: separate; border-spacing: 0;">
+                    <thead>
+                        <tr>
+                            <th style="background:rgba(255,255,255,0.02); padding:15px; border:none; border-bottom: 2px solid rgba(0,255,204,0.1); color:var(--text-secondary); text-align: left;">HOSTNAME</th>
+                            <th style="background:rgba(255,255,255,0.02); padding:15px; border:none; border-bottom: 2px solid rgba(0,255,204,0.1); color:var(--text-secondary); text-align: left;">IP ADDRESS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${results.dns.map(item => `<tr style="border-bottom: 1px solid rgba(255,255,255,0.02);"><td style="padding:10px 15px;">${item.host}</td><td style="padding:10px 15px; color:var(--accent-color);">${item.ip}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            dnsBadge.innerText = '0 ASSETS';
+            dnsCont.innerHTML = '<div style="padding: 50px; text-align:center; opacity:0.3;">NO SUBDOMAINS IDENTIFIED</div>';
+        }
+    }
+</script>
+{% endblock %}

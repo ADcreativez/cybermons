@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="scrollable-content">
+    <div class="inventory-container" style="max-width: none;">
+        <div class="panel-header" style="margin-bottom: 25px;">
+            <h2 style="font-family: var(--font-mono); color: var(--accent-color); margin: 0;">
+                <i class="fa-solid fa-virus"></i> STEALER LOG MONITOR
+            </h2>
+            <div
+                style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; font-family: var(--font-mono);">
+                IDENTIFY INFECTED EMPLOYEES & COMPROMISED ACCOUNTS (VIA HUDSON ROCK)
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <p style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 20px; line-height: 1.5;">
+                Monitor for malware-infected machines within your organization. Enter your company domain to find
+                employee credentials found in stealer logs (Redline, Raccoon, Vidar, etc.).
+            </p>
+
+            <div style="display: flex; gap: 15px; margin-bottom: 30px;">
+                <input type="text" id="stealer-query" placeholder="e.g., company.com"
+                    style="flex: 1; max-width: 400px; padding: 12px 15px; background: #11111a; border: 1px solid rgba(0,255,204,0.2); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.9rem; border-radius: 4px; outline: none;">
+                <button onclick="searchStealers()" class="btn btn-add" id="search-btn" style="width: 150px;">
+                    <i class="fa-solid fa-bolt"></i> ANALYZE
+                </button>
+            </div>
+
+            <div id="results-container" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h4 id="results-title"
+                        style="margin: 0; color: var(--accent-color); font-family: var(--font-mono); text-transform: uppercase;">
+                    </h4>
+                    <div id="stats-badge"
+                        style="padding: 5px 15px; background: rgba(255, 68, 68, 0.1); color: var(--danger-color); border: 1px solid rgba(255, 68, 68, 0.3); border-radius: 20px; font-size: 0.75rem; font-weight: bold; font-family: var(--font-mono);">
+                    </div>
+                </div>
+
+                <div class="table-container"
+                    style="max-height: 600px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.05); border-radius: 4px;">
+                    <table
+                        style="width: 100%; border-collapse: collapse; font-size: 0.85rem; font-family: var(--font-mono);">
+                        <thead>
+                            <tr
+                                style="border-bottom: 2px solid var(--accent-color); text-align: left; background: rgba(26, 26, 46, 0.8);">
+                                <th
+                                    style="padding: 15px; color: var(--accent-color); position: sticky; top: 0; background: inherit; z-index: 10;">
+                                    COMPROMISED IDENTITY</th>
+                                <th
+                                    style="padding: 15px; color: var(--accent-color); position: sticky; top: 0; background: inherit; z-index: 10;">
+                                    MACHINE INFO</th>
+                                <th
+                                    style="padding: 15px; color: var(--accent-color); position: sticky; top: 0; background: inherit; z-index: 10;">
+                                    MALWARE / PATH</th>
+                                <th
+                                    style="padding: 15px; color: var(--accent-color); position: sticky; top: 0; background: inherit; z-index: 10;">
+                                    LAST SEEN</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stealer-tbody">
+                            <!-- Results will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="no-results"
+                style="display: none; padding: 40px; text-align: center; background: rgba(0,0,0,0.2); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+                <i class="fa-solid fa-user-shield"
+                    style="font-size: 3rem; color: var(--primary-color); margin-bottom: 15px; opacity: 0.5;"></i>
+                <h3 style="color: var(--text-primary); margin-bottom: 10px;">DOMAIN SECURE</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">No employee credentials for this domain were
+                    found in verified stealer logs.</p>
+            </div>
+
+            <div id="error-container"
+                style="display: none; padding: 20px; background: rgba(255,68,68,0.1); border: 1px solid var(--danger-color); border-radius: 4px; color: var(--danger-color); margin-top: 20px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> <span id="error-message"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stealer-row {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.2s ease;
+    }
+
+    .stealer-row:hover {
+        background: rgba(255, 68, 68, 0.05);
+    }
+
+    .email-cell {
+        color: var(--text-primary);
+        font-weight: bold;
+    }
+
+    .identity-sub {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 3px;
+    }
+
+    .badge-malware {
+        display: inline-block;
+        padding: 2px 6px;
+        background: rgba(255, 68, 68, 0.15);
+        color: #ff4d4d;
+        border: 1px solid rgba(255, 68, 68, 0.3);
+        border-radius: 3px;
+        font-size: 0.65rem;
+        margin-bottom: 5px;
+    }
+
+    .os-info {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .spinning {
+        animation: fa-spin 1s linear infinite;
+    }
+</style>
+
+<script>
+    function searchStealers() {
+        const query = document.getElementById('stealer-query').value.trim();
+        const btn = document.getElementById('search-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const tbody = document.getElementById('stealer-tbody');
+        const noResults = document.getElementById('no-results');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const statsBadge = document.getElementById('stats-badge');
+
+        if (!query) return;
+
+        // UI Reset
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner spinning"></i> SCANNING...';
+        resultsContainer.style.display = 'none';
+        noResults.style.display = 'none';
+        errorContainer.style.display = 'none';
+        tbody.innerHTML = '';
+
+        fetch('/darkweb/stealer-logs/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-bolt"></i> ANALYZE';
+
+                if (data.error) {
+                    errorMessage.innerText = data.error;
+                    errorContainer.style.display = 'block';
+                    return;
+                }
+
+                if (data.results && data.results.length > 0) {
+                    document.getElementById('results-title').innerText = `CRITICAL HITS FOR "${data.query}"`;
+                    statsBadge.innerText = `${data.results.length} COMPROMISED ACCOUNTS`;
+
+                    data.results.forEach(s => {
+                        const row = document.createElement('tr');
+                        row.className = 'stealer-row';
+
+                        row.innerHTML = `
+                        <td style="padding: 12px 15px;">
+                            <div class="email-cell">${s.email || 'N/A'}</div>
+                            <div class="identity-sub">USER: ${s.username || 'unknown'}</div>
+                        </td>
+                        <td style="padding: 12px 15px;">
+                            <div class="os-info"><i class="fa-brands fa-windows"></i> ${s.operating_system || 'N/A'}</div>
+                            <div class="identity-sub">HOST: ${s.computer_name || 'N/A'}</div>
+                        </td>
+                        <td style="padding: 12px 15px;">
+                            <div class="os-info" style="color: var(--danger-color); font-size: 0.8rem;">${s.malware_path || 'Stealer Log'}</div>
+                            <div class="identity-sub">AVS: ${s.antiviruses || 'None detected'}</div>
+                        </td>
+                        <td style="padding: 12px 15px; color: var(--text-secondary); font-size: 0.8rem;">
+                            ${s.date_compromised || 'N/A'}
+                        </td>
+                    `;
+                        tbody.appendChild(row);
+                    });
+
+                    resultsContainer.style.display = 'block';
+                } else {
+                    noResults.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-bolt"></i> ANALYZE';
+                errorMessage.innerText = 'Connection error. Please check your network and try again.';
+                errorContainer.style.display = 'block';
+            });
+    }
+
+    // Press enter to search
+    document.getElementById('stealer-query').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            searchStealers();
+        }
+    });
+</script>
+{% endblock %}
