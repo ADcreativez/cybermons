@@ -9,6 +9,7 @@ import socket
 import dns.resolver
 from concurrent.futures import ThreadPoolExecutor
 import time
+import shutil
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
 from ..extensions import db
@@ -27,12 +28,10 @@ def load_ransomware_cache():
     return {}
 
 def save_ransomware_cache(cache):
-    from datetime import date, timedelta
-    cutoff = (date.today() - timedelta(days=30)).strftime('%Y-%m-%d')
-    pruned = {d: v for d, v in cache.items() if d >= cutoff}
+    """Save cache to disk. Preserves all historical records."""
     cache_path = os.path.join(os.getcwd(), RANSOMWARE_CACHE_FILE)
-    with open(cache_path, 'w') as f: json.dump(pruned, f)
-    return pruned
+    with open(cache_path, 'w') as f: json.dump(cache, f)
+    return cache
 
 def _build_clearweb_url(name, group, post_url):
     """Build a clear-web ransomware.live URL instead of using .onion links."""
@@ -228,31 +227,51 @@ def defacements_feed():
 @darkweb_bp.route('/darkweb/defacements/sync', methods=['POST'])
 @login_required
 def defacements_sync():
-    from datetime import datetime, timedelta
     try:
-        cutoff_date = (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d')
+        from datetime import datetime, timedelta
+        import time
+        
+        # 90-day window for discovery
+        cutoff_date = (datetime.utcnow() - timedelta(days=90)).strftime('%Y-%m-%d')
         cache = load_defacement_cache()
         new_count = 0
         pages_crawled = 0
         
-        for page in range(1, 21):
+        # Extended deep sync (100 pages)
+        for page in range(1, 101):
             new_data = scrape_zone_xsec(page=page, deep_scrape=(page == 1))
             if not new_data:
                 if page == 1:
-                    return jsonify({'success': False, 'error': 'Failed to fetch data from Zone-XSec (Blocked or Down).'})
+                    return jsonify({'success': False, 'error': 'Failed to fetch data from Zone-XSec.'})
                 break
             
             pages_crawled += 1
             page_has_new = False
+            
             for item in new_data:
                 d_key = item['date'].split(' ')[0]
-                if d_key < cutoff_date: continue
+                
+                # Check date cutoff
+                if d_key < cutoff_date:
+                    break
+                
                 if d_key not in cache: cache[d_key] = []
                 
                 existing_urls = [x['url'] for x in cache[d_key]]
                 if item['url'] not in existing_urls:
                     cache[d_key].append(item)
                     new_count += 1
+                    page_has_new = True
+            
+            # Smart Stop: stop if everything on current page is already in cache
+            if not page_has_new and page > 5:
+                break
+                
+            # Date-based break
+            if new_data and new_data[-1]['date'].split(' ')[0] < cutoff_date:
+                break
+                
+            time.sleep(1) # Be nice to the source
                     page_has_new = True
                 else:
                     for existing_item in cache[d_key]:
@@ -432,15 +451,71 @@ def wayback_search():
         if '://' in indicator:
             from urllib.parse import urlparse
             indicator = urlparse(indicator).netloc
+        
+        # Add realistic User-Agent to avoid Archive.org bot blocking
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'application/json'
+        }
         url = f"https://web.archive.org/cdx/search/cdx?url={indicator}/*&output=json&limit=100&collapse=urlkey"
-        resp = req.get(url, timeout=20)
+        
+        resp = req.get(url, headers=headers, timeout=25)
+        
         if resp.status_code == 200:
-            raw_data = resp.json()
+            try:
+                raw_data = resp.json()
+            except Exception:
+                return jsonify({'error': 'Archive.org returned non-JSON data. The API might be restricted.'}), 400
+                
             if len(raw_data) <= 1: return jsonify({'results': []})
             results = [dict(zip(raw_data[0], row)) for row in raw_data[1:]]
             return jsonify({'status': 'success', 'query': indicator, 'results': results})
+        elif resp.status_code == 403:
+             return jsonify({'error': 'Access Denied by Archive.org. Please try again later or from a different IP.'}), 403
+        elif resp.status_code == 429:
+             return jsonify({'error': 'Too Many Requests to Archive.org. Rate limited.'}), 429
+        
         return jsonify({'error': f"Archive Error: {resp.status_code}"}), 400
-    except Exception as e: return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        # Fallback to waybackurls CLI tool
+        waybackurls_bin = shutil.which('waybackurls')
+        if waybackurls_bin:
+            import subprocess
+            try:
+                # Use waybackurls via subprocess
+                # echo "domain" | waybackurls
+                proc = subprocess.run([waybackurls_bin], input=indicator.encode(), capture_output=True, timeout=30)
+                if proc.returncode == 0:
+                    raw_urls = proc.stdout.decode().splitlines()
+                    results = []
+                    for url in raw_urls[:100]: # Limit to matches the API limit
+                        if not url.strip(): continue
+                        
+                        # Attempt to extract timestamp from wayback URL format
+                        # https://web.archive.org/web/20210101000000/http://host/path
+                        ts_match = re.search(r'/web/(\d{14})/', url)
+                        timestamp = ts_match.group(1) if ts_match else "00000000000000"
+                        
+                        # Clean original URL (remove wayback prefix)
+                        original_url = url
+                        if '/web/' in url:
+                            parts = url.split('/web/' + timestamp + '/')
+                            if len(parts) > 1: original_url = parts[1]
+
+                        results.append({
+                            'timestamp': timestamp,
+                            'mimetype': 'OSINT/Fallback',
+                            'statuscode': '200',
+                            'original': original_url
+                        })
+                    
+                    # Sort by timestamp descending
+                    results.sort(key=lambda x: x['timestamp'], reverse=True)
+                    return jsonify({'status': 'success', 'query': indicator, 'results': results, 'source': 'waybackurls-fallback'})
+            except Exception as fe:
+                return jsonify({'error': f"Fallback Failure: {str(fe)}"}), 500
+        
+        return jsonify({'error': f"Connection Error: {str(e)}"}), 500
 
 @darkweb_bp.route('/darkweb/recon')
 @login_required
@@ -501,9 +576,19 @@ def run_mail_protection(query, is_ip):
 
 def detect_web_protection(target):
     import subprocess
+    import sys
     try:
         target_url = target if target.startswith('http') else f"https://{target}"
-        waf_bin = "./.venv/bin/wafw00f"
+        # Dynamically find wafw00f in venv or system PATH
+        waf_bin = shutil.which("wafw00f")
+        if not waf_bin:
+            # Fallback to current python's venv bin folder
+            python_dir = os.path.dirname(sys.executable)
+            waf_bin = os.path.join(python_dir, "wafw00f")
+        
+        if not os.path.exists(waf_bin) and not shutil.which("wafw00f"):
+             return {'waf': 'Tool Not Found', 'provider': 'N/A', 'is_protected': False}
+
         proc = subprocess.run([waf_bin, target_url], capture_output=True, text=True, timeout=15)
         match = re.search(r"is behind (.+?) WAF", proc.stdout)
         if match:
@@ -551,43 +636,66 @@ def run_dns_recon(query, is_ip):
     except: pass
 
     try:
-        import subprocess
-        output = ''
-        try:
-            # Allow subfinder to run naturally for maximum accuracy (up to 3 minutes)
-            proc = subprocess.run(['/opt/homebrew/bin/subfinder', '-d', query, '-silent'], capture_output=True, text=True, timeout=180)
-            output = proc.stdout
-        except subprocess.TimeoutExpired as e:
-            output = e.stdout if isinstance(e.stdout, str) else (e.stdout.decode() if e.stdout else '')
-            
-        if output:
-            for sub in output.split('\n'):
-                sub = sub.strip()
-                if sub and sub not in seen:
-                    seen.add(sub)
-                    dns_results.append({'host': sub, 'ip': 'subfinder [OSINT]'})
+        subfinder_bin = shutil.which('subfinder')
+        if subfinder_bin:
+            output = ''
+            try:
+                proc = subprocess.run([subfinder_bin, '-d', query, '-silent'], capture_output=True, text=True, timeout=180)
+                output = proc.stdout
+            except subprocess.TimeoutExpired as e:
+                output = e.stdout if isinstance(e.stdout, str) else (e.stdout.decode() if e.stdout else '')
+                
+            if output:
+                for sub in output.split('\n'):
+                    sub = sub.strip()
+                    if sub and sub not in seen:
+                        seen.add(sub)
+                        dns_results.append({'host': sub, 'ip': 'subfinder [OSINT]'})
     except Exception as e:
         print(f"Subfinder error: {e}")
 
+    # Resolve IPs for discovered subdomains to avoid "Detected" placeholder
+    resolved_results = []
+    resolver = dns.resolver.Resolver()
+    resolver.timeout = 1; resolver.lifetime = 1
+    
+    # Process findings and try to resolve IPs
+    for entry in dns_results:
+        host = entry['host']
+        if entry['ip'] in ['Detected', 'crt.sh intel', 'subfinder [OSINT]']:
+            try:
+                answers = resolver.resolve(host, 'A')
+                entry['ip'] = str(answers[0])
+            except: pass
+        resolved_results.append(entry)
+
+    # Final check for MX/NS of the main query
     try:
-        resolver = dns.resolver.Resolver()
-        resolver.timeout = 1; resolver.lifetime = 1
-        for t in ['A', 'MX', 'NS']:
+        for t in ['MX', 'NS']:
             try:
                 answers = resolver.resolve(query, t)
                 for rdata in answers:
-                    host = str(rdata.exchange if t == 'MX' else rdata.target).rstrip('.') if t in ['MX', 'NS'] else query
+                    host = str(rdata.exchange if t == 'MX' else rdata.target).rstrip('.')
                     if host not in seen:
                         seen.add(host)
-                        dns_results.append({'host': host, 'ip': 'Detected'})
+                        try:
+                            ip_ans = resolver.resolve(host, 'A')
+                            ip_val = str(ip_ans[0])
+                        except: ip_val = 'Detected'
+                        resolved_results.append({'host': host, 'ip': ip_val})
             except: continue
-        return dns_results
-    except: return dns_results
+        return resolved_results
+    except: return resolved_results
 
 def run_nmap_scan(target_ip):
     if not target_ip: return [], False, None
     try:
-        nm = nmap.PortScanner(nmap_search_path=("/opt/homebrew/bin/nmap",))
+        # Dynamically find nmap in PATH
+        nmap_bin = shutil.which('nmap')
+        if not nmap_bin:
+             return [], False, "Nmap binary not found in PATH."
+             
+        nm = nmap.PortScanner(nmap_search_path=(nmap_bin,))
         nm.scan(target_ip, arguments='-sT -F -n -Pn -T4 --version-light')
         ports = []
         if target_ip in nm.all_hosts():

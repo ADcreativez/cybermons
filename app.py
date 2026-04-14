@@ -104,14 +104,11 @@ def load_ransomware_cache():
     return {}
 
 def save_ransomware_cache(cache):
-    """Save cache to disk. Enforces 30-day rolling window."""
-    from datetime import date, timedelta
-    cutoff = (date.today() - timedelta(days=30)).strftime('%Y-%m-%d')
-    pruned = {d: v for d, v in cache.items() if d >= cutoff}
+    """Save cache to disk. Preserves all historical records."""
     cache_path = os.path.join(os.path.dirname(__file__), RANSOMWARE_CACHE_FILE)
     with open(cache_path, 'w') as f:
-        json.dump(pruned, f)
-    return pruned
+        json.dump(cache, f)
+    return cache
 
 def merge_victims_into_cache(raw_victims, cache):
     """Merge new victims into cache dict, deduplicating by (name, group, date)."""
@@ -1896,38 +1893,54 @@ def darkweb_defacements_sync():
         from datetime import datetime, timedelta
         import time
         
-        cutoff_date = (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d')
+        # 90-day cutoff for the INITIAL deep sync
+        cutoff_date = (datetime.utcnow() - timedelta(days=90)).strftime('%Y-%m-%d')
         cache = load_defacement_cache()
         new_count = 0
         pages_crawled = 0
         
-        # Deep Sync: We'll crawl up to 20 pages or until we hit the cutoff date
-        # to ensure we have a solid 30-day history for the 'Special' feed.
-        for page in range(1, 21):
+        # Deep Sync: We crawl up to 100 pages to reach the 3-month history mark.
+        for page in range(1, 101):
             # We only do deep_scrape (IP/Server intel) for the first page to save time
             new_data = scrape_zone_xsec(page=page, deep_scrape=(page == 1))
             if not new_data:
-                # If page 1 fails, return error; if later pages fail, just stop crawling
                 if page == 1:
                     return jsonify({'success': False, 'error': 'Failed to fetch data from Zone-XSec (Blocked or Down).'})
                 break
             
             pages_crawled += 1
             page_has_new = False
+            
             for item in new_data:
                 d_key = item['date'].split(' ')[0]
                 
-                # Stop if we hit records older than our retention limit
+                # Stop if we hit records older than 90 days
                 if d_key < cutoff_date:
-                    continue
+                    break
                 
-                if d_key not in cache: cache[d_key] = []
+                if d_key not in cache:
+                    cache[d_key] = []
                 
                 # Deduplication by URL
                 existing_urls = [x['url'] for x in cache[d_key]]
                 if item['url'] not in existing_urls:
                     cache[d_key].append(item)
                     new_count += 1
+                    page_has_new = True
+            
+            # Smart Stop: if an entire page has NO new records AND it's not the first few pages,
+            # we likely reached the end of the new updates.
+            if not page_has_new and page > 5:
+                print(f"DEBUG: Smart Stop triggered at page {page} - all records already exist.")
+                break
+            
+            # Re-check the last item's date to see if we should break the page loop entirely
+            if new_data and new_data[-1]['date'].split(' ')[0] < cutoff_date:
+                print(f"DEBUG: Physical Date Limit reached at page {page}")
+                break
+
+            # Human-like delay to avoid being blocked
+            time.sleep(1)
                     page_has_new = True
                 else:
                     # UPDATE existing record with IP/Server if missing
