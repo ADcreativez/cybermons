@@ -80,26 +80,26 @@ else
     echo -e "${GREEN}  ✓ Virtual environment already exists${NC}"
 fi
 
-source venv/bin/activate
-pip install --upgrade pip --quiet
+# Ensure we use the venv's pip and python
+./venv/bin/python3 -m pip install --upgrade pip --quiet
 
 # ─────────────────────────────────────────
 # STEP 3: Python Requirements
 # ─────────────────────────────────────────
 echo -e "${YELLOW}[3/5] Installing Python packages from requirements.txt...${NC}"
-pip install -r requirements.txt --quiet
+./venv/bin/python3 -m pip install -r requirements.txt --quiet
 echo -e "${GREEN}  ✓ Python packages installed${NC}"
 
 # ─────────────────────────────────────────
 # STEP 4: Playwright Chromium Browser
 # ─────────────────────────────────────────
 echo -e "${YELLOW}[4/5] Installing Playwright Chromium browser...${NC}"
-# Use current python within venv for playwright
-python3 -m playwright install chromium
+# Use explicit venv python for playwright
+./venv/bin/python3 -m playwright install chromium
 
 # install-deps is linux-specific and usually requires sudo
 if [[ "$(uname -s)" == "Linux" ]]; then
-    sudo python3 -m playwright install-deps chromium
+    sudo ./venv/bin/python3 -m playwright install-deps chromium
 fi
 echo -e "${GREEN}  ✓ Chromium browser installed${NC}"
 
@@ -108,7 +108,7 @@ echo -e "${GREEN}  ✓ Chromium browser installed${NC}"
 # ─────────────────────────────────────────
 echo -e "${YELLOW}[5/5] Initializing database...${NC}"
 mkdir -p instance
-python3 -c "
+./venv/bin/python3 -c "
 from app import create_app, bootstrap_db
 app = create_app()
 bootstrap_db(app)
