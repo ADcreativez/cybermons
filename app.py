@@ -562,14 +562,39 @@ def fetch_and_store_threats(force=False):
                 pass # Parse error, force update
         
         try:
-            feed = feedparser.parse(feed_url)
-            
-            # Check for feedparser specific bozo error (malformed XML etc)
-            if feed.bozo and not feed.entries:
-                 raise Exception(f"Feed error: {feed.bozo_exception}")
+            # Detect Telegram Sources
+            if feed_url.startswith('telegram://') or 't.me/s/' in feed_url:
+                handle = feed_url.split('/')[-1]
+                print(f"Social Sync: Fetching Telegram Channel @{handle}")
+                results = scrape_telegram_source(handle)
+                
+                feed_item['status'] = 'OK'
+                feed_item['last_checked'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                for entry in results:
+                    # Sync logic for TG messages
+                    if Threat.query.filter_by(link=entry['link']).first():
+                        continue
+                    
+                    severity = determine_severity(entry['title'], entry['summary'], category=feed_category)
+                    threat = Threat(
+                        title=entry['title'],
+                        link=entry['link'],
+                        published=entry['published'],
+                        published_str=entry['published'].strftime("%Y-%m-%d %H:%M"),
+                        summary=entry['summary'],
+                        source=entry['source'],
+                        severity=severity,
+                        category=feed_category
+                    )
+                    db.session.add(threat)
+                    new_count += 1
+                db.session.commit()
+                updated_feeds.append(feed_item)
+                continue
 
-            feed_item['status'] = 'OK'
-            feed_item['last_checked'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Standard RSS Logic
+            feed = feedparser.parse(feed_url)
 
             for entry in feed.entries: 
                 # Check uniqueness by link
@@ -1842,6 +1867,69 @@ async def _scrape_zone_xsec_page(browser, url, deep_scrape=False):
         return None
     finally:
         await context.close()
+
+
+async def _scrape_telegram_page(browser, url):
+    from playwright_stealth import Stealth
+    context = await browser.new_context(
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+    page = await context.new_page()
+    await Stealth().apply_stealth_async(page)
+    
+    results = []
+    try:
+        print(f"DEBUG: Fetching Telegram Source: {url}")
+        await page.goto(url, wait_until='networkidle', timeout=30000)
+        await page.wait_for_timeout(3000)
+        
+        # Telegram 's' preview message wraps
+        wraps = await page.query_selector_all('.tgme_widget_message_wrap')
+        for wrap in wraps:
+            try:
+                text_el = await wrap.query_selector('.tgme_widget_message_text')
+                date_el = await wrap.query_selector('.tgme_widget_message_date time')
+                link_el = await wrap.query_selector('.tgme_widget_message_date')
+                
+                if not text_el or not date_el: continue
+                
+                text = await text_el.inner_text()
+                published_str = await date_el.get_attribute('datetime')
+                link = await link_el.get_attribute('href') if link_el else url
+                
+                # Title is usually the first line
+                lines = text.strip().split('\n')
+                title = lines[0][:200] if lines else "Telegram Update"
+                
+                results.append({
+                    'title': title,
+                    'link': link,
+                    'published': dateutil.parser.parse(published_str) if published_str else datetime.now(),
+                    'summary': text.replace('\n', '<br>'),
+                    'source': "Telegram: " + url.split('/')[-1]
+                })
+            except Exception as e:
+                print(f"DEBUG: Error parsing TG message: {e}")
+    except Exception as e:
+        print(f"DEBUG: Telegram Scrape Error ({url}): {e}")
+    finally:
+        await context.close()
+    return results
+
+def scrape_telegram_source(channel_handle):
+    from playwright.async_api import async_playwright
+    url = f"https://t.me/s/{channel_handle}"
+    try:
+        async def run():
+            async with async_playwright() as pw:
+                browser = await pw.chromium.launch(headless=True)
+                data = await _scrape_telegram_page(browser, url)
+                await browser.close()
+                return data
+        return asyncio.run(run())
+    except Exception as e:
+        print(f"DEBUG: scrape_telegram_source failed: {e}")
+        return []
 
 
 def scrape_zone_xsec(page=1, deep_scrape=False):
