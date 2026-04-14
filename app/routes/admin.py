@@ -315,6 +315,9 @@ def export_database():
 def import_database():
     if current_user.role != 'admin': abort(403)
     
+    # 1. Clear any existing session issues
+    db.session.rollback()
+    
     pwd = request.form.get('admin_password')
     if not pwd or not current_user.check_password(pwd):
         flash("Invalid Encryption Password.", "danger")
@@ -350,19 +353,30 @@ def import_database():
             with open(temp_path, 'wb') as tf:
                 tf.write(decrypted_data)
             
-            # 2. Backup current DB
+            # 2. Backup current DB if it exists
             if os.path.exists(db_path):
                 shutil.copy2(db_path, backup_path)
                 
-            # 3. Dispose active connections 
+            # 3. Terminate all active database handles
+            # remove() clears the session registry for this thread
+            db.session.remove()
             db.engine.dispose()
             
-            # 4. Replace current DB with uploaded
+            # 4. Swap database files
             shutil.move(temp_path, db_path)
             
+            # 5. Fix file permissions to ensure it is WRITABLE by the web server
+            try:
+                os.chmod(db_path, 0o664)
+            except Exception as pe:
+                print(f"Warning: Could not set permissions on db: {pe}")
+            
+            # 6. Re-initiate connection with a clean commit
             log_event("Encrypted Database decrypted and successfully imported.", "success")
             flash("Encrypted Database successfully decrypted and restored.", "success")
+            
         except Exception as e:
+            db.session.rollback()
             flash(f"Error during import: {str(e)}", "danger")
             log_event(f"Database import failed: {str(e)}", "danger")
             
