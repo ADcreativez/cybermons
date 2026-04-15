@@ -607,15 +607,18 @@ def detect_web_protection(target):
             waf_bin = os.path.join(python_dir, "wafw00f")
         
         if not os.path.exists(waf_bin) and not shutil.which("wafw00f"):
-             return {'waf': 'Tool Not Found', 'provider': 'N/A', 'is_protected': False}
+             print("RECON DEBUG: wafw00f binary NOT FOUND in PATH or venv")
+             return {'waf': 'Tool Not Found (run: pip install wafw00f)', 'provider': 'N/A', 'is_protected': False}
 
-        proc = subprocess.run([waf_bin, target_url], capture_output=True, text=True, timeout=15)
+        proc = subprocess.run([waf_bin, target_url], capture_output=True, text=True, timeout=20)
         match = re.search(r"is behind (.+?) WAF", proc.stdout)
         if match:
             waf_name = match.group(1).strip()
             return {'waf': waf_name, 'provider': waf_name.split('(')[0].strip(), 'is_protected': True}
         return {'waf': 'None Detected', 'provider': 'None', 'is_protected': False}
-    except: return {'waf': 'Scan Error', 'provider': 'N/A', 'is_protected': False}
+    except Exception as e:
+        print(f"RECON DEBUG: WAF scan error: {str(e)}")
+        return {'waf': 'Scan Error', 'provider': 'N/A', 'is_protected': False}
 
 def get_ai_intelligence(query):
     if not query or re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', query):
@@ -625,17 +628,26 @@ def get_ai_intelligence(query):
     return "Infrastructure signature indicates Enterprise-grade hosting."
 
 def run_whois(query, is_ip):
+    # Try RDAP first (works without installing whois package)
     try:
         resp = req.get(f"https://rdap.org/{'ip' if is_ip else 'domain'}/{query}", timeout=10)
         if resp.status_code == 200: return resp.json()
-    except: pass
+        print(f"RECON DEBUG: RDAP returned {resp.status_code} for {query}")
+    except Exception as e:
+        print(f"RECON DEBUG: RDAP failed: {str(e)}")
     
-    try:
-        import subprocess
-        proc = subprocess.run(['whois', query], capture_output=True, text=True, timeout=10)
-        if proc.returncode == 0 and proc.stdout:
-            return {'raw_text': proc.stdout}
-    except: pass
+    # Fallback to local whois command
+    whois_bin = shutil.which('whois')
+    if whois_bin:
+        try:
+            import subprocess
+            proc = subprocess.run([whois_bin, query], capture_output=True, text=True, timeout=15)
+            if proc.returncode == 0 and proc.stdout:
+                return {'raw_text': proc.stdout}
+        except Exception as e:
+            print(f"RECON DEBUG: whois CLI failed: {str(e)}")
+    else:
+        print("RECON DEBUG: whois binary NOT FOUND (run: sudo apt install whois)")
     return None
 
 def run_dns_recon(query, is_ip):
@@ -713,9 +725,13 @@ def run_nmap_scan(target_ip):
         # Dynamically find nmap in PATH
         nmap_bin = shutil.which('nmap')
         if not nmap_bin:
-             return [], False, "Nmap binary not found in PATH."
+             print("RECON DEBUG: nmap binary NOT FOUND (run: sudo apt install nmap)")
+             return [], False, "Nmap not installed. Run: sudo apt install nmap"
              
         nm = nmap.PortScanner(nmap_search_path=(nmap_bin,))
+        # -sT: TCP connect scan (does NOT require root/sudo)
+        # -F: Fast mode (top 100 ports)
+        # -Pn: Skip host discovery (assume host is up)
         nm.scan(target_ip, arguments='-sT -F -n -Pn -T4 --version-light')
         ports = []
         if target_ip in nm.all_hosts():
@@ -725,7 +741,9 @@ def run_nmap_scan(target_ip):
                     if p_data['state'] == 'open':
                         ports.append({'port': f"{port}/{proto}", 'service': p_data.get('name', 'unknown'), 'source': 'LIVE'})
         return ports, len(ports) > 15, None
-    except Exception as e: return [], False, str(e)
+    except Exception as e:
+        print(f"RECON DEBUG: nmap scan error: {str(e)}")
+        return [], False, str(e)
 
 @darkweb_bp.route('/darkweb/recon/scan', methods=['POST'])
 @login_required
@@ -755,6 +773,16 @@ def recon_scan():
             'resolved_ip': resolved_ip
         }
         results['nmap_parsed'], results['nmap_interference'], results['nmap_error'] = nmap_f.result()
+        
+        # Collect errors for frontend debugging
+        errors = []
+        if results['nmap_error']:
+            errors.append(f"Nmap: {results['nmap_error']}")
+        if not results['whois']:
+            errors.append("WHOIS/RDAP: Could not retrieve registration data. Ensure 'whois' is installed.")
+        if not results['dns']:
+            errors.append("DNS: No subdomains found. Ensure 'subfinder' is installed for deeper discovery.")
+        results['errors'] = errors
         
     return jsonify({'results': results, 'type': 'ip' if is_ip else 'domain'})
 
