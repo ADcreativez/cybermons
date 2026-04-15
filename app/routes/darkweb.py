@@ -655,10 +655,10 @@ def run_dns_recon(query, is_ip):
     dns_results = []
     seen = set()
     
-    # Source 1: crt.sh (Certificate Transparency)
+    # Source 1: crt.sh (Certificate Transparency) — Primary source for large coverage
     try:
         print(f"RECON DEBUG: Querying crt.sh for {query}...")
-        resp = req.get(f"https://crt.sh/?q=%.{query}&output=json", timeout=40, headers={
+        resp = req.get(f"https://crt.sh/?q=%.{query}&output=json", timeout=90, headers={
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
         })
         if resp.status_code == 200:
@@ -667,7 +667,8 @@ def run_dns_recon(query, is_ip):
                 name = item.get('name_value', '').lower()
                 if '*' in name: continue
                 for sub in name.split('\n'):
-                    if sub and sub not in seen:
+                    sub = sub.strip()
+                    if sub and sub not in seen and query in sub:
                         seen.add(sub)
                         dns_results.append({'host': sub, 'ip': 'crt.sh intel'})
             print(f"RECON DEBUG: crt.sh returned {len(data)} certificates, {len(dns_results)} unique subdomains")
@@ -676,27 +677,28 @@ def run_dns_recon(query, is_ip):
     except Exception as e:
         print(f"RECON DEBUG: crt.sh FAILED: {str(e)}")
 
-    # Source 2: HackerTarget (Fallback if crt.sh found nothing)
-    if len(dns_results) == 0:
-        try:
-            print(f"RECON DEBUG: Trying HackerTarget fallback for {query}...")
-            resp = req.get(f"https://api.hackertarget.com/hostsearch/?q={query}", timeout=15, headers={
-                'User-Agent': 'Cybermon/2.1'
-            })
-            if resp.status_code == 200 and 'error' not in resp.text.lower():
-                for line in resp.text.strip().split('\n'):
-                    parts = line.split(',')
-                    if len(parts) >= 2:
-                        host = parts[0].strip().lower()
-                        ip = parts[1].strip()
-                        if host and host not in seen:
-                            seen.add(host)
-                            dns_results.append({'host': host, 'ip': ip})
-                print(f"RECON DEBUG: HackerTarget returned {len(dns_results)} subdomains")
-            else:
-                print(f"RECON DEBUG: HackerTarget returned {resp.status_code}")
-        except Exception as e:
-            print(f"RECON DEBUG: HackerTarget FAILED: {str(e)}")
+    # Source 2: HackerTarget (Always run — complements crt.sh with resolved IPs)
+    try:
+        print(f"RECON DEBUG: Querying HackerTarget for {query}...")
+        resp = req.get(f"https://api.hackertarget.com/hostsearch/?q={query}", timeout=20, headers={
+            'User-Agent': 'Cybermon/2.1'
+        })
+        if resp.status_code == 200 and 'error' not in resp.text.lower():
+            ht_count = 0
+            for line in resp.text.strip().split('\n'):
+                parts = line.split(',')
+                if len(parts) >= 2:
+                    host = parts[0].strip().lower()
+                    ip = parts[1].strip()
+                    if host and host not in seen:
+                        seen.add(host)
+                        dns_results.append({'host': host, 'ip': ip})
+                        ht_count += 1
+            print(f"RECON DEBUG: HackerTarget added {ht_count} new subdomains")
+        else:
+            print(f"RECON DEBUG: HackerTarget returned {resp.status_code}")
+    except Exception as e:
+        print(f"RECON DEBUG: HackerTarget FAILED: {str(e)}")
 
     # Source 3: Subfinder (Binary OSINT tool)
     try:
