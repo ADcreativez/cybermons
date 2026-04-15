@@ -488,52 +488,54 @@ def wayback_search():
             if len(raw_data) <= 1: return jsonify({'results': []})
             results = [dict(zip(raw_data[0], row)) for row in raw_data[1:]]
             return jsonify({'status': 'success', 'query': indicator, 'results': results})
-        elif resp.status_code == 403:
-             return jsonify({'error': 'Access Denied by Archive.org. Please try again later or from a different IP.'}), 403
-        elif resp.status_code == 429:
-             return jsonify({'error': 'Too Many Requests to Archive.org. Rate limited.'}), 429
         
-        return jsonify({'error': f"Archive Error: {resp.status_code}"}), 400
-    except Exception as e:
-        # Fallback to waybackurls CLI tool
-        waybackurls_bin = shutil.which('waybackurls')
-        if waybackurls_bin:
-            import subprocess
-            try:
-                # Use waybackurls via subprocess
-                # echo "domain" | waybackurls
-                proc = subprocess.run([waybackurls_bin], input=indicator.encode(), capture_output=True, timeout=30)
-                if proc.returncode == 0:
-                    raw_urls = proc.stdout.decode().splitlines()
-                    results = []
-                    for url in raw_urls[:100]: # Limit to matches the API limit
-                        if not url.strip(): continue
-                        
-                        # Attempt to extract timestamp from wayback URL format
-                        # https://web.archive.org/web/20210101000000/http://host/path
-                        ts_match = re.search(r'/web/(\d{14})/', url)
-                        timestamp = ts_match.group(1) if ts_match else "00000000000000"
-                        
-                        # Clean original URL (remove wayback prefix)
-                        original_url = url
-                        if '/web/' in url:
-                            parts = url.split('/web/' + timestamp + '/')
-                            if len(parts) > 1: original_url = parts[1]
+        # If API returns 403/429 or any other error, we don't return yet. 
+        # We fall through to the waybackurls fallback logic below.
+        print(f"Archive API returned {resp.status_code}, attempting fallback tool...")
 
-                        results.append({
-                            'timestamp': timestamp,
-                            'mimetype': 'OSINT/Fallback',
-                            'statuscode': '200',
-                            'original': original_url
-                        })
+    except Exception as e:
+        print(f"Archive API connection error: {str(e)}, attempting fallback tool...")
+
+    # --- Fallback to waybackurls CLI tool ---
+    waybackurls_bin = shutil.which('waybackurls')
+    if waybackurls_bin:
+        import subprocess
+        try:
+            # Use waybackurls via subprocess
+            # echo "domain" | waybackurls
+            proc = subprocess.run([waybackurls_bin], input=indicator.encode(), capture_output=True, timeout=30)
+            if proc.returncode == 0:
+                raw_urls = proc.stdout.decode().splitlines()
+                results = []
+                for url in raw_urls[:100]: # Limit to matches the API limit
+                    if not url.strip(): continue
                     
-                    # Sort by timestamp descending
-                    results.sort(key=lambda x: x['timestamp'], reverse=True)
-                    return jsonify({'status': 'success', 'query': indicator, 'results': results, 'source': 'waybackurls-fallback'})
-            except Exception as fe:
-                return jsonify({'error': f"Fallback Failure: {str(fe)}"}), 500
-        
-        return jsonify({'error': f"Connection Error: {str(e)}"}), 500
+                    # Attempt to extract timestamp from wayback URL format
+                    # https://web.archive.org/web/20210101000000/http://host/path
+                    ts_match = re.search(r'/web/(\d{14})/', url)
+                    timestamp = ts_match.group(1) if ts_match else "00000000000000"
+                    
+                    # Clean original URL (remove wayback prefix)
+                    original_url = url
+                    if '/web/' in url:
+                        parts = url.split('/web/' + timestamp + '/')
+                        if len(parts) > 1: original_url = parts[1]
+
+                    results.append({
+                        'timestamp': timestamp,
+                        'mimetype': 'OSINT/Fallback',
+                        'statuscode': '200',
+                        'original': original_url
+                    })
+                
+                # Sort by timestamp descending
+                results.sort(key=lambda x: x['timestamp'], reverse=True)
+                return jsonify({'status': 'success', 'query': indicator, 'results': results, 'source': 'waybackurls-fallback'})
+        except Exception as fe:
+            return jsonify({'error': f"Fallback Failure: {str(fe)}"}), 500
+    
+    # If we reached here, both API and Fallback failed
+    return jsonify({'error': f"Access Denied or Connection Error to Archive.org. Please ensure 'waybackurls' is installed on the server via setup.sh."}), 500
 
 @darkweb_bp.route('/darkweb/recon')
 @login_required
