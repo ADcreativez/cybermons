@@ -655,21 +655,54 @@ def run_dns_recon(query, is_ip):
     dns_results = []
     seen = set()
     
+    # Source 1: crt.sh (Certificate Transparency)
     try:
-        resp = req.get(f"https://crt.sh/?q=%.{query}&output=json", timeout=25)
+        print(f"RECON DEBUG: Querying crt.sh for {query}...")
+        resp = req.get(f"https://crt.sh/?q=%.{query}&output=json", timeout=40, headers={
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
+        })
         if resp.status_code == 200:
-            for item in resp.json():
+            data = resp.json()
+            for item in data:
                 name = item.get('name_value', '').lower()
                 if '*' in name: continue
                 for sub in name.split('\n'):
                     if sub and sub not in seen:
                         seen.add(sub)
                         dns_results.append({'host': sub, 'ip': 'crt.sh intel'})
-    except: pass
+            print(f"RECON DEBUG: crt.sh returned {len(data)} certificates, {len(dns_results)} unique subdomains")
+        else:
+            print(f"RECON DEBUG: crt.sh returned HTTP {resp.status_code}")
+    except Exception as e:
+        print(f"RECON DEBUG: crt.sh FAILED: {str(e)}")
 
+    # Source 2: HackerTarget (Fallback if crt.sh found nothing)
+    if len(dns_results) == 0:
+        try:
+            print(f"RECON DEBUG: Trying HackerTarget fallback for {query}...")
+            resp = req.get(f"https://api.hackertarget.com/hostsearch/?q={query}", timeout=15, headers={
+                'User-Agent': 'Cybermon/2.1'
+            })
+            if resp.status_code == 200 and 'error' not in resp.text.lower():
+                for line in resp.text.strip().split('\n'):
+                    parts = line.split(',')
+                    if len(parts) >= 2:
+                        host = parts[0].strip().lower()
+                        ip = parts[1].strip()
+                        if host and host not in seen:
+                            seen.add(host)
+                            dns_results.append({'host': host, 'ip': ip})
+                print(f"RECON DEBUG: HackerTarget returned {len(dns_results)} subdomains")
+            else:
+                print(f"RECON DEBUG: HackerTarget returned {resp.status_code}")
+        except Exception as e:
+            print(f"RECON DEBUG: HackerTarget FAILED: {str(e)}")
+
+    # Source 3: Subfinder (Binary OSINT tool)
     try:
         subfinder_bin = shutil.which('subfinder')
         if subfinder_bin:
+            print(f"RECON DEBUG: Running subfinder from {subfinder_bin}...")
             output = ''
             try:
                 proc = subprocess.run([subfinder_bin, '-d', query, '-silent'], capture_output=True, text=True, timeout=180)
@@ -678,20 +711,25 @@ def run_dns_recon(query, is_ip):
                 output = e.stdout if isinstance(e.stdout, str) else (e.stdout.decode() if e.stdout else '')
                 
             if output:
+                count_before = len(dns_results)
                 for sub in output.split('\n'):
                     sub = sub.strip()
                     if sub and sub not in seen:
                         seen.add(sub)
                         dns_results.append({'host': sub, 'ip': 'subfinder [OSINT]'})
+                print(f"RECON DEBUG: subfinder added {len(dns_results) - count_before} new subdomains")
+            else:
+                print(f"RECON DEBUG: subfinder returned empty output")
+        else:
+            print("RECON DEBUG: subfinder NOT FOUND in PATH (install via setup.sh)")
     except Exception as e:
-        print(f"Subfinder error: {e}")
+        print(f"RECON DEBUG: Subfinder error: {e}")
 
-    # Resolve IPs for discovered subdomains to avoid "Detected" placeholder
+    # Resolve IPs for discovered subdomains
     resolved_results = []
     resolver = dns.resolver.Resolver()
-    resolver.timeout = 1; resolver.lifetime = 1
+    resolver.timeout = 2; resolver.lifetime = 2
     
-    # Process findings and try to resolve IPs
     for entry in dns_results:
         host = entry['host']
         if entry['ip'] in ['Detected', 'crt.sh intel', 'subfinder [OSINT]']:
@@ -708,6 +746,7 @@ def run_dns_recon(query, is_ip):
                 answers = resolver.resolve(query, t)
                 for rdata in answers:
                     host = str(rdata.exchange if t == 'MX' else rdata.target).rstrip('.')
+
                     if host not in seen:
                         seen.add(host)
                         try:
