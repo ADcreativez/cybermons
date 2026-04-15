@@ -25,21 +25,10 @@ echo ""
 # ─────────────────────────────────────────
 # STEP 1: System Dependencies
 # ─────────────────────────────────────────
-echo -e "${YELLOW}[1/5] Installing system dependencies...${NC}"
-sudo apt update -q
-sudo apt install -y \
-    python3 python3-pip python3-venv \
-    nmap \
-    build-essential libssl-dev libffi-dev python3-dev \
-    curl wget git
-echo -e "${GREEN}  ✓ System dependencies installed (including nmap)${NC}"
-
-# ─────────────────────────────────────────
-# STEP 1: System Dependencies
-# ─────────────────────────────────────────
 echo -e "${YELLOW}[1/5] Checking system dependencies...${NC}"
 
 OS_TYPE="$(uname -s)"
+ARCH_TYPE="$(uname -m)"
 
 if [[ "$OS_TYPE" == "Linux" ]]; then
     if command -v apt-get &> /dev/null; then
@@ -47,24 +36,70 @@ if [[ "$OS_TYPE" == "Linux" ]]; then
         sudo apt update -q
         sudo apt install -y \
             python3 python3-pip python3-venv \
-            nmap \
+            nmap whois unzip \
             build-essential libssl-dev libffi-dev python3-dev \
             curl wget git
     elif command -v yum &> /dev/null; then
         echo -e "${CYAN}  → Linux (RHEL/CentOS) detected. Using yum...${NC}"
-        sudo yum install -y python3 nmap gcc openssl-devel libffi-devel python3-devel curl wget git
-    else
-        echo -e "${YELLOW}  ⚠ Unsupported Linux distribution. Please ensure dependencies are installed manually.${NC}"
+        sudo yum install -y python3 nmap whois unzip gcc openssl-devel libffi-devel python3-devel curl wget git
     fi
 elif [[ "$OS_TYPE" == "Darwin" ]]; then
     echo -e "${CYAN}  → macOS detected. Checking for Homebrew...${NC}"
     if command -v brew &> /dev/null; then
-        brew install python nmap curl wget git
+        brew install python nmap whois unzip curl wget git
+    fi
+fi
+
+# ─────────────────────────────────────────
+# STEP 1.5: Advanced Recon Tools (Subfinder)
+# ─────────────────────────────────────────
+if ! command -v subfinder &> /dev/null; then
+    echo -e "${YELLOW}[1.5/5] Installing Subfinder...${NC}"
+    if [[ "$OS_TYPE" == "Linux" && "$ARCH_TYPE" == "x86_64" ]]; then
+        TEMP_DIR=$(mktemp -d)
+        SUB_VERSION="2.6.7"
+        echo "  → Downloading Subfinder v${SUB_VERSION} for Linux x64..."
+        curl -sL "https://github.com/projectdiscovery/subfinder/releases/download/v${SUB_VERSION}/subfinder_${SUB_VERSION}_linux_amd64.zip" -o "$TEMP_DIR/subfinder.zip"
+        unzip -q "$TEMP_DIR/subfinder.zip" -d "$TEMP_DIR"
+        sudo mv "$TEMP_DIR/subfinder" /usr/local/bin/
+        sudo chmod +x /usr/local/bin/subfinder
+        rm -rf "$TEMP_DIR"
+        echo -e "${GREEN}  ✓ Subfinder installed to /usr/local/bin${NC}"
+    elif [[ "$OS_TYPE" == "Darwin" ]]; then
+        if command -v brew &> /dev/null; then
+            brew install subfinder
+        fi
     else
-        echo -e "${YELLOW}  ⚠ Homebrew not found. Skipping system package installation.${NC}"
+        echo -e "${YELLOW}  ⚠ Manual installation required for Subfinder on this architecture/OS.${NC}"
     fi
 else
-    echo -e "${YELLOW}  ⚠ Unsupported OS: $OS_TYPE. Skipping system package installation.${NC}"
+    echo -e "${GREEN}  ✓ Subfinder already installed${NC}"
+fi
+
+# ─────────────────────────────────────────
+# STEP 1.6: Historical URL Tools (Waybackurls)
+# ─────────────────────────────────────────
+if ! command -v waybackurls &> /dev/null; then
+    echo -e "${YELLOW}[1.6/5] Installing Waybackurls...${NC}"
+    if [[ "$OS_TYPE" == "Linux" && "$ARCH_TYPE" == "x86_64" ]]; then
+        TEMP_DIR=$(mktemp -d)
+        WAY_VERSION="0.1.0"
+        echo "  → Downloading Waybackurls v${WAY_VERSION} for Linux x64..."
+        curl -sL "https://github.com/tomnomnom/waybackurls/releases/download/v${WAY_VERSION}/waybackurls-linux-amd64-${WAY_VERSION}.tgz" -o "$TEMP_DIR/waybackurls.tgz"
+        tar -xzf "$TEMP_DIR/waybackurls.tgz" -C "$TEMP_DIR"
+        sudo mv "$TEMP_DIR/waybackurls" /usr/local/bin/
+        sudo chmod +x /usr/local/bin/waybackurls
+        rm -rf "$TEMP_DIR"
+        echo -e "${GREEN}  ✓ Waybackurls installed to /usr/local/bin${NC}"
+    elif [[ "$OS_TYPE" == "Darwin" ]]; then
+        if command -v brew &> /dev/null; then
+            brew install waybackurls
+        fi
+    else
+        echo -e "${YELLOW}  ⚠ Manual installation required for Waybackurls on this architecture/OS.${NC}"
+    fi
+else
+    echo -e "${GREEN}  ✓ Waybackurls already installed${NC}"
 fi
 
 echo -e "${GREEN}  ✓ System dependencies check complete${NC}"

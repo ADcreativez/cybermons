@@ -2,78 +2,99 @@
     {
         "url": "https://www.us-cert.gov/ncas/alerts.xml",
         "status": "OK",
-        "last_checked": "2026-04-14 09:03:19",
+        "last_checked": "2026-04-15 09:37:22",
         "category": "threat",
         "last_error": "(raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Iranian-Affiliated Cyber Actors Exploit Programmable Logic Controllers Across US Critical Infrastructure', 'https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-097a', '2026-04-06 07:03:58.000000', '2026-04-06 07:03', '<h2><strong>Advisory at a Glance</strong></h2>\\n<table>\\n<tbody>\\n<tr>\\n<th>Title</th>\\n<td>Iranian-Affiliated Cyber Actors Exploit Programmable Logi ... (37670 characters truncated) ... Logix 5370 Controllers</a> (Chapter 5: \"Select the Operating Mode of the Controller\") for more information on functions available for the switch.</p>', 'CISA Cybersecurity Advisories', 'High', 'threat')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
     },
     {
         "url": "https://threatpost.com/feed/",
         "status": "OK",
-        "last_checked": "2026-04-14 09:03:19",
+        "last_checked": "2026-04-15 09:37:23",
         "category": "threat",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Iranian-Affiliated Cyber Actors Exploit Programmable Logic Controllers Across US Critical Infrastructure', 'https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-097a', '2026-04-06 07:03:58.000000', '2026-04-06 07:03', '<h2><strong>Advisory at a Glance</strong></h2>\\n<table>\\n<tbody>\\n<tr>\\n<th>Title</th>\\n<td>Iranian-Affiliated Cyber Actors Exploit Programmable Logi ... (37670 characters truncated) ... Logix 5370 Controllers</a> (Chapter 5: \"Select the Operating Mode of the Controller\") for more information on functions available for the switch.</p>', 'CISA Cybersecurity Advisories', 'High', 'threat')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
     },
     {
         "url": "https://www.cshub.com/rss/categories/threat-defense",
         "status": "OK",
-        "last_checked": "2026-04-14 09:03:23",
+        "last_checked": "2026-04-15 09:37:24",
         "category": "threat",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Iranian-Affiliated Cyber Actors Exploit Programmable Logic Controllers Across US Critical Infrastructure', 'https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-097a', '2026-04-06 07:03:58.000000', '2026-04-06 07:03', '<h2><strong>Advisory at a Glance</strong></h2>\\n<table>\\n<tbody>\\n<tr>\\n<th>Title</th>\\n<td>Iranian-Affiliated Cyber Actors Exploit Programmable Logi ... (37670 characters truncated) ... Logix 5370 Controllers</a> (Chapter 5: \"Select the Operating Mode of the Controller\") for more information on functions available for the switch.</p>', 'CISA Cybersecurity Advisories', 'High', 'threat')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
     },
     {
         "url": "https://news.google.com/rss/search?q=serangan+siber+indonesia+when:7d&hl=id&gl=ID&ceid=ID:id",
-        "status": "Error",
-        "last_checked": "2026-04-14 09:03:28",
+        "status": "OK",
+        "last_checked": "2026-04-15 09:37:25",
         "category": "news",
         "last_error": "(raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center - Kabar Padang', 'https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd2Qi1lQzQz ... (166 characters truncated) ... E0MTNWc2VNcjlqbW9RYjNYZm93NktQWjZpUWhVZU85d0s5WmV1YTE3LWh0cW1SVVhJOHZ3aXdkeXFSSUQ3N28zd2xVOGhKQ3dXM3NWa3NDQlZsUlNBR3hCNi1uOVNUVFVUSVJMLUVBQmFVZA?oc=5', '2026-04-11 14:15:22.000000', '2026-04-11 14:15', '<a href=\"https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd ... (317 characters truncated) ... ZA?oc=5\" target=\"_blank\">Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Kabar Padang</font>', '\"serangan siber indonesia when:7d\" - Google Berita', 'Info', 'news')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
     },
     {
         "url": "https://cvefeed.io/rssfeed/latest.xml",
-        "status": "Error",
-        "last_checked": "2026-04-14 09:03:28",
+        "status": "OK",
+        "last_checked": "2026-04-15 09:37:25",
         "category": "threat",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center - Kabar Padang', 'https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd2Qi1lQzQz ... (166 characters truncated) ... E0MTNWc2VNcjlqbW9RYjNYZm93NktQWjZpUWhVZU85d0s5WmV1YTE3LWh0cW1SVVhJOHZ3aXdkeXFSSUQ3N28zd2xVOGhKQ3dXM3NWa3NDQlZsUlNBR3hCNi1uOVNUVFVUSVJMLUVBQmFVZA?oc=5', '2026-04-11 14:15:22.000000', '2026-04-11 14:15', '<a href=\"https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd ... (317 characters truncated) ... ZA?oc=5\" target=\"_blank\">Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Kabar Padang</font>', '\"serangan siber indonesia when:7d\" - Google Berita', 'Info', 'news')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
     },
     {
         "url": "https://news.google.com/rss/search?q=%22kebocoran+data%22+OR+%22data+breach%22+site:id&hl=id&gl=ID&ceid=ID:id",
-        "status": "Error",
-        "last_checked": "2026-04-14 09:03:29",
+        "status": "OK",
+        "last_checked": "2026-04-15 09:37:27",
         "category": "news",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center - Kabar Padang', 'https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd2Qi1lQzQz ... (166 characters truncated) ... E0MTNWc2VNcjlqbW9RYjNYZm93NktQWjZpUWhVZU85d0s5WmV1YTE3LWh0cW1SVVhJOHZ3aXdkeXFSSUQ3N28zd2xVOGhKQ3dXM3NWa3NDQlZsUlNBR3hCNi1uOVNUVFVUSVJMLUVBQmFVZA?oc=5', '2026-04-11 14:15:22.000000', '2026-04-11 14:15', '<a href=\"https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd ... (317 characters truncated) ... ZA?oc=5\" target=\"_blank\">Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Kabar Padang</font>', '\"serangan siber indonesia when:7d\" - Google Berita', 'Info', 'news')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
     },
     {
         "url": "http://feeds.feedburner.com/TheHackersNews",
-        "status": "Error",
-        "last_checked": "2026-04-14 09:03:30",
+        "status": "OK",
+        "last_checked": "2026-04-15 09:37:28",
         "category": "news",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center - Kabar Padang', 'https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd2Qi1lQzQz ... (166 characters truncated) ... E0MTNWc2VNcjlqbW9RYjNYZm93NktQWjZpUWhVZU85d0s5WmV1YTE3LWh0cW1SVVhJOHZ3aXdkeXFSSUQ3N28zd2xVOGhKQ3dXM3NWa3NDQlZsUlNBR3hCNi1uOVNUVFVUSVJMLUVBQmFVZA?oc=5', '2026-04-11 14:15:22.000000', '2026-04-11 14:15', '<a href=\"https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd ... (317 characters truncated) ... ZA?oc=5\" target=\"_blank\">Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Kabar Padang</font>', '\"serangan siber indonesia when:7d\" - Google Berita', 'Info', 'news')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
     },
     {
         "url": "https://www.ransomware.live/rss.xml",
-        "status": "Error",
-        "last_checked": "2026-04-14 09:03:40",
+        "status": "OK",
+        "last_checked": "2026-04-15 09:37:31",
         "category": "ransomware",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center - Kabar Padang', 'https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd2Qi1lQzQz ... (166 characters truncated) ... E0MTNWc2VNcjlqbW9RYjNYZm93NktQWjZpUWhVZU85d0s5WmV1YTE3LWh0cW1SVVhJOHZ3aXdkeXFSSUQ3N28zd2xVOGhKQ3dXM3NWa3NDQlZsUlNBR3hCNi1uOVNUVFVUSVJMLUVBQmFVZA?oc=5', '2026-04-11 14:15:22.000000', '2026-04-11 14:15', '<a href=\"https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd ... (317 characters truncated) ... ZA?oc=5\" target=\"_blank\">Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Kabar Padang</font>', '\"serangan siber indonesia when:7d\" - Google Berita', 'Info', 'news')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
     },
     {
         "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
-        "status": "Error",
-        "last_checked": "2026-04-14 09:03:41",
+        "status": "OK",
+        "last_checked": "2026-04-15 09:37:32",
         "category": "threat",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center - Kabar Padang', 'https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd2Qi1lQzQz ... (166 characters truncated) ... E0MTNWc2VNcjlqbW9RYjNYZm93NktQWjZpUWhVZU85d0s5WmV1YTE3LWh0cW1SVVhJOHZ3aXdkeXFSSUQ3N28zd2xVOGhKQ3dXM3NWa3NDQlZsUlNBR3hCNi1uOVNUVFVUSVJMLUVBQmFVZA?oc=5', '2026-04-11 14:15:22.000000', '2026-04-11 14:15', '<a href=\"https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd ... (317 characters truncated) ... ZA?oc=5\" target=\"_blank\">Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Kabar Padang</font>', '\"serangan siber indonesia when:7d\" - Google Berita', 'Info', 'news')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
     },
     {
         "url": "https://cybersecuritynews.com/feed/",
-        "status": "Error",
-        "last_checked": "2026-04-14 09:03:42",
+        "status": "OK",
+        "last_checked": "2026-04-15 09:37:34",
         "category": "news",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center - Kabar Padang', 'https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd2Qi1lQzQz ... (166 characters truncated) ... E0MTNWc2VNcjlqbW9RYjNYZm93NktQWjZpUWhVZU85d0s5WmV1YTE3LWh0cW1SVVhJOHZ3aXdkeXFSSUQ3N28zd2xVOGhKQ3dXM3NWa3NDQlZsUlNBR3hCNi1uOVNUVFVUSVJMLUVBQmFVZA?oc=5', '2026-04-11 14:15:22.000000', '2026-04-11 14:15', '<a href=\"https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd ... (317 characters truncated) ... ZA?oc=5\" target=\"_blank\">Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Kabar Padang</font>', '\"serangan siber indonesia when:7d\" - Google Berita', 'Info', 'news')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
     },
     {
         "url": "https://www.bleepingcomputer.com/feed/",
-        "status": "Error",
-        "last_checked": "2026-04-14 09:03:43",
+        "status": "OK",
+        "last_checked": "2026-04-15 09:37:35",
         "category": "news",
         "last_error": "This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)\n(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO threat (title, link, published, published_str, summary, source, severity, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]\n[parameters: ('Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center - Kabar Padang', 'https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd2Qi1lQzQz ... (166 characters truncated) ... E0MTNWc2VNcjlqbW9RYjNYZm93NktQWjZpUWhVZU85d0s5WmV1YTE3LWh0cW1SVVhJOHZ3aXdkeXFSSUQ3N28zd2xVOGhKQ3dXM3NWa3NDQlZsUlNBR3hCNi1uOVNUVFVUSVJMLUVBQmFVZA?oc=5', '2026-04-11 14:15:22.000000', '2026-04-11 14:15', '<a href=\"https://news.google.com/rss/articles/CBMilwFBVV95cUxQQkpobG8tUWpyYU9WX1RGX0tYdERMaVZHMUNpZ3p4M1VPUVdwSnFIUi1ZbENrSDRQLTNqbVVoSE93djRFeXJEZnd ... (317 characters truncated) ... ZA?oc=5\" target=\"_blank\">Merry Yuliesday Pastikan Kesiapan Layanan RS Mata Padang Eye Center</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Kabar Padang</font>', '\"serangan siber indonesia when:7d\" - Google Berita', 'Info', 'news')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)"
+    },
+    {
+        "url": "telegram://cve_mitre_org",
+        "status": "Error",
+        "last_checked": "2026-04-15 09:37:35",
+        "category": "threat",
+        "last_error": "[Errno 5] Input/output error"
+    },
+    {
+        "url": "telegram://itsecalerts",
+        "status": "Error",
+        "last_checked": "2026-04-15 09:37:35",
+        "category": "threat",
+        "last_error": "[Errno 5] Input/output error"
+    },
+    {
+        "url": "nvd://latest",
+        "status": "Error",
+        "last_checked": "2026-04-15 09:37:35",
+        "category": "threat",
+        "last_error": "[Errno 5] Input/output error"
     }
 ]
