@@ -79,6 +79,7 @@ def save_keys():
                    'show_passwords', 'show_infra', 'show_defacements', 'show_ioc_intel',
                    'show_wayback', 'show_infra_recon', 'show_breach_intel']:
         config[toggle] = toggle in request.form
+    config['sync_interval'] = int(request.form.get('sync_interval', 360))
     save_darkweb_config(config)
     flash('Settings updated.', 'success')
     return redirect(url_for('admin.settings'))
@@ -87,10 +88,68 @@ def save_keys():
 @login_required
 def test_feed():
     import feedparser
-    url = request.json.get('url')
+    import requests as req
+    url = request.json.get('url', '').strip()
+    
+    # Handle Telegram Testing
+    if url.startswith('telegram://') or 't.me/' in url:
+        handle = url.replace('telegram://', '').split('/')[-1]
+        try:
+            # Quick check if channel is accessible and has preview
+            test_url = f"https://t.me/s/{handle}"
+            r = req.get(test_url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
+            if r.status_code == 200 and ('tgme_widget_message_wrap' in r.text or 'tgme_channel_info_header' in r.text):
+                # Repair status if successful
+                feeds = load_feeds()
+                for f in feeds:
+                    if f['url'] == url:
+                        f['status'] = 'OK'
+                        f['last_error'] = None
+                        break
+                save_feeds(feeds)
+                return jsonify({'success': True, 'message': f"Telegram channel @{handle} is active and accessible."})
+            else:
+                return jsonify({'success': False, 'message': f"Channel @{handle} not found or has no public preview."})
+        except Exception as e:
+            return jsonify({'success': False, 'message': f"Connection error: {str(e)}"})
+
+    # Handle NVD Testing
+    if url.startswith('nvd://'):
+        try:
+            # Simple check of NVD API availability
+            r = req.get("https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1", timeout=10)
+            if r.status_code == 200:
+                feeds = load_feeds()
+                for f in feeds:
+                    if f['url'] == url:
+                        f['status'] = 'OK'
+                        f['last_error'] = None
+                        break
+                save_feeds(feeds)
+                return jsonify({'success': True, 'message': "NVD API is reachable and responding correctly."})
+            else:
+                return jsonify({'success': False, 'message': f"NVD API returned error status: {r.status_code}"})
+        except Exception as e:
+            return jsonify({'success': False, 'message': f"NVD Connection error: {str(e)}"})
+
+    # Standard RSS testing
     try:
-        feed = feedparser.parse(url)
+        # Use requests with User-Agent to avoid being blocked (more reliable than feedparser'sFetcher)
+        r = req.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+        if r.status_code != 200:
+            return jsonify({'success': False, 'message': f"Mirror/Server returned HTTP {r.status_code}"})
+            
+        feed = feedparser.parse(r.text)
         if feed.entries:
+            # Repair status if successful
+            feeds = load_feeds()
+            for f in feeds:
+                if f['url'] == url:
+                    f['status'] = 'OK'
+                    f['last_error'] = None
+                    break
+            save_feeds(feeds)
+            
             return jsonify({
                 'success': True,
                 'message': f"Available. Found {len(feed.entries)} entries.",
@@ -125,9 +184,18 @@ def delete_log(id):
 @login_required
 def add_feed():
     if current_user.role != 'admin': abort(403)
-    url = request.form.get('url')
+    url = request.form.get('url', '').strip()
     category = request.form.get('category', 'threat')
+    
     if url:
+        # Normalize Telegram Inputs
+        if url.startswith('@'):
+            url = f"telegram://{url[1:]}"
+        elif 't.me/' in url:
+            # Handles https://t.me/s/channel, https://t.me/channel, etc.
+            handle = url.strip('/').split('/')[-1]
+            url = f"telegram://{handle}"
+            
         feeds = load_feeds()
         if not any(f['url'] == url for f in feeds):
             feeds.append({"url": url, "status": "OK", "last_checked": None, "category": category})

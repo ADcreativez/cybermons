@@ -26,7 +26,8 @@ def load_darkweb_config():
         'show_stealer': True, 'show_passwords': True, 'show_infra': True,
         'show_defacements': True, 'show_ioc_intel': True, 'show_wayback': True,
         'show_infra_recon': True,
-        'show_breach_intel': True
+        'show_breach_intel': True,
+        'sync_interval': 360
     }
     if os.path.exists(config_path):
         with open(config_path, 'r') as f:

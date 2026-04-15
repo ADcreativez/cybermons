@@ -117,7 +117,7 @@
                     Verified HIBP records + Google News coverage — khusus kejadian di Indonesia
                 </div>
             </div>
-            <button onclick="loadIndonesia()" class="btn"
+            <button onclick="refreshIndonesia()" id="refresh-btn" class="btn"
                 style="font-size:0.62rem; border:1px solid rgba(206,17,38,0.4); color:#ce1126; padding:7px 14px; border-radius:6px;">
                 <i class="fa-solid fa-rotate"></i> REFRESH
             </button>
@@ -201,6 +201,24 @@ let currentSort    = 'recent';
 let currentPage    = 1;
 let currentPerPage = 25;
 
+// ── Helpers ───────────────────────────────────────────────────
+function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtNum(n) {
+    if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
+    if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+    if (n >= 1e3) return (n/1e3).toFixed(0)+'K';
+    return n;
+}
+function isDangerous(dc) {
+    const list = ['Password', 'Hash', 'Credit card', 'CVV', 'Financial', 'Social Security', 'Identity', 'SSN', 'Passport', 'NIK', 'NPWP', 'KTP'];
+    return list.some(k => dc.toLowerCase().includes(k.toLowerCase()));
+}
+function emptyHtml(msg) {
+    return `<div class="bi-empty"><i class="fa-solid fa-satellite-dish" style="font-size:1.8rem; display:block; margin-bottom:12px;"></i>${escHtml(msg)}</div>`;
+}
+
 // ── Tab switching ────────────────────────────────────────────
 function switchTab(tab) {
     document.querySelectorAll('.bi-tab').forEach(t => t.classList.remove('active'));
@@ -280,8 +298,17 @@ function loadMarket() {
                                 ${b.logo ? `<img src="${escHtml(b.logo)}" style="width:22px; height:22px; object-fit:contain; border-radius:3px;" onerror="this.style.display='none'">` : '<i class="fa-solid fa-circle-exclamation" style="color:rgba(255,255,255,0.2); font-size:0.9rem;"></i>'}
                             </div>
                             <div>
-                                <div style="font-weight:700; color:var(--text-primary); font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(b.title)}</div>
-                                <div style="font-size:0.58rem; opacity:0.5; margin-top:1px;">${escHtml(b.domain) || '—'}${b.is_stealer ? ' <span style="color:#b44dff;">STEALER</span>' : ''}${b.is_sensitive ? ' <span style="color:#ff6600;">SENSITIVE</span>' : ''}</div>
+                                <a href="https://haveibeenpwned.com/PwnedWebsites#${escHtml(b.name)}" target="_blank" rel="noopener" style="text-decoration:none; display:block;" title="View official reference on HIBP">
+                                    <div style="font-weight:700; color:var(--text-primary); font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.2s;" 
+                                        onmouseover="this.style.color='var(--accent-color)'" onmouseout="this.style.color='var(--text-primary)'">
+                                        ${escHtml(b.title)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.5rem; opacity:0.5; margin-left:3px;"></i>
+                                    </div>
+                                </a>
+                                <div style="font-size:0.58rem; opacity:0.5; margin-top:1px;">
+                                    ${b.domain ? `<a href="https://${escHtml(b.domain)}" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escHtml(b.domain)}</a>` : '—'}
+                                    ${b.is_stealer ? ' <span style="color:#b44dff;">STEALER</span>' : ''}
+                                    ${b.is_sensitive ? ' <span style="color:#ff6600;">SENSITIVE</span>' : ''}
+                                </div>
                             </div>
                             <div style="color:var(--text-secondary); font-size:0.68rem;">
                                 <div>${b.breach_date || '—'}</div>
@@ -328,16 +355,6 @@ function goPage(p) {
     document.getElementById('panel-market').scrollTop = 0;
 }
 
-function isDangerous(dc) {
-    return ['Passwords','Credit cards','Bank account numbers','Social security numbers','Government issued IDs','Health records','Auth tokens'].includes(dc);
-}
-function fmtNum(n) {
-    if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
-    if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
-    if (n >= 1e3) return (n/1e3).toFixed(0)+'K';
-    return n;
-}
-
 // ── Breach Lookup ─────────────────────────────────────────────
 function runLookup() {
     const q   = document.getElementById('lookup-q').value.trim();
@@ -370,12 +387,22 @@ function runLookup() {
                 <div class="lookup-row" style="border-bottom:1px solid rgba(0,255,204,0.12); color:var(--accent-color); font-size:0.6rem; letter-spacing:1px;">
                     <div>SOURCE</div><div>RECORD</div><div style="text-align:center;">STATUS</div>
                 </div>
-                ${data.results.map(r => `
+                ${data.results.map(r => {
+                    const mainSource = r.source.split(' / ')[0].trim();
+                    const sourceUrls = { 'BreachDirectory': 'https://breachdirectory.org', 'LeakCheck': 'https://leakcheck.net' };
+                    const url = sourceUrls[mainSource] || '#';
+                    return `
                     <div class="lookup-row">
-                        <div style="color:var(--text-secondary); font-size:0.65rem;">${escHtml(r.source)}</div>
+                        <div>
+                            <a href="${url}" target="_blank" rel="noopener" style="color:var(--text-secondary); text-decoration:none; font-size:0.65rem; transition:color 0.2s;"
+                               onmouseover="this.style.color='var(--accent-color)'" onmouseout="this.style.color='var(--text-secondary)'">
+                                ${escHtml(r.source)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.45rem; opacity:0.5; margin-left:3px;"></i>
+                            </a>
+                        </div>
                         <div style="color:#fff; font-family:monospace; font-size:0.7rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(r.record)}</div>
                         <div style="text-align:center;"><span class="risk-badge" style="${statusStyle(r.type)}">${r.type}</span></div>
-                    </div>`).join('')}
+                    </div>`;
+                }).join('')}
             </div>`;
     })
     .catch(e => { btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-satellite-dish"></i> SCAN'; box.innerHTML = emptyHtml('Error: '+e.message); });
@@ -388,15 +415,42 @@ function statusStyle(type) {
 }
 
 // ── Indonesia Breach Intelligence ────────────────────────────
+function refreshIndonesia() {
+    const btn = document.getElementById('refresh-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...';
+    fetch('/darkweb/breach-intel/indonesia/refresh', {method:'POST'})
+        .then(() => {
+            // Wait ~5s for background fetch then reload
+            setTimeout(() => {
+                loadIndonesia();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-rotate"></i> REFRESH';
+            }, 5000);
+        })
+        .catch(() => { btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-rotate"></i> REFRESH'; });
+}
+
 function loadIndonesia() {
     const hibpEl = document.getElementById('id-hibp');
     const newsEl = document.getElementById('id-news');
-    hibpEl.innerHTML = `<div style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-secondary); padding:20px; text-align:center;"><i class="fa-solid fa-spinner fa-spin" style="display:block; margin-bottom:8px;"></i>Fetching...</div>`;
+    hibpEl.innerHTML = `<div style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-secondary); padding:20px; text-align:center;"><i class="fa-solid fa-spinner fa-spin" style="display:block; margin-bottom:8px;"></i>Loading...</div>`;
     newsEl.innerHTML = hibpEl.innerHTML;
 
     fetch('/darkweb/breach-intel/indonesia')
         .then(r => r.json())
         .then(data => {
+            if (data.loading) {
+                const retryHtml = `<div style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-secondary); padding:20px; text-align:center;">
+                    <i class="fa-solid fa-spinner fa-spin" style="display:block; margin-bottom:8px;"></i>
+                    Membangun data intelijen (startup)...<br>
+                    <span style="opacity:0.5; font-size:0.58rem;">Otomatis memuat dalam 3 detik</span>
+                </div>`;
+                hibpEl.innerHTML = retryHtml;
+                newsEl.innerHTML = retryHtml;
+                setTimeout(loadIndonesia, 3000);
+                return;
+            }
             // Incidents timeline strip
             const incEl = document.getElementById('id-incidents');
             if (data.incidents?.length) {
@@ -454,9 +508,16 @@ function loadIndonesia() {
                         </div>
                         <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                             ${b.logo ? `<img src="${escHtml(b.logo)}" style="width:20px; height:20px; object-fit:contain; border-radius:3px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
-                            <div style="font-weight:700; font-family:var(--font-mono); font-size:0.78rem; color:var(--text-primary);">${escHtml(b.title)}</div>
+                            <a href="https://haveibeenpwned.com/PwnedWebsites#${escHtml(b.name)}" target="_blank" rel="noopener" style="text-decoration:none;" title="View official reference on HIBP">
+                                <div style="font-weight:700; font-family:var(--font-mono); font-size:0.78rem; color:var(--text-primary); transition:color 0.2s;"
+                                    onmouseover="this.style.color='var(--accent-color)'" onmouseout="this.style.color='var(--text-primary)'">
+                                    ${escHtml(b.title)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.5rem; opacity:0.5; margin-left:3px;"></i>
+                                </div>
+                            </a>
                         </div>
-                        <div style="font-size:0.62rem; color:var(--text-secondary); opacity:0.6; margin-bottom:6px;">${escHtml(b.domain) || '—'}</div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); opacity:0.6; margin-bottom:6px;">
+                            ${b.domain ? `<a href="https://${escHtml(b.domain)}" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escHtml(b.domain)}</a>` : '—'}
+                        </div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <div style="font-family:var(--font-mono); font-size:0.65rem; color:${b.pwn_count > 1000000 ? '#ff4d4d' : '#ffaa00'}; font-weight:700;">
                                 <i class="fa-solid fa-users" style="font-size:0.5rem;"></i> ${fmtNum(b.pwn_count)} victims
@@ -464,7 +525,7 @@ function loadIndonesia() {
                             ${b.is_verified ? '<span style="font-family:var(--font-mono); font-size:0.52rem; color:#00ffcc;"><i class="fa-solid fa-check-circle"></i> VERIFIED</span>' : ''}
                         </div>
                         <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:2px;">
-                            ${b.data_classes.map(dc => `<span class="dc-chip ${isDangerous(dc)?'danger':''}}">${escHtml(dc)}</span>`).join('')}
+                            ${b.data_classes.map(dc => `<span class="dc-chip ${isDangerous(dc)?'danger':''}">${escHtml(dc)}</span>`).join('')}
                         </div>
                     </div>
                 `).join('');
@@ -494,14 +555,6 @@ function loadIndonesia() {
             }
         })
         .catch(e => { hibpEl.innerHTML = emptyHtml('Error: ' + e.message); newsEl.innerHTML = ''; });
-}
-
-// ── Helpers ───────────────────────────────────────────────────
-function emptyHtml(msg) {
-    return `<div class="bi-empty"><i class="fa-solid fa-satellite-dish" style="font-size:1.8rem; display:block; margin-bottom:12px;"></i>${escHtml(msg)}</div>`;
-}
-function escHtml(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ── Init ──────────────────────────────────────────────────────

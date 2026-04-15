@@ -15,7 +15,7 @@
             <h3><i class="fa-solid fa-rss"></i> MANAGE THREAT SOURCES</h3>
 
             <form action="{{ url_for('admin.add_feed') }}" method="POST" class="add-feed-form">
-                <input type="url" name="url" placeholder="https://example.com/rss" required>
+                <input type="text" name="url" placeholder="RSS URL or @TelegramHandle" required style="flex: 1;">
                 <select name="category" class="source-selector" style="width: 180px;">
                     <option value="threat">Threat Intelligence</option>
                     <option value="monitoring.news">Cyber News</option>
@@ -23,6 +23,9 @@
                 </select>
                 <button type="submit" class="btn btn-add">ADD SOURCE</button>
             </form>
+            <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 8px; font-family: var(--font-mono); opacity: 0.7;">
+                <i class="fa-solid fa-circle-info"></i> RSS URL atau @TelegramHandle (cth: <code>@cyberthreatid</code>)
+            </p>
 
             <div class="active-sources-list">
                 <h4 style="margin: 20px 0 10px; color: var(--text-secondary); font-family: var(--font-mono);">ACTIVE
@@ -115,6 +118,16 @@
                 {{ render_key_field('ABUSE.CH AUTH-KEY', 'abuse_ch_api_key', darkweb_config.abuse_ch_api_key) }}
                 {{ render_key_field('CRIMINAL IP API KEY', 'criminalip_api_key', darkweb_config.criminalip_api_key) }}
                 <div style="margin-top: 20px; border-top: 1px solid rgba(0,255,204,0.1); padding-top: 20px;">
+                    <h4 style="margin: 0 0 15px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 1px;">
+                        GLOBAL ANALYTICS & SYNC settings</h4>
+                    <div style="margin-bottom: 25px; padding: 15px; background: rgba(0,255,204,0.05); border: 1px solid rgba(0,255,204,0.1); border-radius: 4px; display: flex; align-items: center; gap: 20px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; font-size: 0.8rem; color: var(--accent-color); margin-bottom: 5px;">SYNC ALL DATA INTERVAL (MINUTES)</label>
+                            <p style="font-size: 0.7rem; opacity: 0.6; margin: 0;">How often the system refreshes data from RSS, Telegram, and NVD sources.</p>
+                        </div>
+                        <input type="number" name="sync_interval" value="{{ darkweb_config.sync_interval or 360 }}" min="5" max="1440" style="width: 120px; text-align: center; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-color); color: var(--accent-color); font-family: var(--font-mono); font-weight: bold;">
+                    </div>
+
                     <h4
                         style="margin: 0 0 15px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 1px;">
                         VISIBLE TOOLS</h4>
@@ -381,17 +394,28 @@
             .then(data => {
                 if (data.success) {
                     content.innerHTML = '<div style="color: var(--accent-color);"><i class="fa-solid fa-check"></i> ' + data.message + '</div>';
+                    // Mark as successful to trigger UI refresh on close
+                    overlay.dataset.success = "true";
                 } else {
                     content.innerHTML = '<div style="color: var(--danger-color);"><i class="fa-solid fa-times"></i> ' + data.message + '</div>';
+                    overlay.dataset.success = "false";
                 }
             })
             .catch((error) => {
                 content.innerHTML = '<div style="color: var(--danger-color);">Error: ' + error + '</div>';
+                overlay.dataset.success = "false";
             });
     }
 
     function closeTestOverlay() {
-        document.getElementById('testResultOverlay').style.display = 'none';
+        const overlay = document.getElementById('testResultOverlay');
+        const isSuccess = overlay.dataset.success === "true";
+        overlay.style.display = 'none';
+        
+        // If successful, reload to show the updated "ONLINE" badges
+        if (isSuccess) {
+            window.location.reload();
+        }
     }
 
     function showLogConfirm(id) {

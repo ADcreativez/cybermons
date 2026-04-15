@@ -1,197 +1,289 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="dashboard-grid">
-    <!-- Stats Panel -->
-    <div class="panel stats-panel">
-        <div class="panel-header">THREAT METRICS (FILTER)</div>
-        <div class="stats-container">
-            <!-- Time Display -->
-            <div class="stat-box time-box">
-                <div class="stat-value" id="clock" style="font-size: 1.2rem;">--:--:--</div>
-                <div class="stat-label">SYSTEM TIME (UTC)</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<div class="vision-dashboard">
+    {% if current_category == 'main_dashboard' %}
+    <!-- Vision Widgets Row -->
+    <div class="vision-widgets-row">
+        <!-- Severity Doughnut -->
+        <div class="vision-widget severity-widget">
+            <div class="widget-header"><i class="fa-solid fa-chart-pie"></i> THREAT SEVERITY</div>
+            <div class="chart-container">
+                <canvas id="severityChart"></canvas>
             </div>
+            <div class="widget-footer">TOTAL THREATS DETECTED: {{ stats.total }}</div>
+        </div>
 
+        <!-- 7-Day Trend -->
+        <div class="vision-widget trend-widget">
+            <div class="widget-header"><i class="fa-solid fa-chart-line"></i> THREAT TENDENCY (7 DAYS)</div>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
 
-            <a href="{{ url_for(request.endpoint, severity='Critical', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
-                class="stat-box critical {% if current_severity == 'Critical' %}active{% endif %}">
-                <div class="stat-value">{{ stats.critical }}</div>
-                <div class="stat-label">CRITICAL</div>
-            </a>
+        <!-- Top Attack Targets -->
+        <div class="vision-widget sources-widget">
+            <div class="widget-header"><i class="fa-solid fa-earth-americas"></i> TOP ATTACK TARGETS (Ransomware)</div>
+            <div
+                style="font-size: 0.65rem; color: var(--text-secondary); padding: 0 15px; margin-top: -5px; font-family: var(--font-mono); opacity: 0.8;">
 
-            <a href="{{ url_for(request.endpoint, severity='High', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
-                class="stat-box high {% if current_severity == 'High' %}active{% endif %}">
-                <div class="stat-value">{{ stats.high }}</div>
-                <div class="stat-label">HIGH</div>
-            </a>
+            </div>
+            <div class="chart-container">
+                <canvas id="sourcesChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
-            <a href="{{ url_for(request.endpoint, severity='Medium', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
-                class="stat-box medium {% if current_severity == 'Medium' %}active{% endif %}">
-                <div class="stat-value">{{ stats.medium }}</div>
-                <div class="stat-label">MEDIUM</div>
-            </a>
+    {% if current_category == 'main_dashboard' %}
+    <!-- Darkweb Analytics Row -->
+    <div class="vision-widgets-row">
+        <!-- Breach Info -->
+        <div class="vision-widget severity-widget">
+            <div class="widget-header"><i class="fa-solid fa-users-slash"></i> BREACH MARKET SECTORS</div>
+            <div class="chart-container">
+                <canvas id="breachChart"></canvas>
+            </div>
+        </div>
 
-            <a href="{{ url_for(request.endpoint, severity='Low', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
-                class="stat-box low {% if current_severity == 'Low' %}active{% endif %}">
-                <div class="stat-value">{{ stats.low }}</div>
-                <div class="stat-label">LOW</div>
-            </a>
+        <!-- Ransomware Victims -->
+        <div class="vision-widget sources-widget" style="flex: 1.5;">
+            <div class="widget-header"><i class="fa-solid fa-skull-crossbones"></i> TOP RANSOMWARE GROUPS</div>
+            <div class="chart-container">
+                <canvas id="ransomwareChart"></canvas>
+            </div>
+        </div>
 
-            <a href="{{ url_for(request.endpoint, severity='Info', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
-                class="stat-box info {% if current_severity == 'Info' %}active{% endif %}">
-                <div class="stat-value">{{ stats.info }}</div>
-                <div class="stat-label">INFO</div>
-            </a>
-
-            <a href="{{ url_for(request.endpoint) }}" class="stat-box database">
-                <div class="stat-value">{{ stats.total }}</div>
-                <div class="stat-label">THREAT DATABASE</div>
-            </a>
+        <!-- Defacement Victims -->
+        <div class="vision-widget trend-widget">
+            <div class="widget-header"><i class="fa-solid fa-globe"></i> TOP DEFACEMENT TEAMS</div>
+            <div class="chart-container">
+                <canvas id="defacementChart"></canvas>
+            </div>
         </div>
     </div>
 
-    <!-- Active Threats Feed -->
-    <div class="panel feed-panel" style="position: relative;">
-        <!-- Native Scroll used - Buttons Removed -->
+    <!-- Mini Widget Row -->
+    <div class="vision-widgets-row vision-widgets-row-mini" style="min-height: 150px; flex: 0.5;">
+        <div class="vision-widget mini-widget" style="flex: 1;">
+            <div class="widget-header" style="padding: 8px 12px; font-size: 0.75rem;"><i class="fa-solid fa-server"></i>
+                INTERNAL ASSET DISTRIBUTION</div>
+            <div class="chart-container" style="padding: 5px;">
+                <canvas id="inventoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
-        <div class="panel-header">
-            <span>{{ page_title }}</span>
+    {% if current_category != 'main_dashboard' %}
+    <div class="dashboard-grid">
+        <!-- Threat Matrix (Stats Panel) -->
+        <div class="panel stats-panel">
+            <div class="panel-header">THREAT METRICS (FILTER)</div>
+            <div class="stats-container">
+                <!-- Time Display -->
+                <div class="stat-box time-box">
+                    <div class="stat-value" id="clock" style="font-size: 1.2rem;">--:--:--</div>
+                    <div class="stat-label">SYSTEM TIME (UTC)</div>
+                </div>
 
-            <div class="feed-controls">
-                <!-- Limit Selector -->
-                <!-- Search Form -->
-                <form action="{{ request.path }}" method="GET" class="search-form" style="margin-right: 15px;">
-                    {% if current_severity %}<input type="hidden" name="severity" value="{{ current_severity }}">{%
-                    endif %}
-                    {% if current_date %}<input type="hidden" name="date" value="{{ current_date }}">{% endif %}
-                    {% if current_source %}<input type="hidden" name="source" value="{{ current_source }}">{% endif %}
-                    {% if current_limit %}<input type="hidden" name="limit" value="{{ current_limit }}">{% endif %}
+                <a href="{{ url_for(request.endpoint, severity='Critical', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                    class="stat-box critical {% if current_severity == 'Critical' %}active{% endif %}">
+                    <div class="stat-value">{{ stats.critical }}</div>
+                    <div class="stat-label">CRITICAL</div>
+                </a>
 
-                    <div class="search-input-wrapper">
-                        <i class="fa-solid fa-search search-icon"></i>
-                        <input type="text" name="q" placeholder="SEARCH INTEL..." value="{{ current_search or '' }}"
-                            class="search-input">
-                    </div>
-                </form>
+                <a href="{{ url_for(request.endpoint, severity='High', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                    class="stat-box high {% if current_severity == 'High' %}active{% endif %}">
+                    <div class="stat-value">{{ stats.high }}</div>
+                    <div class="stat-label">HIGH</div>
+                </a>
 
-                <form action="{{ request.path }}" method="GET" class="limit-form">
-                    {% if current_severity %}<input type="hidden" name="severity" value="{{ current_severity }}">{%
-                    endif %}
-                    {% if current_date %}<input type="hidden" name="date" value="{{ current_date }}">{% endif %}
-                    {% if current_source %}<input type="hidden" name="source" value="{{ current_source }}">{% endif %}
-                    {% if current_search %}<input type="hidden" name="q" value="{{ current_search }}">{% endif %}
+                <a href="{{ url_for(request.endpoint, severity='Medium', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                    class="stat-box medium {% if current_severity == 'Medium' %}active{% endif %}">
+                    <div class="stat-value">{{ stats.medium }}</div>
+                    <div class="stat-label">MEDIUM</div>
+                </a>
 
-                    <select name="limit" onchange="this.form.submit()" class="limit-selector">
-                        <option value="10" {% if current_limit=='10' %}selected{% endif %}>10 / PAGE</option>
-                        <option value="20" {% if current_limit=='20' or not current_limit %}selected{% endif %}>20 /
-                            PAGE</option>
-                        <option value="50" {% if current_limit=='50' %}selected{% endif %}>50 / PAGE</option>
-                        <option value="100" {% if current_limit=='100' %}selected{% endif %}>100 / PAGE</option>
-                        <option value="all" {% if current_limit=='all' %}selected{% endif %}>SHOW ALL</option>
-                    </select>
-                </form>
+                <a href="{{ url_for(request.endpoint, severity='Low', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                    class="stat-box low {% if current_severity == 'Low' %}active{% endif %}">
+                    <div class="stat-value">{{ stats.low }}</div>
+                    <div class="stat-label">LOW</div>
+                </a>
 
-                <!-- General Filter Form (Date & Source) -->
-                <form action="{{ request.path }}" method="GET" class="date-filter-form">
-                    {% if current_severity %}
-                    <input type="hidden" name="severity" value="{{ current_severity }}">
-                    {% endif %}
-                    {% if current_limit %}
-                    <input type="hidden" name="limit" value="{{ current_limit }}">
-                    {% endif %}
-                    {% if current_search %}<input type="hidden" name="q" value="{{ current_search }}">{% endif %}
+                <a href="{{ url_for(request.endpoint, severity='Info', date=current_date, source=current_source, limit=current_limit, q=current_search) }}"
+                    class="stat-box info {% if current_severity == 'Info' %}active{% endif %}">
+                    <div class="stat-value">{{ stats.info }}</div>
+                    <div class="stat-label">INFO</div>
+                </a>
 
-                    <select name="source" class="source-selector" onchange="this.form.submit()">
-                        <option value="">ALL SOURCES</option>
-                        {% for source in sources %}
-                        <option value="{{ source }}" {% if current_source==source %}selected{% endif %}>{{ source }}
-                        </option>
-                        {% endfor %}
-                    </select>
-
-                    <input type="date" name="date" value="{{ current_date or '' }}" class="date-picker"
-                        onchange="this.form.submit()">
-                    <!-- Button removed for dynamic filtering -->
-                    {% if current_date or current_severity or current_source or current_search %}
-                    <a href="{{ request.path }}" class="btn-clear" title="Clear Filters"><i
-                            class="fa-solid fa-times"></i></a>
-                    {% endif %}
-                </form>
-
-                <a href="{{ url_for('monitoring.refresh_data') }}" class="btn-refresh"><i class="fa-solid fa-sync"></i> REFRESH</a>
+                <a href="{{ url_for(request.endpoint) }}" class="stat-box database">
+                    <div class="stat-value">{{ stats.total }}</div>
+                    <div class="stat-label">THREAT DATABASE</div>
+                </a>
             </div>
         </div>
 
-        <div class="feed-list" id="feedListContainer">
-            {% for threat in threats %}
-            <div
-                class="threat-card severity-{{ threat.severity.lower() }} {% if current_category == 'monitoring.news' %}news-card{% endif %}">
-                <div class="threat-header">
-                    <span class="threat-source">[{{ threat.source }}]</span>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <span class="threat-date">{{ threat.published_str }}</span>
-                        {% if current_category == 'monitoring.news' %}
-                        <div id="intel-delete-control-{{ threat.id }}" style="display: inline-block;">
-                            <button type="button" class="btn-delete-icon" title="Delete News"
-                                onclick="showConfirmIntel({{ threat.id }})">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+        <!-- Active Threats Feed -->
+        <div class="panel feed-panel" style="position: relative;">
+            <!-- Native Scroll used - Buttons Removed -->
+
+            <div class="panel-header">
+                <span>{{ page_title }}</span>
+
+                <div class="feed-controls">
+                    <!-- Limit Selector -->
+                    <!-- Search Form -->
+                    <form action="{{ request.path }}" method="GET" class="search-form" style="margin-right: 15px;">
+                        {% if current_severity %}<input type="hidden" name="severity" value="{{ current_severity }}">{%
+                        endif %}
+                        {% if current_date %}<input type="hidden" name="date" value="{{ current_date }}">{% endif %}
+                        {% if current_source %}<input type="hidden" name="source" value="{{ current_source }}">{% endif
+                        %}
+                        {% if current_limit %}<input type="hidden" name="limit" value="{{ current_limit }}">{% endif %}
+
+                        <div class="search-input-wrapper">
+                            <i class="fa-solid fa-search search-icon"></i>
+                            <input type="text" name="q" placeholder="SEARCH INTEL..." value="{{ current_search or '' }}"
+                                class="search-input">
                         </div>
-                        <div id="intel-confirm-control-{{ threat.id }}"
-                            style="display: none; align-items: center; gap: 5px;">
-                            <span
-                                style="font-size: 0.6em; color: var(--danger-color); font-weight: bold; font-family: var(--font-mono);">SURE?</span>
-                            <form action="{{ url_for('monitoring.delete_threat', id=threat.id) }}" method="POST"
-                                style="display:inline;">
-                                <button type="submit" class="btn"
-                                    style="background: var(--danger-color); color: #000; border: none; padding: 2px 5px; font-size: 0.6em; font-weight: bold;">YES</button>
-                            </form>
-                            <button type="button" onclick="cancelConfirmIntel({{ threat.id }})"
-                                style="background: none; border: none; color: #fff; cursor: pointer; font-size: 0.7em; opacity: 0.6;">X</button>
+                    </form>
+
+                    <form action="{{ request.path }}" method="GET" class="limit-form">
+                        {% if current_severity %}<input type="hidden" name="severity" value="{{ current_severity }}">{%
+                        endif %}
+                        {% if current_date %}<input type="hidden" name="date" value="{{ current_date }}">{% endif %}
+                        {% if current_source %}<input type="hidden" name="source" value="{{ current_source }}">{% endif
+                        %}
+                        {% if current_search %}<input type="hidden" name="q" value="{{ current_search }}">{% endif %}
+
+                        <select name="limit" onchange="this.form.submit()" class="limit-selector">
+                            <option value="10" {% if current_limit=='10' %}selected{% endif %}>10 / PAGE</option>
+                            <option value="20" {% if current_limit=='20' or not current_limit %}selected{% endif %}>20 /
+                                PAGE</option>
+                            <option value="50" {% if current_limit=='50' %}selected{% endif %}>50 / PAGE</option>
+                            <option value="100" {% if current_limit=='100' %}selected{% endif %}>100 / PAGE</option>
+                            <option value="all" {% if current_limit=='all' %}selected{% endif %}>SHOW ALL</option>
+                        </select>
+                    </form>
+
+                    <!-- General Filter Form (Date & Source) -->
+                    <form action="{{ request.path }}" method="GET" class="date-filter-form">
+                        {% if current_severity %}
+                        <input type="hidden" name="severity" value="{{ current_severity }}">
+                        {% endif %}
+                        {% if current_limit %}
+                        <input type="hidden" name="limit" value="{{ current_limit }}">
+                        {% endif %}
+                        {% if current_search %}<input type="hidden" name="q" value="{{ current_search }}">{% endif %}
+
+                        <select name="source" class="source-selector" onchange="this.form.submit()">
+                            <option value="">ALL SOURCES</option>
+                            {% for source in sources %}
+                            <option value="{{ source }}" {% if current_source==source %}selected{% endif %}>{{ source }}
+                            </option>
+                            {% endfor %}
+                        </select>
+
+                        <input type="date" name="date" value="{{ current_date or '' }}" class="date-picker"
+                            onchange="this.form.submit()">
+                        <!-- Button removed for dynamic filtering -->
+                        {% if current_date or current_severity or current_source or current_search %}
+                        <a href="{{ request.path }}" class="btn-clear" title="Clear Filters"><i
+                                class="fa-solid fa-times"></i></a>
+                        {% endif %}
+                    </form>
+
+                    <a href="{{ url_for('monitoring.refresh_data') }}" class="btn-refresh"><i
+                            class="fa-solid fa-sync"></i> REFRESH</a>
+                </div>
+            </div>
+
+            <div class="feed-list" id="feedListContainer">
+                {% for threat in threats %}
+                <div
+                    class="threat-card severity-{{ threat.severity.lower() }} {% if current_category == 'monitoring.news' %}news-card{% endif %}">
+                    <div class="threat-header">
+                        <span class="threat-source">[{{ threat.source }}]</span>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <span class="threat-date">{{ threat.published_str }}</span>
+                            {% if current_category == 'monitoring.news' %}
+                            <div id="intel-delete-control-{{ threat.id }}" style="display: inline-block;">
+                                <button type="button" class="btn-delete-icon" title="Delete News"
+                                    onclick="showConfirmIntel({{ threat.id }})">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                            <div id="intel-confirm-control-{{ threat.id }}"
+                                style="display: none; align-items: center; gap: 5px;">
+                                <span
+                                    style="font-size: 0.6em; color: var(--danger-color); font-weight: bold; font-family: var(--font-mono);">SURE?</span>
+                                <form action="{{ url_for('monitoring.delete_threat', id=threat.id) }}" method="POST"
+                                    style="display:inline;">
+                                    <button type="submit" class="btn"
+                                        style="background: var(--danger-color); color: #000; border: none; padding: 2px 5px; font-size: 0.6em; font-weight: bold;">YES</button>
+                                </form>
+                                <button type="button" onclick="cancelConfirmIntel({{ threat.id }})"
+                                    style="background: none; border: none; color: #fff; cursor: pointer; font-size: 0.7em; opacity: 0.6;">X</button>
+                            </div>
+                            {% endif %}
                         </div>
+                    </div>
+                    <h3 class="threat-title"><a href="{{ threat.link }}" target="_blank">{{ threat.title }}</a></h3>
+                    <div class="threat-meta">
+                        {% if current_category != 'monitoring.news' %}
+                        <span class="badge badge-{{ threat.severity.lower() }}">{{ threat.severity.upper() }}</span>
                         {% endif %}
                     </div>
+                    <p class="threat-summary">{{ threat.summary[:200] | striptags }}{% if threat.summary|length > 200
+                        %}...{% endif %}</p>
                 </div>
-                <h3 class="threat-title"><a href="{{ threat.link }}" target="_blank">{{ threat.title }}</a></h3>
-                <div class="threat-meta">
-                    {% if current_category != 'monitoring.news' %}
-                    <span class="badge badge-{{ threat.severity.lower() }}">{{ threat.severity.upper() }}</span>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-search"></i> NO THREATS FOUND MATCHING CRITERIA
+                </div>
+                {% endfor %}
+
+                <!-- Pagination Footer -->
+                {% if pagination.pages > 1 %}
+                <div class="pagination-footer">
+                    {% if pagination.has_prev %}
+                    <a href="{{ url_for(request.endpoint, page=pagination.prev_num, limit=current_limit, severity=current_severity, date=current_date, source=current_source, q=current_search) }}"
+                        class="page-link">&laquo; PREV</a>
+                    {% else %}
+                    <span class="page-link disabled">&laquo; PREV</span>
+                    {% endif %}
+
+                    <span class="page-info">PAGE {{ pagination.page }} OF {{ pagination.pages }}</span>
+
+                    {% if pagination.has_next %}
+                    <a href="{{ url_for(request.endpoint, page=pagination.next_num, limit=current_limit, severity=current_severity, date=current_date, source=current_source, q=current_search) }}"
+                        class="page-link">NEXT &raquo;</a>
+                    {% else %}
+                    <span class="page-link disabled">NEXT &raquo;</span>
                     {% endif %}
                 </div>
-                <p class="threat-summary">{{ threat.summary[:200] | striptags }}{% if threat.summary|length > 200
-                    %}...{% endif %}</p>
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <i class="fa-solid fa-search"></i> NO THREATS FOUND MATCHING CRITERIA
-            </div>
-            {% endfor %}
-
-            <!-- Pagination Footer -->
-            {% if pagination.pages > 1 %}
-            <div class="pagination-footer">
-                {% if pagination.has_prev %}
-                <a href="{{ url_for(request.endpoint, page=pagination.prev_num, limit=current_limit, severity=current_severity, date=current_date, source=current_source, q=current_search) }}"
-                    class="page-link">&laquo; PREV</a>
-                {% else %}
-                <span class="page-link disabled">&laquo; PREV</span>
-                {% endif %}
-
-                <span class="page-info">PAGE {{ pagination.page }} OF {{ pagination.pages }}</span>
-
-                {% if pagination.has_next %}
-                <a href="{{ url_for(request.endpoint, page=pagination.next_num, limit=current_limit, severity=current_severity, date=current_date, source=current_source, q=current_search) }}"
-                    class="page-link">NEXT &raquo;</a>
-                {% else %}
-                <span class="page-link disabled">NEXT &raquo;</span>
                 {% endif %}
             </div>
-            {% endif %}
         </div>
     </div>
+    {% endif %}
 </div>
 
 <script>
+    Chart.register(ChartDataLabels);
+    Chart.defaults.set('plugins.datalabels', {
+        color: '#fff',
+        font: { weight: 'bold', size: 12 },
+        formatter: function (value, context) {
+            return value > 0 ? value : '';
+        }
+    });
+
     function showConfirmIntel(id) {
         document.getElementById('intel-delete-control-' + id).style.display = 'none';
         document.getElementById('intel-confirm-control-' + id).style.display = 'flex';
@@ -257,4 +349,387 @@
     updateClock();
 
 </script>
+
+
+<style>
+    @keyframes livingBorder {
+        0% {
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        50% {
+            border-color: rgba(0, 255, 204, 0.5);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+        }
+
+        100% {
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+    }
+
+    @keyframes glowPulse {
+        0% {
+            filter: brightness(1) drop-shadow(0 0 0px rgba(0, 255, 204, 0));
+        }
+
+        50% {
+            filter: brightness(1.2) drop-shadow(0 0 5px rgba(0, 255, 204, 0.3));
+        }
+
+        100% {
+            filter: brightness(1) drop-shadow(0 0 0px rgba(0, 255, 204, 0));
+        }
+    }
+
+    .vision-widget {
+        transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.8s ease;
+        position: relative;
+        overflow: hidden;
+        animation: livingBorder 8s infinite ease-in-out;
+    }
+
+    .vision-widget:hover {
+        transform: translateY(-5px);
+        border-color: #00ffcc !important;
+        box-shadow: 0 15px 45px rgba(0, 255, 204, 0.2) !important;
+        animation-play-state: paused;
+    }
+
+    canvas {
+        /* Ensure canvas doesn't swallow events incorrectly */
+        pointer-events: all;
+    }
+</style>
+
+<script>
+    // Wait for Chart JS to load in case of async
+    document.addEventListener("DOMContentLoaded", function () {
+        // Chart Defaults for Dark Theme
+        Chart.defaults.color = '#a0a0a0';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+        Chart.defaults.font.family = "'Share Tech Mono', monospace";
+        Chart.defaults.animation = {
+            duration: 2500, /* Cinematic entrance */
+            easing: 'easeInOutQuart'
+        };
+        // Premium SOC Tooltip Defaults
+        Chart.defaults.plugins.tooltip = {
+            enabled: true,
+            backgroundColor: 'rgba(5, 5, 20, 0.95)',
+            titleColor: '#00ffcc',
+            titleFont: { family: "'Share Tech Mono', monospace", size: 14, weight: 'bold' },
+            bodyColor: '#ffffff',
+            bodyFont: { family: "'Share Tech Mono', monospace", size: 13 },
+            borderColor: 'rgba(0, 255, 204, 0.5)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 4,
+            displayColors: true,
+            animation: { duration: 150 }
+        };
+        Chart.defaults.hover.mode = 'nearest';
+        Chart.defaults.hover.intersect = true;
+        Chart.defaults.interaction.mode = 'nearest';
+        Chart.defaults.interaction.intersect = true;
+
+        // 1. Severity Doughnut Chart
+        const ctxSeverity = document.getElementById('severityChart').getContext('2d');
+        new Chart(ctxSeverity, {
+            type: 'doughnut',
+            data: {
+                labels: ['Critical', 'High', 'Medium', 'Low', 'Info'],
+                datasets: [{
+                    data: [
+                        {{ stats.critical }},
+                {{ stats.high }},
+                        {{ stats.medium }},
+        {{ stats.low }},
+        {{ stats.info }}
+                    ],
+        backgroundColor: ['#ff1a1a', '#ff6600', '#ffaa00', '#00ffcc', '#00ccff'],
+        borderWidth: 0,
+        hoverOffset: 4
+                }]
+            },
+        options: {
+        animation: {
+            animateRotate: true,
+            animateScale: true
+        },
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '75%',
+        plugins: {
+            legend: { position: 'right', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } }
+        },
+        onClick: (evt, activeElements, chart) => {
+            if (activeElements.length > 0) {
+                const index = activeElements[0].index;
+                const label = chart.data.labels[index];
+                const baseUrl = "{{ url_for('monitoring.index') }}";
+                window.location.href = baseUrl + "?severity=" + label;
+            }
+        },
+        onHover: (evt, activeElements, chart) => {
+            evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+        }
+    }
+        });
+
+    // 2. Trend Line Chart
+    const trendDates = {{ chart_data.trend_dates| safe if chart_data else '[]' }};
+    const trendCounts = {{ chart_data.trend_counts| safe if chart_data else '[]' }};
+    const ctxTrend = document.getElementById('trendChart').getContext('2d');
+
+    // Create Gradient
+    let gradientTrend = ctxTrend.createLinearGradient(0, 0, 0, 400);
+    gradientTrend.addColorStop(0, 'rgba(0, 255, 204, 0.4)');
+    gradientTrend.addColorStop(1, 'rgba(0, 255, 204, 0.0)');
+
+    new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+            labels: trendDates,
+            datasets: [{
+                label: 'Threats Discovered',
+                data: trendCounts,
+                borderColor: '#00ffcc',
+                backgroundColor: gradientTrend,
+                borderWidth: 2,
+                pointBackgroundColor: '#11111a',
+                pointBorderColor: '#00ffcc',
+                pointHoverBackgroundColor: '#00ffcc',
+                pointHoverBorderColor: '#fff',
+                pointRadius: 4,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            animation: {
+                x: { type: 'number', easing: 'linear', duration: 0 },
+                y: { type: 'number', easing: 'easeInOutQuart', duration: 1500 }
+            },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                x: { grid: { display: false } }
+            },
+            interaction: { mode: 'index', axis: 'x', intersect: false },
+            onHover: (evt, activeElements, chart) => {
+                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+            }
+        }
+    });
+
+    // 3. Top Sources Bar Chart
+    const sourcesNames = {{ chart_data.top_sources_names| safe if chart_data else '[]' }};
+    const sourcesCounts = {{ chart_data.top_sources_counts| safe if chart_data else '[]' }};
+    const ctxSources = document.getElementById('sourcesChart').getContext('2d');
+
+    let gradientBar = ctxSources.createLinearGradient(0, 0, 400, 0);
+    gradientBar.addColorStop(0, 'rgba(0, 204, 255, 0.2)');
+    gradientBar.addColorStop(1, 'rgba(0, 204, 255, 0.8)');
+
+    new Chart(ctxSources, {
+        type: 'bar',
+        data: {
+            labels: sourcesNames,
+            datasets: [{
+                label: 'Ransomware Attacks',
+                data: sourcesCounts,
+                backgroundColor: gradientBar,
+                borderColor: '#00ccff',
+                borderWidth: 1,
+                borderRadius: 3
+            }]
+        },
+        options: {
+            animation: {
+                delay: (context) => context.dataIndex * 100
+            },
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    enabled: true
+                }
+            },
+            scales: {
+                x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            },
+            onHover: (evt, activeElements, chart) => {
+                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+            }
+        }
+    });
+
+    {% if current_category == 'main_dashboard' %}
+    // Breach Chart (Doughnut)
+    const breachNames = {{ chart_data.breach_names| safe if 'breach_names' in chart_data else '[]' }};
+    const breachCounts = {{ chart_data.breach_counts| safe if 'breach_counts' in chart_data else '[]' }};
+    const ctxBreach = document.getElementById('breachChart').getContext('2d');
+    new Chart(ctxBreach, {
+        type: 'doughnut',
+        data: {
+            labels: breachNames,
+            datasets: [{
+                data: breachCounts,
+                backgroundColor: ['#ff1a1a', '#ffaa00', '#00ffcc', '#00ccff', '#9933ff'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                delay: 200
+            },
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 10 } } }
+            },
+            onClick: (evt, activeElements, chart) => {
+                if (activeElements.length > 0) {
+                    const index = activeElements[0].index;
+                    const label = chart.data.labels[index];
+                    const baseUrl = "{{ url_for('breach_intel.breach_intel') }}";
+                    window.location.href = baseUrl + "?q=" + encodeURIComponent(label);
+                }
+            },
+            onHover: (evt, activeElements, chart) => {
+                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+            }
+        }
+    });
+
+    // Ransomware Chart (Bar)
+    const rwNames = {{ chart_data.rw_names| safe if 'rw_names' in chart_data else '[]' }};
+    const rwCounts = {{ chart_data.rw_counts| safe if 'rw_counts' in chart_data else '[]' }};
+    const ctxRw = document.getElementById('ransomwareChart').getContext('2d');
+    let rwGradient = ctxRw.createLinearGradient(0, 0, 400, 0);
+    rwGradient.addColorStop(0, 'rgba(255, 102, 0, 0.2)');
+    rwGradient.addColorStop(1, 'rgba(255, 102, 0, 0.8)');
+    new Chart(ctxRw, {
+        type: 'bar',
+        data: {
+            labels: rwNames,
+            datasets: [{
+                label: 'Victims', data: rwCounts, backgroundColor: rwGradient,
+                borderColor: '#ff6600', borderWidth: 1, borderRadius: 3
+            }]
+        },
+        options: {
+            animation: {
+                delay: (context) => context.dataIndex * 80
+            },
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } },
+            onClick: (evt, activeElements, chart) => {
+                if (activeElements.length > 0) {
+                    const index = activeElements[0].index;
+                    const label = chart.data.labels[index];
+                    const baseUrl = "{{ url_for('darkweb.ransomware_victims') }}";
+                    window.location.href = baseUrl + "?q=" + encodeURIComponent(label);
+                }
+            },
+            onHover: (evt, activeElements, chart) => {
+                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+            }
+        }
+    });
+
+    // Defacement Chart (Polar Area / Bar)
+    const defNames = {{ chart_data.def_names| safe if 'def_names' in chart_data else '[]' }};
+    const defCounts = {{ chart_data.def_counts| safe if 'def_counts' in chart_data else '[]' }};
+    const ctxDef = document.getElementById('defacementChart').getContext('2d');
+    let defGradient = ctxDef.createLinearGradient(0, 0, 0, 400);
+    defGradient.addColorStop(0, 'rgba(0, 255, 204, 0.6)');
+    defGradient.addColorStop(1, 'rgba(0, 255, 204, 0.1)');
+    new Chart(ctxDef, {
+        type: 'bar',
+        data: {
+            labels: defNames,
+            datasets: [{
+                label: 'Sites Defaced', data: defCounts,
+                backgroundColor: defGradient, borderColor: '#00ffcc',
+                borderWidth: 1, borderRadius: 3
+            }]
+        },
+        options: {
+            animation: {
+                y: { duration: 1500, easing: 'easeOutBounce' },
+                delay: (context) => context.dataIndex * 150
+            },
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 9 } } } },
+            onClick: (evt, activeElements, chart) => {
+                if (activeElements.length > 0) {
+                    const index = activeElements[0].index;
+                    const label = chart.data.labels[index];
+                    const baseUrl = "{{ url_for('darkweb.defacements') }}";
+                    window.location.href = baseUrl + "?q=" + encodeURIComponent(label);
+                }
+            },
+            onHover: (evt, activeElements, chart) => {
+                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+            }
+        }
+    });
+
+    // Inventory Chart (Polar Area)
+    const invNames = {{ chart_data.inv_names| safe if 'inv_names' in chart_data else '[]' }};
+    const invCounts = {{ chart_data.inv_counts| safe if 'inv_counts' in chart_data else '[]' }};
+    const ctxInv = document.getElementById('inventoryChart').getContext('2d');
+    new Chart(ctxInv, {
+        type: 'bar',
+        data: {
+            labels: invNames,
+            datasets: [{
+                label: 'Assets',
+                data: invCounts,
+                backgroundColor: [
+                    'rgba(0, 255, 204, 0.4)', 'rgba(0, 204, 255, 0.4)',
+                    'rgba(255, 170, 0, 0.4)', 'rgba(255, 102, 0, 0.4)',
+                    'rgba(153, 51, 255, 0.4)'
+                ],
+                borderColor: [
+                    '#00ffcc', '#00ccff', '#ffaa00', '#ff6600', '#9933ff'
+                ],
+                borderWidth: 1, borderRadius: 2
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { grid: { display: false }, ticks: { font: { size: 9 } } }
+            },
+            onHover: (evt, activeElements, chart) => {
+                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+            }
+        }
+    });
+    {% endif %}
+    });
+</script>
+
 {% endblock %}

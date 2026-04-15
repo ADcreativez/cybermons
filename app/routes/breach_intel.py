@@ -1,4 +1,8 @@
 import re
+import json
+import os
+import time
+import threading
 import feedparser
 import requests as req
 from bs4 import BeautifulSoup
@@ -7,6 +11,10 @@ from flask_login import login_required
 from ..utils.helpers import load_darkweb_config
 
 breach_intel_bp = Blueprint('breach_intel', __name__)
+
+_INDONESIA_CACHE_FILE = os.path.join(os.getcwd(), 'breach_indonesia_cache.json')
+_MARKET_CACHE_FILE    = os.path.join(os.getcwd(), 'breach_market_cache.json')
+_CACHE_TTL            = 6 * 3600  # 6 hours
 
 HEADERS = {
     'User-Agent': 'Cybermon/1.0 (Security Intelligence Platform)'
@@ -449,63 +457,93 @@ def breach_intel():
 @breach_intel_bp.route('/darkweb/breach-intel/market')
 @login_required
 def breach_market():
-    """Fetch breach database from HIBP public API (no key required).
-    Sorted by risk score: data sensitivity × victim count.
-    """
+    """Serve breach database from local cache. Fetch from HIBP only if cache is stale (>6h)."""
+    import os, time, json as _json
+
     sort_by  = request.args.get('sort', 'recent')
     filter_q = request.args.get('q', '').lower()
     page     = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 25, type=int), 100)  # max 100
+    per_page = min(request.args.get('per_page', 25, type=int), 100)
+    force_refresh = request.args.get('refresh') == '1'
 
-    try:
-        r = req.get('https://haveibeenpwned.com/api/v3/breaches', headers=HEADERS, timeout=15)
-        r.raise_for_status()
-        breaches = r.json()
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)}), 500
+    CACHE_FILE = os.path.join(os.getcwd(), 'breach_market_cache.json')
+    CACHE_TTL  = 6 * 3600  # 6 hours
 
-    # Build enriched records
-    enriched = []
-    for b in breaches:
-        if b.get('IsSpamList') or b.get('IsMalware'): continue  # skip noise
-        data_classes = b.get('DataClasses', [])
-        pwn_count    = b.get('PwnCount', 0)
-        sc           = score_breach(data_classes, pwn_count)
-        enriched.append({
-            'name':         b.get('Name'),
-            'title':        b.get('Title'),
-            'domain':       b.get('Domain', ''),
-            'breach_date':  b.get('BreachDate', ''),
-            'added_date':   b.get('AddedDate', ''),
-            'pwn_count':    pwn_count,
-            'data_classes': data_classes,
-            'risk_score':   sc,
-            'risk_label':   risk_label(sc),
-            'is_verified':  b.get('IsVerified', False),
-            'is_sensitive': b.get('IsSensitive', False),
-            'is_stealer':   b.get('IsStealerLog', False),
-            'logo':         b.get('LogoPath', ''),
-            'has_passwords': 'Passwords' in data_classes,
-            'has_cards':     'Credit cards' in data_classes,
-        })
+    # Try loading from cache first
+    enriched = None
+    if not force_refresh and os.path.exists(CACHE_FILE):
+        try:
+            age = time.time() - os.path.getmtime(CACHE_FILE)
+            if age < CACHE_TTL:
+                with open(CACHE_FILE, 'r') as f:
+                    enriched = _json.load(f)
+        except:
+            enriched = None
+
+    # Fetch from HIBP only if no valid cache
+    if enriched is None:
+        try:
+            r = req.get('https://haveibeenpwned.com/api/v3/breaches', headers=HEADERS, timeout=15)
+            r.raise_for_status()
+            breaches = r.json()
+        except Exception as e:
+            # If fetch fails, try stale cache as fallback
+            if os.path.exists(CACHE_FILE):
+                try:
+                    with open(CACHE_FILE, 'r') as f:
+                        enriched = _json.load(f)
+                except:
+                    pass
+            if not enriched:
+                return jsonify({'status': 'error', 'error': str(e)}), 500
+        else:
+            enriched = []
+            for b in breaches:
+                if b.get('IsSpamList') or b.get('IsMalware'): continue
+                data_classes = b.get('DataClasses', [])
+                pwn_count    = b.get('PwnCount', 0)
+                sc           = score_breach(data_classes, pwn_count)
+                enriched.append({
+                    'name':         b.get('Name'),
+                    'title':        b.get('Title'),
+                    'domain':       b.get('Domain', ''),
+                    'breach_date':  b.get('BreachDate', ''),
+                    'added_date':   b.get('AddedDate', ''),
+                    'pwn_count':    pwn_count,
+                    'data_classes': data_classes,
+                    'risk_score':   sc,
+                    'risk_label':   risk_label(sc),
+                    'is_verified':  b.get('IsVerified', False),
+                    'is_sensitive': b.get('IsSensitive', False),
+                    'is_stealer':   b.get('IsStealerLog', False),
+                    'logo':         b.get('LogoPath', ''),
+                    'has_passwords': 'Passwords' in data_classes,
+                    'has_cards':     'Credit cards' in data_classes,
+                })
+            # Save to cache
+            try:
+                with open(CACHE_FILE, 'w') as f:
+                    _json.dump(enriched, f)
+            except:
+                pass
 
     # Filter
     if filter_q:
         enriched = [b for b in enriched if
-            filter_q in b['title'].lower() or
-            filter_q in b['domain'].lower() or
-            any(filter_q in dc.lower() for dc in b['data_classes'])]
+            filter_q in (b.get('title') or '').lower() or
+            filter_q in (b.get('domain') or '').lower() or
+            any(filter_q in dc.lower() for dc in b.get('data_classes', []))]
 
     # Sort
     if sort_by == 'risk':
-        enriched.sort(key=lambda x: x['risk_score'], reverse=True)
+        enriched.sort(key=lambda x: x.get('risk_score', 0), reverse=True)
     elif sort_by == 'size':
-        enriched.sort(key=lambda x: x['pwn_count'], reverse=True)
+        enriched.sort(key=lambda x: x.get('pwn_count', 0), reverse=True)
     else:  # recent
-        enriched.sort(key=lambda x: x['added_date'], reverse=True)
+        enriched.sort(key=lambda x: x.get('added_date', ''), reverse=True)
 
-    total  = len(enriched)
-    paged  = enriched[(page-1)*per_page : page*per_page]
+    total = len(enriched)
+    paged = enriched[(page-1)*per_page : page*per_page]
 
     return jsonify({
         'status':   'success',
@@ -585,113 +623,123 @@ def breach_lookup():
         'count':   len(results),
     })
 
+# ───────────────────────────────────────────────────────────────────────────
+# Background cache builder — called once at startup and on REFRESH
+# ───────────────────────────────────────────────────────────────────────────
+def _build_indonesia_cache():
+    """Fetch HIBP + Google News in background and write to disk cache."""
+    results = {'hibp': [], 'news': [], 'errors': []}
+    try:
+        r = req.get('https://haveibeenpwned.com/api/v3/breaches', headers=HEADERS, timeout=20)
+        r.raise_for_status()
+        KW = ['indonesia', 'indonesian']
+        for b in r.json():
+            d = b.get('Domain', '').lower()
+            t = b.get('Title', '').lower()
+            s = b.get('Description', '').lower()
+            if not (d.endswith('.id') or any(k in t for k in KW) or any(k in s for k in KW)):
+                continue
+            dc = b.get('DataClasses', [])
+            pc = b.get('PwnCount', 0)
+            sc = score_breach(dc, pc)
+            results['hibp'].append({
+                'name': b.get('Name'), 'title': b.get('Title'),
+                'domain': b.get('Domain', ''), 'breach_date': b.get('BreachDate', ''),
+                'added_date': b.get('AddedDate', ''), 'pwn_count': pc,
+                'data_classes': dc, 'risk_label': risk_label(sc), 'risk_score': sc,
+                'logo': b.get('LogoPath', ''), 'is_verified': b.get('IsVerified', False),
+            })
+        results['hibp'].sort(key=lambda x: x['added_date'], reverse=True)
+    except Exception as e:
+        results['errors'].append(f'HIBP: {e}')
+
+    try:
+        NEWS_URLS = [
+            'https://news.google.com/rss/search?q=kebocoran+data+Indonesia+after:2021-01-01&hl=id&gl=ID&ceid=ID:id',
+            'https://news.google.com/rss/search?q=ransomware+serangan+siber+Indonesia+after:2021-01-01&hl=id&gl=ID&ceid=ID:id',
+            'https://news.google.com/rss/search?q=hacker+serang+perusahaan+Indonesia+after:2021-01-01&hl=id&gl=ID&ceid=ID:id',
+            'https://news.google.com/rss/search?q=Indonesia+data+breach+ransomware+after:2021-01-01&hl=en-US&gl=US&ceid=US:en',
+        ]
+        seen = set()
+        for url in NEWS_URLS:
+            for entry in feedparser.parse(url).entries[:30]:
+                t = entry.get('title', '').strip()
+                if t in seen: continue
+                seen.add(t)
+                results['news'].append({
+                    'title': t,
+                    'summary': BeautifulSoup(entry.get('summary',''), 'html.parser').get_text()[:250],
+                    'link': entry.get('link',''),
+                    'date': entry.get('published', entry.get('updated','')),
+                    'source': entry.get('source',{}).get('title','') if hasattr(entry.get('source',''),'get') else '',
+                    'tag': classify_post(t, ''),
+                })
+        for inc in INDONESIA_INCIDENTS:
+            if inc.get('ref'):
+                fd = f"{inc['date']}-01T00:00:00Z" if len(inc['date'])==7 else inc['date']
+                t  = f"[SEJARAH {inc['date'][:4]}] Kebocoran Data {inc['title']}"
+                if t not in seen:
+                    seen.add(t)
+                    results['news'].append({'title':t,'summary':inc['impact'],'link':inc['ref'],
+                                            'date':fd,'source':'Arsip Insiden Nasional','tag':inc['attack_type']})
+        results['news'].sort(key=lambda x: x['date'], reverse=True)
+        results['news'] = results['news'][:100]
+    except Exception as e:
+        results['errors'].append(f'RSS: {e}')
+
+    try:
+        with open(_INDONESIA_CACHE_FILE, 'w') as f:
+            json.dump(results, f)
+    except:
+        pass
+
+
+def _maybe_warm_cache():
+    """Start background refresh only if cache is missing or stale."""
+    if os.path.exists(_INDONESIA_CACHE_FILE):
+        age = time.time() - os.path.getmtime(_INDONESIA_CACHE_FILE)
+        if age < _CACHE_TTL:
+            return  # cache still fresh
+    threading.Thread(target=_build_indonesia_cache, daemon=True).start()
+
+# ── Warm the cache once at import time (app startup) ──────────────────────
+_maybe_warm_cache()
+
+
 @breach_intel_bp.route('/darkweb/breach-intel/indonesia')
 @login_required
 def indonesia_breach():
-    """Indonesia-focused breach intelligence:
-    1. HIBP verified breaches filtered for Indonesian entities (.id domain / title/desc mentions Indonesia)
-    2. Google News RSS in Bahasa Indonesia for latest breach news coverage
+    """Serve Indonesia breach data instantly from disk cache.
+    Cache is built at startup and refreshed every 6h or on demand.
     """
-    results = {'hibp': [], 'news': [], 'errors': []}
+    incidents = sorted(INDONESIA_INCIDENTS, key=lambda x: x['date'], reverse=True)
 
-    # ── Source 1: HIBP — verified Indonesian breaches ─────────────────────────
-    try:
-        r = req.get('https://haveibeenpwned.com/api/v3/breaches', headers=HEADERS, timeout=15)
-        r.raise_for_status()
-        all_breaches = r.json()
+    # Try cache
+    if os.path.exists(_INDONESIA_CACHE_FILE):
+        try:
+            with open(_INDONESIA_CACHE_FILE, 'r') as f:
+                data = json.load(f)
+            data['incidents'] = incidents
+            data['from_cache'] = True
+            return jsonify({'status': 'success', **data})
+        except:
+            pass
 
-        INDONESIAN_KEYWORDS = ['indonesia', 'indonesian']
-        for b in all_breaches:
-            domain = b.get('Domain', '').lower()
-            title  = b.get('Title', '').lower()
-            desc   = b.get('Description', '').lower()
-            is_id  = (
-                domain.endswith('.id') or
-                any(k in title for k in INDONESIAN_KEYWORDS) or
-                any(k in desc  for k in INDONESIAN_KEYWORDS)
-            )
-            if not is_id: continue
+    # Cache not ready yet (still building at startup) — return incidents only
+    return jsonify({
+        'status':   'success',
+        'incidents': incidents,
+        'hibp':     [],
+        'news':     [],
+        'errors':   ['Cache is being built, please refresh in a moment.'],
+        'loading':  True,
+    })
 
-            data_classes = b.get('DataClasses', [])
-            pwn_count    = b.get('PwnCount', 0)
-            sc           = score_breach(data_classes, pwn_count)
-            results['hibp'].append({
-                'name':         b.get('Name'),
-                'title':        b.get('Title'),
-                'domain':       b.get('Domain', ''),
-                'breach_date':  b.get('BreachDate', ''),
-                'added_date':   b.get('AddedDate', ''),
-                'pwn_count':    pwn_count,
-                'data_classes': data_classes,
-                'risk_label':   risk_label(sc),
-                'risk_score':   sc,
-                'logo':         b.get('LogoPath', ''),
-                'is_verified':  b.get('IsVerified', False),
-            })
 
-        # Sort by when it was added to HIBP (most recently discovered first)
-        results['hibp'].sort(key=lambda x: x['added_date'], reverse=True)
+@breach_intel_bp.route('/darkweb/breach-intel/indonesia/refresh', methods=['POST'])
+@login_required
+def indonesia_refresh():
+    """Trigger a manual background refresh of Indonesia cache."""
+    threading.Thread(target=_build_indonesia_cache, daemon=True).start()
+    return jsonify({'status': 'ok', 'message': 'Refresh started in background'})
 
-    except Exception as e:
-        results['errors'].append(f'HIBP: {str(e)}')
-
-    # ── Source 2: Google News RSS — Bahasa Indonesia breach news ─────────────
-    try:
-        NEWS_URLS = [
-            # Kebocoran & breach (Bahasa) - 5 Years History
-            'https://news.google.com/rss/search?q=kebocoran+data+Indonesia+after:2021-01-01&hl=id&gl=ID&ceid=ID:id',
-            # Serangan siber & ransomware (Bahasa) - 5 Years History
-            'https://news.google.com/rss/search?q=ransomware+serangan+siber+Indonesia+after:2021-01-01&hl=id&gl=ID&ceid=ID:id',
-            # Hacker attack Indonesia (Bahasa) - 5 Years History
-            'https://news.google.com/rss/search?q=hacker+serang+perusahaan+Indonesia+after:2021-01-01&hl=id&gl=ID&ceid=ID:id',
-            # Data breach + ransomware Indonesia (English) - 5 Years History
-            'https://news.google.com/rss/search?q=Indonesia+data+breach+ransomware+after:2021-01-01&hl=en-US&gl=US&ceid=US:en',
-        ]
-        seen_titles = set()
-        for url in NEWS_URLS:
-            feed = feedparser.parse(url)
-            for entry in feed.entries[:30]:
-                title = entry.get('title', '').strip()
-                if title in seen_titles: continue
-                seen_titles.add(title)
-
-                summary = BeautifulSoup(entry.get('summary', ''), 'html.parser').get_text()[:250]
-                link    = entry.get('link', '')
-                date    = entry.get('published', entry.get('updated', ''))
-                source  = entry.get('source', {}).get('title', '') if hasattr(entry.get('source', ''), 'get') else ''
-
-                results['news'].append({
-                    'title':   title,
-                    'summary': summary,
-                    'link':    link,
-                    'date':    date,
-                    'source':  source,
-                    'tag':     classify_post(title, summary),
-                })
-
-        # Inject curated historical incidents as archive news
-        for inc in INDONESIA_INCIDENTS:
-            if inc.get('ref'):
-                # Ensure date exists for sorting
-                fake_date = f"{inc['date']}-01T00:00:00Z" if len(inc['date']) == 7 else inc['date']
-                title = f"[SEJARAH {inc['date'][:4]}] Kebocoran Data {inc['title']}"
-                if title not in seen_titles:
-                    seen_titles.add(title)
-                    results['news'].append({
-                        'title': title,
-                        'summary': inc['impact'],
-                        'link': inc['ref'],
-                        'date': fake_date,
-                        'source': 'Arsip Insiden Nasional',
-                        'tag': inc['attack_type']
-                    })
-
-        # Sort by date
-        results['news'].sort(key=lambda x: x['date'], reverse=True)
-        results['news'] = results['news'][:100]  # Increased limit for historical learning
-
-    except Exception as e:
-        results['errors'].append(f'Google News: {str(e)}')
-
-    results['incidents'] = sorted(INDONESIA_INCIDENTS, key=lambda x: x['date'], reverse=True)
-    return jsonify({'status': 'success', **results})

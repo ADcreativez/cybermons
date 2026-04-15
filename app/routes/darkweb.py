@@ -406,16 +406,25 @@ def passwords():
 @darkweb_bp.route('/darkweb/passwords/check', methods=['POST'])
 @login_required
 def passwords_check():
-    password = request.json.get('password')
-    if not password: return jsonify({'error': 'Password required'}), 400
+    # True k-Anonymity implementation: Client sends 5-char prefix, server fetches range
+    prefix = (request.json or {}).get('prefix', '').strip().upper()
+    if not prefix or len(prefix) != 5:
+        return jsonify({'error': 'Valid 5-character SHA-1 prefix required'}), 400
+    
     try:
-        sha1_pwd = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
-        prefix, suffix = sha1_pwd[:5], sha1_pwd[5:]
+        # Fetch the range of suffixes from HIBP
+        # This is faster than sending the full password and fulfills the security promise
         resp = req.get(f'https://api.pwnedpasswords.com/range/{prefix}', timeout=10)
-        hashes = (line.split(':') for line in resp.text.splitlines())
-        count = next((int(c) for h, c in hashes if h == suffix), 0)
-        return jsonify({'count': count, 'status': 'success'})
-    except Exception as e: return jsonify({'error': str(e)}), 500
+        resp.raise_for_status()
+        
+        # Return the list of suffixes and counts to the client
+        return jsonify({
+            'status': 'success',
+            'hashes': resp.text,
+            'prefix': prefix
+        })
+    except Exception as e:
+        return jsonify({'error': f'HIBP API Error: {str(e)}'}), 500
 
 @darkweb_bp.route('/darkweb/infra-search')
 @login_required
@@ -628,26 +637,40 @@ def get_ai_intelligence(query):
     return "Infrastructure signature indicates Enterprise-grade hosting."
 
 def run_whois(query, is_ip):
-    # Try RDAP first (works without installing whois package)
+    # Tier 1: Generic RDAP
     try:
         resp = req.get(f"https://rdap.org/{'ip' if is_ip else 'domain'}/{query}", timeout=10)
         if resp.status_code == 200: return resp.json()
-        print(f"RECON DEBUG: RDAP returned {resp.status_code} for {query}")
+        print(f"RECON DEBUG: RDAP.org returned {resp.status_code}")
     except Exception as e:
-        print(f"RECON DEBUG: RDAP failed: {str(e)}")
+        print(f"RECON DEBUG: RDAP.org failed: {str(e)}")
     
-    # Fallback to local whois command
-    whois_bin = shutil.which('whois')
-    if whois_bin:
-        try:
-            import subprocess
-            proc = subprocess.run([whois_bin, query], capture_output=True, text=True, timeout=15)
-            if proc.returncode == 0 and proc.stdout:
-                return {'raw_text': proc.stdout}
-        except Exception as e:
-            print(f"RECON DEBUG: whois CLI failed: {str(e)}")
-    else:
-        print("RECON DEBUG: whois binary NOT FOUND (run: sudo apt install whois)")
+    # Tier 2: Public WHOIS Web Proxy Fallback (no API key required)
+    try:
+        # Use a lightweight public WHOIS proxy if RDAP is blocked
+        resp = req.get(f"https://whois.as93.net/api/{query}", timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            if 'raw_whois' in data: return {'raw_text': data['raw_whois']}
+    except: pass
+
+    # Tier 3: Local CLI whois
+    # Try looking in common binary paths
+    whois_paths = ['whois', '/usr/bin/whois', '/usr/local/bin/whois']
+    for path in whois_paths:
+        whois_bin = shutil.which(path if path == 'whois' else os.path.basename(path))
+        if not whois_bin and os.path.exists(path): whois_bin = path
+        
+        if whois_bin:
+            try:
+                import subprocess
+                proc = subprocess.run([whois_bin, query], capture_output=True, text=True, timeout=15)
+                if proc.returncode == 0 and proc.stdout:
+                    return {'raw_text': proc.stdout}
+            except Exception as e:
+                print(f"RECON DEBUG: whois CLI ({whois_bin}) failed: {str(e)}")
+    
+    print("RECON DEBUG: All WHOIS sources failed. (Try: sudo apt install whois)")
     return None
 
 def run_dns_recon(query, is_ip):
@@ -655,34 +678,52 @@ def run_dns_recon(query, is_ip):
     dns_results = []
     seen = set()
     
-    # Source 1: crt.sh (Certificate Transparency) — Primary source for large coverage
+    # Source 1: crt.sh (Certificate Transparency)
     try:
         print(f"RECON DEBUG: Querying crt.sh for {query}...")
-        resp = req.get(f"https://crt.sh/?q=%.{query}&output=json", timeout=90, headers={
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
-        })
-        if resp.status_code == 200:
-            data = resp.json()
-            for item in data:
-                name = item.get('name_value', '').lower()
-                if '*' in name: continue
-                for sub in name.split('\n'):
-                    sub = sub.strip()
-                    if sub and sub not in seen and query in sub:
-                        seen.add(sub)
-                        dns_results.append({'host': sub, 'ip': 'crt.sh intel'})
-            print(f"RECON DEBUG: crt.sh returned {len(data)} certificates, {len(dns_results)} unique subdomains")
-        else:
-            print(f"RECON DEBUG: crt.sh returned HTTP {resp.status_code}")
+        # Add retry logic for crt.sh since it often 502s
+        for _ in range(2):
+            try:
+                resp = req.get(f"https://crt.sh/?q=%.{query}&output=json", timeout=90, headers={
+                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
+                })
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for item in data:
+                        name = item.get('name_value', '').lower()
+                        if '*' in name: continue
+                        for sub in name.split('\n'):
+                            sub = sub.strip()
+                            # Clean and deduplicate (ensure it actually belongs to target)
+                            if sub and sub not in seen and query in sub:
+                                seen.add(sub)
+                                dns_results.append({'host': sub, 'ip': 'crt.sh [OSINT]'})
+                    break 
+            except: time.sleep(2)
+        print(f"RECON DEBUG: crt.sh total unique subdomains: {len(dns_results)}")
     except Exception as e:
-        print(f"RECON DEBUG: crt.sh FAILED: {str(e)}")
+        print(f"RECON DEBUG: crt.sh integration failed: {str(e)}")
 
-    # Source 2: HackerTarget (Always run — complements crt.sh with resolved IPs)
+    # Source 2: RapidDNS Scraper (Lightweight OSINT fallback)
+    try:
+        print(f"RECON DEBUG: Querying RapidDNS for {query}...")
+        resp = req.get(f"https://rapiddns.io/subdomain/{query}?full=1", timeout=15)
+        if resp.status_code == 200:
+            count = 0
+            matches = re.findall(r'<td>([\w\.-]+\.' + re.escape(query) + r')</td>', resp.text)
+            for sub in matches:
+                sub = sub.lower()
+                if sub not in seen:
+                    seen.add(sub)
+                    dns_results.append({'host': sub, 'ip': 'RapidDNS [OSINT]'})
+                    count += 1
+            print(f"RECON DEBUG: RapidDNS added {count} subdomains")
+    except: pass
+
+    # Source 3: HackerTarget (Quick API)
     try:
         print(f"RECON DEBUG: Querying HackerTarget for {query}...")
-        resp = req.get(f"https://api.hackertarget.com/hostsearch/?q={query}", timeout=20, headers={
-            'User-Agent': 'Cybermon/2.1'
-        })
+        resp = req.get(f"https://api.hackertarget.com/hostsearch/?q={query}", timeout=20, headers={'User-Agent': 'Cybermon/2.1'})
         if resp.status_code == 200 and 'error' not in resp.text.lower():
             ht_count = 0
             for line in resp.text.strip().split('\n'):
@@ -694,52 +735,48 @@ def run_dns_recon(query, is_ip):
                         seen.add(host)
                         dns_results.append({'host': host, 'ip': ip})
                         ht_count += 1
-            print(f"RECON DEBUG: HackerTarget added {ht_count} new subdomains")
-        else:
-            print(f"RECON DEBUG: HackerTarget returned {resp.status_code}")
-    except Exception as e:
-        print(f"RECON DEBUG: HackerTarget FAILED: {str(e)}")
+            print(f"RECON DEBUG: HackerTarget added {ht_count} subdomains")
+    except: pass
 
-    # Source 3: Subfinder (Binary OSINT tool)
+    # Source 4: Subfinder (Binary tool if available)
     try:
-        subfinder_bin = shutil.which('subfinder')
+        # Check standard and extended paths
+        subfinder_bin = shutil.which('subfinder') or shutil.which('/usr/local/bin/subfinder') or shutil.which('/usr/bin/subfinder')
+        if not subfinder_bin and os.path.exists('/usr/local/bin/subfinder'): subfinder_bin = '/usr/local/bin/subfinder'
+        
         if subfinder_bin:
             print(f"RECON DEBUG: Running subfinder from {subfinder_bin}...")
-            output = ''
-            try:
-                proc = subprocess.run([subfinder_bin, '-d', query, '-silent'], capture_output=True, text=True, timeout=180)
-                output = proc.stdout
-            except subprocess.TimeoutExpired as e:
-                output = e.stdout if isinstance(e.stdout, str) else (e.stdout.decode() if e.stdout else '')
-                
-            if output:
-                count_before = len(dns_results)
-                for sub in output.split('\n'):
-                    sub = sub.strip()
-                    if sub and sub not in seen:
+            # Use -all to enable all free sources, -silent to keep output clean
+            proc = subprocess.run([subfinder_bin, '-d', query, '-all', '-silent'], capture_output=True, text=True, timeout=120)
+            if proc.stdout:
+                sf_count = 0
+                for sub in proc.stdout.split('\n'):
+                    sub = sub.strip().lower()
+                    if sub and sub not in seen and query in sub:
                         seen.add(sub)
                         dns_results.append({'host': sub, 'ip': 'subfinder [OSINT]'})
-                print(f"RECON DEBUG: subfinder added {len(dns_results) - count_before} new subdomains")
-            else:
-                print(f"RECON DEBUG: subfinder returned empty output")
+                        sf_count += 1
+                print(f"RECON DEBUG: subfinder added {sf_count} subdomains")
         else:
-            print("RECON DEBUG: subfinder NOT FOUND in PATH (install via setup.sh)")
+            print("RECON DEBUG: subfinder binary NOT FOUND in PATH")
     except Exception as e:
-        print(f"RECON DEBUG: Subfinder error: {e}")
+        print(f"RECON DEBUG: subfinder execution error: {e}")
 
-    # Resolve IPs for discovered subdomains
-    resolved_results = []
+    # Final enrichment: Resolve IPs for any that still use source labels (limit to first 100 for speed)
+    resolved_count = 0
     resolver = dns.resolver.Resolver()
-    resolver.timeout = 2; resolver.lifetime = 2
+    resolver.timeout = 1; resolver.lifetime = 1
     
-    for entry in dns_results:
-        host = entry['host']
-        if entry['ip'] in ['Detected', 'crt.sh intel', 'subfinder [OSINT]']:
+    for entry in dns_results[:200]: # Only resolve first 200 to keep UI snappy
+        if '[OSINT]' in entry['ip']:
             try:
-                answers = resolver.resolve(host, 'A')
-                entry['ip'] = str(answers[0])
+                answers = resolver.resolve(entry['host'], 'A')
+                if answers:
+                    entry['ip'] = str(answers[0])
+                    resolved_count += 1
             except: pass
-        resolved_results.append(entry)
+    print(f"RECON DEBUG: Resolved IPs for {resolved_count} assets.")
+    return dns_results
 
     # Final check for MX/NS of the main query
     try:
