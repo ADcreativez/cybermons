@@ -159,21 +159,22 @@
 
 <!-- ─── Styles ─────────────────────────────────────────────── -->
 <style>
-.bi-tab { background:none; border:none; border-bottom:2px solid transparent; color:var(--text-secondary); font-family:var(--font-mono); font-size:0.7rem; letter-spacing:1px; padding:9px 18px; cursor:pointer; transition:all 0.2s; }
+.bi-tab { background:none; border:none; border-bottom:2px solid transparent; color:var(--text-secondary); font-family:var(--font-mono); font-size:0.88rem; letter-spacing:1px; padding:9px 18px; cursor:pointer; transition:all 0.2s; }
 .bi-tab:hover { color:var(--accent-color); }
 .bi-tab.active { color:var(--accent-color); border-bottom-color:var(--accent-color); }
-.bi-section-label { font-family:var(--font-mono); font-size:0.6rem; color:var(--text-secondary); letter-spacing:2px; text-transform:uppercase; }
+.bi-section-label { font-family:var(--font-mono); font-size:0.75rem; color:var(--text-secondary); letter-spacing:2px; text-transform:uppercase; }
 .bi-empty { padding:70px 20px; text-align:center; opacity:0.35; font-family:var(--font-mono); font-size:0.78rem; color:var(--text-secondary); }
 
 .sort-btn { background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08); border-radius:6px; color:var(--text-secondary); font-family:var(--font-mono); font-size:0.62rem; letter-spacing:1px; padding:7px 12px; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
 .sort-btn:hover  { border-color:rgba(0,255,204,0.3); color:var(--accent-color); }
 .sort-btn.active { border-color:var(--accent-color); color:var(--accent-color); background:rgba(0,255,204,0.05); }
 
-.breach-row { display:grid; grid-template-columns:32px 200px 130px 1fr 110px 80px; gap:12px; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); font-family:var(--font-mono); font-size:0.72rem; transition:background 0.15s; cursor:default; }
+.breach-row { display:grid; grid-template-columns:32px 200px 110px 120px 1fr 110px 60px; gap:12px; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); font-family:var(--font-mono); font-size:0.95rem; transition:background 0.15s; cursor:default; }
 .breach-row:hover { background:rgba(0,255,204,0.02); }
-.breach-head { font-size:0.58rem; letter-spacing:1px; color:var(--accent-color); border-bottom:1px solid rgba(0,255,204,0.15) !important; background:rgba(0,10,10,0.5); position:sticky; top:0; z-index:2; }
+.breach-head { font-size:0.8rem; letter-spacing:1px; color:var(--accent-color); border-bottom:1px solid rgba(0,255,204,0.25) !important; background:rgba(0,10,10,0.7); position:sticky; top:0; z-index:2; font-weight:bold; }
+.sector-badge { font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); font-family: var(--font-mono); }
 
-.risk-badge { display:inline-block; font-size:0.55rem; font-family:var(--font-mono); font-weight:700; letter-spacing:1px; padding:2px 7px; border-radius:3px; }
+.risk-badge { display:inline-block; font-size:0.62rem; font-family:var(--font-mono); font-weight:700; letter-spacing:1px; padding:2px 7px; border-radius:3px; }
 .risk-CRITICAL { background:rgba(255,0,0,0.18);      color:#ff3333; border:1px solid rgba(255,0,0,0.3); }
 .risk-HIGH     { background:rgba(255,100,0,0.15);     color:#ff6600; border:1px solid rgba(255,100,0,0.3); }
 .risk-MEDIUM   { background:rgba(255,200,0,0.13);     color:#ffcc00; border:1px solid rgba(255,200,0,0.3); }
@@ -217,6 +218,14 @@ function isDangerous(dc) {
 }
 function emptyHtml(msg) {
     return `<div class="bi-empty"><i class="fa-solid fa-satellite-dish" style="font-size:1.8rem; display:block; margin-bottom:12px;"></i>${escHtml(msg)}</div>`;
+}
+function getSectorColor(s) {
+    const map = {
+        'Teknologi & IT': '#00ffcc', 'Keuangan': '#00ccff', 'E-commerce': '#ffcc00',
+        'Hiburan': '#cc00ff', 'Pemerintahan': '#ff4d4d', 'Pendidikan': '#4d79ff',
+        'Kesehatan': '#ff4d94', 'Lainnya': '#999'
+    };
+    return map[s] || '#999';
 }
 
 // ── Tab switching ────────────────────────────────────────────
@@ -288,6 +297,7 @@ function loadMarket() {
                         <div></div>
                         <div>BREACH</div>
                         <div>DATE</div>
+                        <div>SECTOR</div>
                         <div>DATA EXPOSED</div>
                         <div style="text-align:right">VICTIMS</div>
                         <div style="text-align:center">RISK</div>
@@ -295,33 +305,38 @@ function loadMarket() {
                     ${data.results.map(b => `
                         <div class="breach-row" title="Risk Score: ${b.risk_score}">
                             <div style="text-align:center;">
-                                ${b.logo ? `<img src="${escHtml(b.logo)}" style="width:22px; height:22px; object-fit:contain; border-radius:3px;" onerror="this.style.display='none'">` : '<i class="fa-solid fa-circle-exclamation" style="color:rgba(255,255,255,0.2); font-size:0.9rem;"></i>'}
+                                ${b.logo ? `<img src="${escHtml(b.logo)}" style="width:24px; height:24px; object-fit:contain; border-radius:4px;" onerror="this.style.display='none'">` : '<i class="fa-solid fa-circle-exclamation" style="color:rgba(255,255,255,0.2); font-size:1rem;"></i>'}
                             </div>
                             <div>
                                 <a href="https://haveibeenpwned.com/PwnedWebsites#${escHtml(b.name)}" target="_blank" rel="noopener" style="text-decoration:none; display:block;" title="View official reference on HIBP">
-                                    <div style="font-weight:700; color:var(--text-primary); font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.2s;" 
+                                    <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.2s;" 
                                         onmouseover="this.style.color='var(--accent-color)'" onmouseout="this.style.color='var(--text-primary)'">
-                                        ${escHtml(b.title)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.5rem; opacity:0.5; margin-left:3px;"></i>
+                                        ${escHtml(b.title)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.6rem; opacity:0.5; margin-left:3px;"></i>
                                     </div>
                                 </a>
-                                <div style="font-size:0.58rem; opacity:0.5; margin-top:1px;">
+                                <div style="font-size:0.75rem; opacity:0.6; margin-top:2px;">
                                     ${b.domain ? `<a href="https://${escHtml(b.domain)}" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escHtml(b.domain)}</a>` : '—'}
-                                    ${b.is_stealer ? ' <span style="color:#b44dff;">STEALER</span>' : ''}
-                                    ${b.is_sensitive ? ' <span style="color:#ff6600;">SENSITIVE</span>' : ''}
+                                    ${b.is_stealer ? ' <span style="color:#b44dff; font-weight:bold;">STEALER</span>' : ''}
+                                    ${b.is_sensitive ? ' <span style="color:#ff6600; font-weight:bold;">SENSITIVE</span>' : ''}
                                 </div>
                             </div>
-                            <div style="color:var(--text-secondary); font-size:0.68rem;">
+                            <div style="color:var(--text-secondary); font-size:0.85rem;">
                                 <div>${b.breach_date || '—'}</div>
-                                <div style="font-size:0.55rem; opacity:0.5; margin-top:1px;">Added ${b.added_date ? b.added_date.substring(0,10) : '—'}</div>
+                                <div style="font-size:0.65rem; opacity:0.5; margin-top:2px;">Added ${b.added_date ? b.added_date.substring(0,10) : '—'}</div>
                             </div>
-                            <div style="display:flex; flex-wrap:wrap; gap:2px; align-items:flex-start;">
-                                ${b.data_classes.map(dc => `<span class="dc-chip ${isDangerous(dc) ? 'danger' : ''}">${escHtml(dc)}</span>`).join('')}
+                            <div>
+                                <span class="sector-badge" style="color:${getSectorColor(b.sector)}; border-color:${getSectorColor(b.sector)}44; background:${getSectorColor(b.sector)}11;">
+                                    ${escHtml(b.sector || 'Lainnya')}
+                                </span>
                             </div>
-                            <div style="text-align:right; font-weight:700; font-size:0.72rem; color:${b.pwn_count > 10000000 ? '#ff4d4d' : b.pwn_count > 1000000 ? '#ffaa00' : 'var(--text-primary)'};">
+                            <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:flex-start;">
+                                ${b.data_classes.map(dc => `<span class="dc-chip ${isDangerous(dc) ? 'danger' : ''}" style="font-size:0.7rem; padding:2px 6px;">${escHtml(dc)}</span>`).join('')}
+                            </div>
+                            <div style="text-align:right; font-weight:700; font-size:0.9rem; color:${b.pwn_count > 10000000 ? '#ff4d4d' : b.pwn_count > 1000000 ? '#ffaa00' : 'var(--text-primary)'};">
                                 ${fmtNum(b.pwn_count)}
                             </div>
                             <div style="text-align:center;">
-                                <span class="risk-badge risk-${b.risk_label}">${b.risk_label}</span>
+                                <span class="risk-badge risk-${b.risk_label}" style="font-size:0.72rem; padding:3px 8px;">${b.risk_label}</span>
                             </div>
                         </div>
                     `).join('')}
@@ -558,6 +573,13 @@ function loadIndonesia() {
 }
 
 // ── Init ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', loadMarket);
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const q = urlParams.get('q');
+    if (q) {
+        document.getElementById('mkt-search').value = q;
+    }
+    loadMarket();
+});
 </script>
 {% endblock %}

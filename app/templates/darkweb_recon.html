@@ -100,7 +100,7 @@
                             <i class="fa-solid fa-id-card"></i> IDENTITY & REPUTATION
                         </div>
                         <div id="whois-body" style="padding: 20px; flex: 1; overflow-y: auto; scrollbar-width: thin; padding-bottom: 20px;">
-                            <div style="text-align: center; opacity: 0.3; padding-top: 80px;">NO DATA AVAILABLE</div>
+                            <div style="text-align: center; opacity: 0.3; padding-top: 80px;">NO DATA IDENTIFIED</div>
                         </div>
                     </div>
                 </div>
@@ -315,9 +315,14 @@
             const dmarc = results.mail_protection.dmarc;
             const dkim = results.mail_protection.dkim;
             
-            mailHtml += `<div style="margin-bottom: 8px; word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">SPF:</span><br> ${spf ? `<span style="color: var(--accent-color);">${spf}</span>` : `<span style="color: var(--danger-color);">Not Configured / Missing</span>`}</div>`;
-            mailHtml += `<div style="margin-bottom: 8px; word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">DMARC:</span><br> ${dmarc ? `<span style="color: var(--accent-color);">${dmarc}</span>` : `<span style="color: var(--danger-color);">Not Configured / Missing</span>`}</div>`;
-            mailHtml += `<div style="word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">DKIM (Auto-Detect):</span><br> ${dkim ? `<span style="color: var(--accent-color);">${dkim}</span>` : `<span style="color: var(--warning-color);">Selector Unknown (Passive Check Failed)</span>`}</div>`;
+            let dkimHtml = '<span style="color: var(--warning-color);">Not Detected</span>';
+            if (dkim && dkim.length > 0 && dkim[0].selector !== 'N/A') {
+                dkimHtml = dkim.map(d => `<span style="color: var(--accent-color);">[${d.selector}]</span>`).join(' ');
+            }
+            
+            mailHtml += `<div style="margin-bottom: 8px; word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">SPF:</span><br> ${spf && spf.includes('v=spf1') ? `<span style="color: var(--accent-color);">${spf}</span>` : `<span style="color: var(--danger-color);">Not Configured / Missing</span>`}</div>`;
+            mailHtml += `<div style="margin-bottom: 8px; word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">DMARC:</span><br> ${dmarc && dmarc.includes('v=DMARC1') ? `<span style="color: var(--accent-color);">${dmarc}</span>` : `<span style="color: var(--danger-color);">Not Configured / Missing</span>`}</div>`;
+            mailHtml += `<div style="word-break: break-all;"><span style="color: var(--text-secondary); font-weight: bold;">DKIM (Auto-Detect):</span><br> ${dkimHtml}</div>`;
             
             mailItems.innerHTML = mailHtml;
             mailCont.style.display = 'block';
@@ -437,8 +442,8 @@
                     </div>
                     <div class="recon-item" style="margin-bottom: 8px;">
                         <span class="recon-label">DKIM:</span>
-                        <span class="recon-val" style="color: ${ms.dkim !== 'Not Detected' && ms.dkim !== 'N/A' ? 'var(--success-color)' : 'var(--text-secondary)'}; font-size: 0.6rem; word-break: break-all;">
-                            ${ms.dkim}
+                        <span class="recon-val" style="color: var(--text-secondary); font-size: 0.6rem; word-break: break-all;">
+                            ${ms.dkim && ms.dkim.length > 0 && ms.dkim[0].selector !== 'N/A' ? ms.dkim.map(d => `<span style="color: var(--success-color);">[${d.selector}]</span> ${d.record}`).join('<br>') : 'No DKIM signatures identified'}
                         </span>
                     </div>
                     <div class="recon-item">

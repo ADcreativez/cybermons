@@ -87,96 +87,21 @@
                     </thead>
                     <tbody id="defacement-tbody">
                         <tr>
-                            <td colspan="6" style="padding: 50px; text-align: center;">
-                                <i class="fa-solid fa-spinner fa-spin"
-                                    style="font-size: 2rem; color: var(--accent-color);"></i>
-                                <div
-                                    style="color: var(--text-secondary); font-family: var(--font-mono); margin-top: 10px;">
-                                    LOADING DATABASE...</div>
+                            <td colspan="6" style="padding: 60px 50px; text-align: center;">
+                                <i class="fa-solid fa-microchip fa-fade" style="font-size: 2.5rem; color: var(--accent-color); margin-bottom: 20px;"></i>
+                                <div style="color: var(--text-primary); font-family: var(--font-mono); font-size: 0.9rem; letter-spacing: 2px; margin-bottom: 15px; text-shadow: 0 0 10px rgba(0,255,204,0.3);">
+                                    INITIALIZING PASSIVE INTELLIGENCE RETRIEVAL...
+                                </div>
+                                <div style="width: 280px; height: 4px; background: rgba(0,255,204,0.1); border-radius: 4px; margin: 0 auto; overflow: hidden; border: 1px solid rgba(0,255,204,0.2);">
+                                    <div id="main-load-progress" style="width: 0%; height: 100%; background: var(--accent-color); box-shadow: 0 0 15px var(--accent-color); transition: width 0.4s ease;"></div>
+                                </div>
+                                <div id="main-load-status" style="color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.7rem; margin-top: 10px; opacity: 0.6;">
+                                    CONNECTING TO DATABASE...
+                                </div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- === MIRROR DETAIL MODAL === -->
-    <div id="mirror-modal-overlay" onclick="closeMirrorModal()"
-        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9000; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
-        <div onclick="event.stopPropagation()"
-            style="background:#0d0d1a; border:1px solid rgba(0,255,204,0.25); border-radius:8px; width:92%; max-width:780px; max-height:90vh; overflow-y:auto; box-shadow:0 0 50px rgba(0,255,204,0.1); position:relative;">
-
-            <!-- Header -->
-            <div
-                style="padding:20px 24px 14px; border-bottom:1px solid rgba(0,255,204,0.15); display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                    <div
-                        style="font-family:var(--font-mono); color:var(--accent-color); font-size:0.7rem; letter-spacing:3px; margin-bottom:4px;">
-                        <i class="fa-solid fa-shield-halved"></i>&nbsp; CYBERMON — PASSIVE MIRROR INTELLIGENCE
-                    </div>
-                    <div id="mir-title"
-                        style="font-family:var(--font-mono); color:var(--text-primary); font-size:0.95rem; word-break:break-all;">
-                    </div>
-                </div>
-                <button onclick="closeMirrorModal()"
-                    style="background:none; border:none; color:var(--text-secondary); font-size:1.2rem; cursor:pointer; margin-left:16px; line-height:1;">✕</button>
-            </div>
-
-            <!-- Body loading state -->
-            <div id="mir-loading" style="padding:50px; text-align:center;">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem; color:var(--accent-color);"></i>
-                <div
-                    style="font-family:var(--font-mono); color:var(--text-secondary); margin-top:12px; font-size:0.8rem;">
-                    RETRIEVING THREAT INTEL...</div>
-            </div>
-
-            <!-- Info cards grid (hidden until loaded) -->
-            <div id="mir-body" style="display:none; padding:20px 24px;">
-                <!-- Row 1: intel cards -->
-                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
-                    <div class="mir-card">
-                        <div class="mir-label">ATTACKER</div>
-                        <div id="mir-attacker" class="mir-value accent"></div>
-                    </div>
-                    <div class="mir-card">
-                        <div class="mir-label">TEAM</div>
-                        <div id="mir-team" class="mir-value"></div>
-                    </div>
-                    <div class="mir-card">
-                        <div class="mir-label">DATE</div>
-                        <div id="mir-date" class="mir-value"></div>
-                    </div>
-                </div>
-                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
-                    <div class="mir-card">
-                        <div class="mir-label">RECORDED IP</div>
-                        <div id="mir-ip" class="mir-value danger"></div>
-                    </div>
-                    <div class="mir-card">
-                        <div class="mir-label">MIRROR SERVER</div>
-                        <div id="mir-server" class="mir-value"></div>
-                    </div>
-                    <div class="mir-card">
-                        <div class="mir-label">MIRROR LOCATION</div>
-                        <div id="mir-country" class="mir-value"></div>
-                    </div>
-                </div>
-                <!-- Target URL -->
-                <div class="mir-card" style="margin-bottom:12px;">
-                    <div class="mir-label">TARGET URL</div>
-                    <!-- Progress Bar -->
-                    <div id="mir-url-progress-container" style="display:none; height:2px; background:rgba(0,255,204,0.1); border-radius:2px; margin-bottom:8px; overflow:hidden;">
-                        <div id="mir-url-progress-bar" style="width:0%; height:100%; background:var(--accent-color); box-shadow:0 0 10px var(--accent-color); transition:width 0.3s ease;"></div>
-                    </div>
-                    <a id="mir-url" class="mir-value" target="_blank"
-                        style="word-break:break-all; font-size:0.8rem; text-decoration:none; color:var(--accent-color); display:block;"></a>
-                </div>
-            </div>
-
-            <!-- Error state -->
-            <div id="mir-error"
-                style="display:none; padding:30px 24px; text-align:center; font-family:var(--font-mono); color:#ff4d4d; font-size:0.8rem;">
             </div>
         </div>
     </div>
@@ -257,185 +182,49 @@
             border: 1px solid rgba(0, 255, 204, 0.1);
             border-radius: 6px;
             padding: 12px 14px;
-        }
-
-        .mir-label {
-            font-family: var(--font-mono);
-            font-size: 0.65rem;
-            color: var(--text-secondary);
-            letter-spacing: 1.5px;
-            margin-bottom: 6px;
-        }
-
-        .mir-value {
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            color: var(--text-primary);
-            font-weight: bold;
-        }
-
-        .mir-value.accent {
-            color: var(--accent-color);
-        }
-
-        .mir-value.danger {
-            color: #ff4d4d;
-        }
-
-        #mirror-modal-overlay.active {
-            display: flex !important;
-        }
     </style>
 
     <script>
-        function openMirrorModal(mirrorId, attacker, team, targetUrl, country, date, mirrorUrl, preIP = '', preServer = '') {
-            const modal = document.getElementById('mirror-modal-overlay');
-            const loading = document.getElementById('mir-loading');
-            const body = document.getElementById('mir-body');
-            const error = document.getElementById('mir-error');
-
-            // Set initial known data
-            document.getElementById('mir-title').innerText = targetUrl;
-            document.getElementById('mir-attacker').innerText = attacker;
-            document.getElementById('mir-team').innerText = team || 'None';
-            document.getElementById('mir-date').innerText = date;
-            document.getElementById('mir-country').innerText = country || '—';
-
-            const mirUrlEl = document.getElementById('mir-url');
-            mirUrlEl.innerText = targetUrl;
-            mirUrlEl.href = targetUrl.startsWith('http') ? targetUrl : `http://${targetUrl}`;
-
-            // Reset states
-            modal.style.display = 'flex';
-            loading.style.display = 'none'; // Never show full-modal loader anymore
-            body.style.display = 'block';   // Always show body immediately
-            error.style.display = 'none';
-
-            const isTruncated = (targetUrl && targetUrl.includes('...'));
-
-            // Set IP/Server to pre-scraped data first
-            if (preIP && preIP !== 'N/A' && preIP !== '') {
-                document.getElementById('mir-ip').innerText = preIP;
-                document.getElementById('mir-ip').classList.remove('danger');
-                document.getElementById('mir-server').innerText = (preServer && preServer !== 'N/A') ? preServer : 'Unknown';
-            } else {
-                document.getElementById('mir-ip').innerText = 'Searching...';
-                document.getElementById('mir-ip').classList.remove('danger');
-                document.getElementById('mir-server').innerText = '...';
-            }
-                
-                if (isTruncated) {
-                    document.getElementById('mir-url').innerText = 'Recovering Full URL...';
-                    
-                    // Show and animate progress bar
-                    const progCont = document.getElementById('mir-url-progress-container');
-                    const progBar = document.getElementById('mir-url-progress-bar');
-                    progCont.style.display = 'block';
-                    progBar.style.width = '15%'; // Initial start
-                    
-                    // Simulate progressive fill
-                    let pWidth = 15;
-                    const pInterval = setInterval(() => {
-                        if (pWidth < 85) {
-                            pWidth += Math.random() * 8;
-                            progBar.style.width = pWidth + '%';
-                        }
-                    }, 450);
-                    window._urlRecoveryInterval = pInterval;
-                }
-
-                // Fetch extra intel from proxy in the background
-                fetch(`/darkweb/defacements/mirror-proxy?id=${mirrorId}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        // Clear progress bar if active
-                        if (window._urlRecoveryInterval) {
-                            clearInterval(window._urlRecoveryInterval);
-                            window._urlRecoveryInterval = null;
-                            const progBar = document.getElementById('mir-url-progress-bar');
-                            progBar.style.width = '100%';
-                            setTimeout(() => {
-                                document.getElementById('mir-url-progress-container').style.display = 'none';
-                                progBar.style.width = '0%';
-                            }, 400);
-                        }
-
-                        console.log("DEBUG: Proxy result:", data);
-                        if (data.success) {
-                            const finalUrl = (data.full_url && data.full_url !== 'N/A') ? data.full_url : 
-                                            ((data.title && data.title.startsWith('http')) ? data.title : null);
-
-                            if (finalUrl) {
-                                const mirUrlEl = document.getElementById('mir-url');
-                                mirUrlEl.innerText = finalUrl;
-                                mirUrlEl.href = finalUrl.startsWith('http') ? finalUrl : `http://${finalUrl}`;
-                                
-                                // Update title card and modal header
-                                document.getElementById('mir-title').innerText = finalUrl;
-
-                                const row = document.querySelector(`tr[data-mirror-id="${mirrorId}"]`);
-                                if (row) {
-                                    const urlCell = row.querySelector('.target-url-cell a');
-                                    if (urlCell) {
-                                        urlCell.innerHTML = `<i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem; opacity: 0.5; margin-right: 5px;"></i>${finalUrl}`;
-                                        urlCell.href = mirUrlEl.href;
-                                        urlCell.title = finalUrl;
-                                    }
-                                }
-                            } else if (data.title && data.title !== 'N/A') {
-                                document.getElementById('mir-title').innerText = data.title;
-                            }
-
-                            // Update the summary boxes
-                            const ipVal = document.getElementById('mir-ip');
-                            const serverVal = document.getElementById('mir-server');
-                            
-                            if (data.ip && data.ip !== 'N/A') {
-                                ipVal.innerText = data.ip;
-                                ipVal.classList.remove('danger');
-                            } else if (!ipVal.innerText || ipVal.innerText === 'Searching...') {
-                                ipVal.innerText = 'N/A';
-                                ipVal.classList.add('danger');
-                            }
-
-                            if (data.web_server && data.web_server !== 'N/A') {
-                                serverVal.innerText = data.web_server;
-                            } else if (!serverVal.innerText || serverVal.innerText === '...') {
-                                serverVal.innerText = 'Unknown';
-                            }
-                        } else {
-                            console.error("DEBUG: Proxy failed:", data.error);
-                            if (document.getElementById('mir-ip').innerText === 'Searching...') {
-                                document.getElementById('mir-ip').innerText = 'Failed';
-                                document.getElementById('mir-server').innerText = 'Failed';
-                            }
-                        }
-                    })
-                    .catch(err => {
-                        console.error("DEBUG: Fetch exception:", err);
-                        const ipEl = document.getElementById('mir-ip');
-                        if (ipEl.innerText === 'Searching...') {
-                            ipEl.innerText = 'Timeout';
-                            document.getElementById('mir-server').innerText = 'Timeout';
-                        }
-                    });
-            }
-        function closeMirrorModal() {
-            const modal = document.getElementById('mirror-modal-overlay');
-            modal.style.display = 'none';
-        }
 
         function loadDefacementFeed() {
             const tbody = document.getElementById('defacement-tbody');
             const status = document.getElementById('feed-status');
+            const progBar = document.getElementById('main-load-progress');
+            const loadStatus = document.getElementById('main-load-status');
+
+            // --- Hacker-style Loading Animation ---
+            let pWidth = 10;
+            const statuses = [
+                'RESOLVING DATABASE CLUSTER...',
+                'HANDSHAKING WITH ZONE-XSEC MIRRORS...',
+                'DECRYPTING EVIDENCE METADATA...',
+                'PARSING VICTIM MANIFEST...',
+                'FINALIZING INTEL STREAM...'
+            ];
+            let sIdx = 0;
+            const interval = setInterval(() => {
+                if (pWidth < 90) {
+                    pWidth += Math.random() * 12;
+                    if (progBar) progBar.style.width = pWidth + '%';
+                    if (loadStatus && Math.random() > 0.7) {
+                        loadStatus.innerText = statuses[sIdx % statuses.length];
+                        sIdx++;
+                    }
+                }
+            }, 500);
 
             fetch('/darkweb/defacements/feed')
                 .then(r => r.json())
                 .then(data => {
-                    status.innerText = data.message || '';
-                    if (data.results && data.results.length > 0) {
-                        tbody.innerHTML = '';
-                        const dates = new Set();
+                    clearInterval(interval);
+                    if (progBar) progBar.style.width = '100%';
+                    if (loadStatus) loadStatus.innerText = 'DATA STREAM ESTABLISHED — RENDERING...';
+                    
+                    setTimeout(() => {
+                        status.innerText = data.message || '';
+                        if (data.results && data.results.length > 0) {
+                            tbody.innerHTML = '';
+                            const dates = new Set();
                         data.results.forEach(d => {
                             const isID = (d.country || '').toUpperCase() === 'ID' || (d.url || '').toLowerCase().includes('.id');
                             const row = document.createElement('tr');
@@ -459,21 +248,25 @@
 
                             const preScrapedArgs = `'${d.ip || 'N/A'}', '${d.web_server || 'N/A'}'`;
 
-                            row.innerHTML = `
-                            <td style="padding: 12px 15px; color: var(--text-secondary); font-size: 0.75rem;">${d.date}</td>
-                            <td style="padding: 12px 15px;" class="attacker-name">${d.attacker}</td>
-                            <td style="padding: 12px 15px;" class="team-badge-cell"><span class="team-badge">${d.team || 'None'}</span></td>
-                            <td style="padding: 12px 15px; color: var(--text-secondary); max-width: 450px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" class="target-url-cell">
-                                <a href="${fullTargetUrl}" target="_blank" style="color: inherit; text-decoration: none;" title="${d.url}">
-                                    <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem; opacity: 0.5; margin-right: 5px;"></i>${d.url}
-                                </a>
-                            </td>
-                            <td style="padding: 12px 15px;">${countryHtml}</td>
-                            <td style="padding: 12px 15px; text-align: center;">
-                                <button class="mirror-btn" title="View Threat Intel"
-                                    onclick="openMirrorModal('${mirrorId}', decodeURIComponent('${encAttacker}'), decodeURIComponent('${encTeam}'), decodeURIComponent('${encUrl}'), decodeURIComponent('${encCountry}'), '${d.date}', '${d.mirror || ''}', ${preScrapedArgs})"><i class="fa-solid fa-camera"></i></button>
-                            </td>
-                        `;
+                            const evidenceUrl = (d.mirror && d.mirror !== '#') ? d.mirror : fullTargetUrl;
+
+                             row.innerHTML = `
+                             <td style="padding: 12px 15px; color: var(--text-secondary); font-size: 0.75rem;">${d.date}</td>
+                             <td style="padding: 12px 15px;" class="attacker-name">${d.attacker}</td>
+                             <td style="padding: 12px 15px;" class="team-badge-cell"><span class="team-badge">${d.team || 'None'}</span></td>
+                             <td style="padding: 12px 15px; color: var(--text-secondary); max-width: 450px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" class="target-url-cell">
+                                 <a href="javascript:void(0)" 
+                                    onclick="openMirrorModal('${mirrorId}', decodeURIComponent('${encAttacker}'), decodeURIComponent('${encTeam}'), decodeURIComponent('${encUrl}'), decodeURIComponent('${encCountry}'), '${d.date}', ${preScrapedArgs})"
+                                    style="color: inherit; text-decoration: none;" title="View Passive Intel">
+                                     <i class="fa-solid fa-eye" style="font-size: 0.7rem; opacity: 0.5; margin-right: 5px;"></i>${d.url}
+                                 </a>
+                             </td>
+                             <td style="padding: 12px 15px;">${countryHtml}</td>
+                             <td style="padding: 12px 15px; text-align: center;">
+                                 <button class="mirror-btn" title="View Threat Intel"
+                                     onclick="openMirrorModal('${mirrorId}', decodeURIComponent('${encAttacker}'), decodeURIComponent('${encTeam}'), decodeURIComponent('${encUrl}'), decodeURIComponent('${encCountry}'), '${d.date}', ${preScrapedArgs})"><i class="fa-solid fa-camera"></i></button>
+                             </td>
+                         `;
                             tbody.appendChild(row);
                         });
 
@@ -483,11 +276,13 @@
                         [...dates].sort().reverse().forEach(d => {
                             sel.innerHTML += `<option value="${d}">${d}</option>`;
                         });
-                    } else {
-                        tbody.innerHTML = `<tr><td colspan="6" style="padding: 40px; text-align: center; opacity:0.5;">No defacement records found. Click SYNC to fetch.</td></tr>`;
-                    }
+                        } else {
+                            tbody.innerHTML = `<tr><td colspan="6" style="padding: 40px; text-align: center; opacity:0.5;">No defacement records found. Click SYNC to fetch.</td></tr>`;
+                        }
+                    }, 400);
                 })
                 .catch(() => {
+                    clearInterval(interval);
                     tbody.innerHTML = `<tr><td colspan="6" style="padding: 30px; text-align: center; color: var(--danger-color);">CONNECTION ERROR</td></tr>`;
                 });
         }

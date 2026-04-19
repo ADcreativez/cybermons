@@ -454,6 +454,71 @@ INDONESIA_INCIDENTS = [
 def breach_intel():
     return render_template('darkweb_breach_intel.html')
 
+
+# Synchronized Sector Mapping
+SECTOR_MAP = {
+    'Keuangan':         ['bank', 'finance', 'crypto', 'pay', 'loan', 'invest', 'trading', 'credit', 'insurance', 'money', 'stock', 'billing', 'accounting', 'wallet', 'currency', 'exchange'],
+    'E-commerce':       ['shop', 'store', 'market', 'order', 'delivery', 'food', 'fashion', 'commerce', 'customer', 'retail', 'clothing', 'jewel', 'sneaker', 'shopping', 'grocery'],
+    'Hiburan':          ['movie', 'video', 'music', 'entertainment', 'travel', 'hotel', 'booking', 'dating', 'adult', 'lifestyle', 'hobby', 'fitness', 'fan', 'game', 'gaming', 'netflix', 'spotify', 'disney', 'cinema'],
+    'Pemerintahan':     ['gov', 'ministry', 'agency', 'council', 'state', 'national', 'police', 'defense', 'military', 'public service', 'politics', 'embassy', 'regulator'],
+    'Pendidikan':       ['school', 'univ', 'edu', 'college', 'learn', 'student', 'teacher', 'academy', 'library', 'course', 'scholar'],
+    'Kesehatan':        ['health', 'med', 'hospital', 'pharma', 'clinic', 'dentist', 'patient', 'wellness', 'doctor', 'nursing', 'medical'],
+    'Logistik':         ['logistics', 'shipping', 'cargo', 'transport', 'courier', 'freight', 'delivery', 'warehouse', 'railway', 'airline', 'transit'],
+    'Media':            ['news', 'journal', 'paper', 'broadcast', 'radio', 'tv', 'press', 'magazine', 'publishing', 'media', 'advertising', 'marketing'],
+    'Energi':           ['energy', 'oil', 'gas', 'power', 'electric', 'utility', 'solar', 'mining', 'petrol', 'nuclear', 'water service'],
+    'Teknologi & IT':   ['tech', 'software', 'hosting', 'internet', 'social', 'network', 'cloud', 'it service', 'forum', 'community', 'ai', 'bot', 'developer', 'github', 'gitlab', 'bitbucket', 'system', 'digital', 'data', 'security']
+}
+
+def get_sector(b):
+    title = (b.get('title') or '').lower()
+    domain = (b.get('domain') or '').lower()
+    desc = ' '.join(b.get('data_classes', [])).lower()
+    for sector, keywords in SECTOR_MAP.items():
+        if any(k in title for k in keywords) or any(k in domain for k in keywords) or any(k in desc for k in keywords):
+            return sector
+    return 'Lainnya'
+
+def run_breach_market_sync():
+    """Core logic to sync global breaches from HIBP."""
+    try:
+        r = req.get('https://haveibeenpwned.com/api/v3/breaches', headers=HEADERS, timeout=15)
+        r.raise_for_status()
+        breaches = r.json()
+        
+        enriched = []
+        for b in breaches:
+            if b.get('IsSpamList') or b.get('IsMalware'): continue
+            data_classes = b.get('DataClasses', [])
+            pwn_count    = b.get('PwnCount', 0)
+            sc           = score_breach(data_classes, pwn_count)
+            
+            record = {
+                'name':         b.get('Name'),
+                'title':        b.get('Title'),
+                'domain':       b.get('Domain', ''),
+                'breach_date':  b.get('BreachDate', ''),
+                'added_date':   b.get('AddedDate', ''),
+                'pwn_count':    pwn_count,
+                'data_classes': data_classes,
+                'risk_score':   sc,
+                'risk_label':   risk_label(sc),
+                'is_verified':  b.get('IsVerified', False),
+                'is_sensitive': b.get('IsSensitive', False),
+                'is_stealer':   b.get('IsStealerLog', False),
+                'logo':         b.get('LogoPath', ''),
+                'has_passwords': 'Passwords' in data_classes,
+                'has_cards':     'Credit cards' in data_classes,
+            }
+            record['sector'] = get_sector(record)
+            enriched.append(record)
+
+        # Save to cache
+        with open(_MARKET_CACHE_FILE, 'w') as f:
+            json.dump(enriched, f)
+        return True, len(enriched), None
+    except Exception as e:
+        return False, 0, str(e)
+
 @breach_intel_bp.route('/darkweb/breach-intel/market')
 @login_required
 def breach_market():
@@ -466,73 +531,72 @@ def breach_market():
     per_page = min(request.args.get('per_page', 25, type=int), 100)
     force_refresh = request.args.get('refresh') == '1'
 
-    CACHE_FILE = os.path.join(os.getcwd(), 'breach_market_cache.json')
-    CACHE_TTL  = 6 * 3600  # 6 hours
-
     # Try loading from cache first
     enriched = None
-    if not force_refresh and os.path.exists(CACHE_FILE):
+    if not force_refresh and os.path.exists(_MARKET_CACHE_FILE):
         try:
-            age = time.time() - os.path.getmtime(CACHE_FILE)
-            if age < CACHE_TTL:
-                with open(CACHE_FILE, 'r') as f:
+            age = time.time() - os.path.getmtime(_MARKET_CACHE_FILE)
+            if age < _CACHE_TTL:
+                with open(_MARKET_CACHE_FILE, 'r') as f:
                     enriched = _json.load(f)
         except:
             enriched = None
 
-    # Fetch from HIBP only if no valid cache
+    # Sync if needed or forced
     if enriched is None:
-        try:
-            r = req.get('https://haveibeenpwned.com/api/v3/breaches', headers=HEADERS, timeout=15)
-            r.raise_for_status()
-            breaches = r.json()
-        except Exception as e:
-            # If fetch fails, try stale cache as fallback
-            if os.path.exists(CACHE_FILE):
+        success, count, error = run_breach_market_sync()
+        if not success:
+            # Fallback to existing cache if possible
+            if os.path.exists(_MARKET_CACHE_FILE):
                 try:
-                    with open(CACHE_FILE, 'r') as f:
-                        enriched = _json.load(f)
-                except:
-                    pass
-            if not enriched:
-                return jsonify({'status': 'error', 'error': str(e)}), 500
+                    with open(_MARKET_CACHE_FILE, 'r') as f: enriched = _json.load(f)
+                except: pass
+            if not enriched: return jsonify({'status': 'error', 'error': error}), 500
         else:
-            enriched = []
-            for b in breaches:
-                if b.get('IsSpamList') or b.get('IsMalware'): continue
-                data_classes = b.get('DataClasses', [])
-                pwn_count    = b.get('PwnCount', 0)
-                sc           = score_breach(data_classes, pwn_count)
-                enriched.append({
-                    'name':         b.get('Name'),
-                    'title':        b.get('Title'),
-                    'domain':       b.get('Domain', ''),
-                    'breach_date':  b.get('BreachDate', ''),
-                    'added_date':   b.get('AddedDate', ''),
-                    'pwn_count':    pwn_count,
-                    'data_classes': data_classes,
-                    'risk_score':   sc,
-                    'risk_label':   risk_label(sc),
-                    'is_verified':  b.get('IsVerified', False),
-                    'is_sensitive': b.get('IsSensitive', False),
-                    'is_stealer':   b.get('IsStealerLog', False),
-                    'logo':         b.get('LogoPath', ''),
-                    'has_passwords': 'Passwords' in data_classes,
-                    'has_cards':     'Credit cards' in data_classes,
-                })
-            # Save to cache
+            # Reload from newly written cache
             try:
-                with open(CACHE_FILE, 'w') as f:
-                    _json.dump(enriched, f)
-            except:
-                pass
+                with open(_MARKET_CACHE_FILE, 'r') as f: enriched = _json.load(f)
+            except: pass
 
-    # Filter
+    # Filter logic: Standard or Sector-based keywords
     if filter_q:
-        enriched = [b for b in enriched if
-            filter_q in (b.get('title') or '').lower() or
-            filter_q in (b.get('domain') or '').lower() or
-            any(filter_q in dc.lower() for dc in b.get('data_classes', []))]
+        q_clean = filter_q.strip().lower()
+        active_sector = None
+        
+        # Determine if the query is a specific sector name
+        if q_clean == 'lainnya':
+            active_sector = 'Lainnya'
+        else:
+            for s_name in SECTOR_MAP.keys():
+                if s_name.lower() == q_clean:
+                    active_sector = s_name
+                    break
+        
+        filtered = []
+        for b in enriched:
+            # Categorize if missing (cached items)
+            if not b.get('sector') or b.get('sector') == 'Lainnya':
+                b['sector'] = get_sector(b)
+
+            matches = False
+            if active_sector:
+                # STRICT mode: if searching for a sector (including 'Lainnya'), only show that sector
+                if b.get('sector') == active_sector:
+                    matches = True
+            else:
+                # Standard keyword search across all fields
+                combined = f"{b.get('title','')} {b.get('domain','')} {' '.join(b.get('data_classes',[]))}".lower()
+                if q_clean in combined:
+                    matches = True
+            
+            if matches:
+                filtered.append(b)
+        enriched = filtered
+    else:
+        # Categorize all if no filter
+        for b in enriched:
+            if not b.get('sector') or b.get('sector') == 'Lainnya':
+                b['sector'] = get_sector(b)
 
     # Sort
     if sort_by == 'risk':

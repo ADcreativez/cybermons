@@ -67,13 +67,20 @@
         </div>
     </div>
 
-    <!-- Mini Widget Row -->
+    <!-- Mini Widget Row (Split) -->
     <div class="vision-widgets-row vision-widgets-row-mini" style="min-height: 150px; flex: 0.5;">
         <div class="vision-widget mini-widget" style="flex: 1;">
             <div class="widget-header" style="padding: 8px 12px; font-size: 0.75rem;"><i class="fa-solid fa-server"></i>
                 INTERNAL ASSET DISTRIBUTION</div>
             <div class="chart-container" style="padding: 5px;">
                 <canvas id="inventoryChart"></canvas>
+            </div>
+        </div>
+        <div class="vision-widget mini-widget" style="flex: 1;">
+            <div class="widget-header" style="padding: 8px 12px; font-size: 0.75rem;"><i class="fa-solid fa-bug"></i>
+                EXPLOIT DATABASE DISTRIBUTION</div>
+            <div class="chart-container" style="padding: 5px;">
+                <canvas id="exploitDistChart"></canvas>
             </div>
         </div>
     </div>
@@ -274,460 +281,316 @@
     {% endif %}
 </div>
 
-<script>
-    Chart.register(ChartDataLabels);
-    Chart.defaults.set('plugins.datalabels', {
-        color: '#fff',
-        font: { weight: 'bold', size: 12 },
-        formatter: function (value, context) {
-            return value > 0 ? value : '';
-        }
-    });
-
-    function showConfirmIntel(id) {
-        document.getElementById('intel-delete-control-' + id).style.display = 'none';
-        document.getElementById('intel-confirm-control-' + id).style.display = 'flex';
-    }
-
-    function cancelConfirmIntel(id) {
-        document.getElementById('intel-delete-control-' + id).style.display = 'inline-block';
-        document.getElementById('intel-confirm-control-' + id).style.display = 'none';
-    }
-
-    document.addEventListener('keydown', function (e) {
-        const feedList = document.getElementById('feedListContainer');
-        const scrollAmount = 50; // Pixels per key press
-
-        if (!feedList) return;
-
-        // Check if user is typing in an input (don't scroll then)
-        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') {
-            return;
-        }
-
-        switch (e.key) {
-            case 'ArrowDown':
-                feedList.scrollTop += scrollAmount;
-                e.preventDefault();
-                break;
-            case 'ArrowUp':
-                feedList.scrollTop -= scrollAmount;
-                e.preventDefault();
-                break;
-            case 'PageDown':
-                feedList.scrollTop += feedList.clientHeight;
-                e.preventDefault();
-                break;
-            case 'PageUp':
-                feedList.scrollTop -= feedList.clientHeight;
-                e.preventDefault();
-                break;
-            case 'Home':
-                feedList.scrollTop = 0;
-                e.preventDefault();
-                break;
-            case 'End':
-                feedList.scrollTop = feedList.scrollHeight;
-                e.preventDefault();
-                break;
-            case 'End':
-                feedList.scrollTop = feedList.scrollHeight;
-                e.preventDefault();
-                break;
-        }
-    });
-
-    function updateClock() {
-        const now = new Date();
-        const timeString = now.toISOString().replace('T', ' ').substring(0, 19);
-        const clockElement = document.getElementById('clock');
-        if (clockElement) {
-            clockElement.innerText = timeString;
-        }
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-
-</script>
-
-
 <style>
     @keyframes livingBorder {
-        0% {
-            border-color: rgba(255, 255, 255, 0.05);
-        }
-
-        50% {
-            border-color: rgba(0, 255, 204, 0.5);
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
-        }
-
-        100% {
-            border-color: rgba(255, 255, 255, 0.05);
-        }
+        0% { border-color: rgba(255, 255, 255, 0.05); }
+        50% { border-color: rgba(0, 255, 204, 0.5); box-shadow: 0 0 15px rgba(0, 255, 204, 0.2); }
+        100% { border-color: rgba(255, 255, 255, 0.05); }
     }
-
-    @keyframes glowPulse {
-        0% {
-            filter: brightness(1) drop-shadow(0 0 0px rgba(0, 255, 204, 0));
-        }
-
-        50% {
-            filter: brightness(1.2) drop-shadow(0 0 5px rgba(0, 255, 204, 0.3));
-        }
-
-        100% {
-            filter: brightness(1) drop-shadow(0 0 0px rgba(0, 255, 204, 0));
-        }
-    }
-
     .vision-widget {
         transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.8s ease;
-        position: relative;
-        overflow: hidden;
+        position: relative; overflow: hidden;
         animation: livingBorder 8s infinite ease-in-out;
     }
-
     .vision-widget:hover {
         transform: translateY(-5px);
         border-color: #00ffcc !important;
         box-shadow: 0 15px 45px rgba(0, 255, 204, 0.2) !important;
         animation-play-state: paused;
     }
-
-    canvas {
-        /* Ensure canvas doesn't swallow events incorrectly */
-        pointer-events: all;
-    }
+    canvas { pointer-events: all; }
+    
+    /* Font Size Bumps for Clarity - Round 2 */
+    .widget-header { font-size: 0.9rem !important; }
+    .stat-label { font-size: 0.88rem !important; }
+    .threat-summary { font-size: 1.05rem !important; }
+    .threat-header { font-size: 0.92rem !important; }
+    .widget-footer { font-size: 0.85rem; opacity: 0.9; }
 </style>
 
 <script>
-    // Wait for Chart JS to load in case of async
+    // 1. DASHBOARD UI LOGIC (Clock, Keyboard, Delete Confirms)
+    function showConfirmIntel(id) {
+        document.getElementById('intel-delete-control-' + id).style.display = 'none';
+        document.getElementById('intel-confirm-control-' + id).style.display = 'flex';
+    }
+    function cancelConfirmIntel(id) {
+        document.getElementById('intel-delete-control-' + id).style.display = 'inline-block';
+        document.getElementById('intel-confirm-control-' + id).style.display = 'none';
+    }
+    function updateClock() {
+        const clockEl = document.getElementById('clock');
+        if (clockEl) clockEl.innerText = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    document.addEventListener('keydown', function (e) {
+        const feed = document.getElementById('feedListContainer');
+        if (!feed || ["INPUT", "SELECT"].includes(document.activeElement.tagName)) return;
+        const scroll = 50;
+        switch (e.key) {
+            case 'ArrowDown': feed.scrollTop += scroll; e.preventDefault(); break;
+            case 'ArrowUp': feed.scrollTop -= scroll; e.preventDefault(); break;
+            case 'PageDown': feed.scrollTop += feed.clientHeight; e.preventDefault(); break;
+            case 'PageUp': feed.scrollTop -= feed.clientHeight; e.preventDefault(); break;
+            case 'Home': feed.scrollTop = 0; e.preventDefault(); break;
+            case 'End': feed.scrollTop = feed.scrollHeight; e.preventDefault(); break;
+        }
+    });
+
+    // 2. STAGGERED CHART ORCHESTRATION ENGINE
     document.addEventListener("DOMContentLoaded", function () {
-        // Chart Defaults for Dark Theme
-        Chart.defaults.color = '#a0a0a0';
+        Chart.register(ChartDataLabels);
+
+        // Global Chart Defaults for consistent premium feel
+        Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
+        Chart.defaults.font.family = "'Rajdhani', sans-serif";
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
-        Chart.defaults.font.family = "'Share Tech Mono', monospace";
-        Chart.defaults.animation = {
-            duration: 2500, /* Cinematic entrance */
-            easing: 'easeInOutQuart'
-        };
-        // Premium SOC Tooltip Defaults
         Chart.defaults.plugins.tooltip = {
-            enabled: true,
             backgroundColor: 'rgba(5, 5, 20, 0.95)',
             titleColor: '#00ffcc',
-            titleFont: { family: "'Share Tech Mono', monospace", size: 14, weight: 'bold' },
-            bodyColor: '#ffffff',
-            bodyFont: { family: "'Share Tech Mono', monospace", size: 13 },
-            borderColor: 'rgba(0, 255, 204, 0.5)',
-            borderWidth: 1,
-            padding: 12,
-            cornerRadius: 4,
-            displayColors: true,
-            animation: { duration: 150 }
+            titleFont: { family: "'Share Tech Mono', monospace", size: 14 },
+            borderColor: 'rgba(0, 255, 204, 0.4)', borderWidth: 1, padding: 12
         };
-        Chart.defaults.hover.mode = 'nearest';
-        Chart.defaults.hover.intersect = true;
-        Chart.defaults.interaction.mode = 'nearest';
-        Chart.defaults.interaction.intersect = true;
 
-        // 1. Severity Doughnut Chart
-        const ctxSeverity = document.getElementById('severityChart').getContext('2d');
-        new Chart(ctxSeverity, {
+        // Deployment Logic (Guaranteed staggered animation sequence)
+        function deploy(id, config, delay) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            setTimeout(() => {
+                new Chart(el.getContext('2d'), config);
+                console.log(`[Cybermon] Initialized ${id} following ${delay}ms build sequence.`);
+            }, delay);
+        }
+
+        // --- A. THREAT SEVERITY (Doughnut) ---
+        deploy('severityChart', {
             type: 'doughnut',
             data: {
                 labels: ['Critical', 'High', 'Medium', 'Low', 'Info'],
                 datasets: [{
-                    data: [
-                        {{ stats.critical }},
-                {{ stats.high }},
-                        {{ stats.medium }},
-        {{ stats.low }},
-        {{ stats.info }}
-                    ],
-        backgroundColor: ['#ff1a1a', '#ff6600', '#ffaa00', '#00ffcc', '#00ccff'],
-        borderWidth: 0,
-        hoverOffset: 4
+                    data: [{{ stats.critical }}, {{ stats.high }}, {{ stats.medium }}, {{ stats.low }}, {{ stats.info }}],
+                    backgroundColor: ['#ff1a1a', '#ff6600', '#ffaa00', '#00ffcc', '#00ccff'],
+                    borderWidth: 0, hoverOffset: 15
                 }]
             },
-        options: {
-        animation: {
-            animateRotate: true,
-            animateScale: true
-        },
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '75%',
-        plugins: {
-            legend: { position: 'right', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } }
-        },
-        onClick: (evt, activeElements, chart) => {
-            if (activeElements.length > 0) {
-                const index = activeElements[0].index;
-                const label = chart.data.labels[index];
-                const baseUrl = "{{ url_for('monitoring.index') }}";
-                window.location.href = baseUrl + "?severity=" + label;
-            }
-        },
-        onHover: (evt, activeElements, chart) => {
-            evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
-        }
-    }
-        });
-
-    // 2. Trend Line Chart
-    const trendDates = {{ chart_data.trend_dates| safe if chart_data else '[]' }};
-    const trendCounts = {{ chart_data.trend_counts| safe if chart_data else '[]' }};
-    const ctxTrend = document.getElementById('trendChart').getContext('2d');
-
-    // Create Gradient
-    let gradientTrend = ctxTrend.createLinearGradient(0, 0, 0, 400);
-    gradientTrend.addColorStop(0, 'rgba(0, 255, 204, 0.4)');
-    gradientTrend.addColorStop(1, 'rgba(0, 255, 204, 0.0)');
-
-    new Chart(ctxTrend, {
-        type: 'line',
-        data: {
-            labels: trendDates,
-            datasets: [{
-                label: 'Threats Discovered',
-                data: trendCounts,
-                borderColor: '#00ffcc',
-                backgroundColor: gradientTrend,
-                borderWidth: 2,
-                pointBackgroundColor: '#11111a',
-                pointBorderColor: '#00ffcc',
-                pointHoverBackgroundColor: '#00ffcc',
-                pointHoverBorderColor: '#fff',
-                pointRadius: 4,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            animation: {
-                x: { type: 'number', easing: 'linear', duration: 0 },
-                y: { type: 'number', easing: 'easeInOutQuart', duration: 1500 }
-            },
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                x: { grid: { display: false } }
-            },
-            interaction: { mode: 'index', axis: 'x', intersect: false },
-            onHover: (evt, activeElements, chart) => {
-                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
-            }
-        }
-    });
-
-    // 3. Top Sources Bar Chart
-    const sourcesNames = {{ chart_data.top_sources_names| safe if chart_data else '[]' }};
-    const sourcesCounts = {{ chart_data.top_sources_counts| safe if chart_data else '[]' }};
-    const ctxSources = document.getElementById('sourcesChart').getContext('2d');
-
-    let gradientBar = ctxSources.createLinearGradient(0, 0, 400, 0);
-    gradientBar.addColorStop(0, 'rgba(0, 204, 255, 0.2)');
-    gradientBar.addColorStop(1, 'rgba(0, 204, 255, 0.8)');
-
-    new Chart(ctxSources, {
-        type: 'bar',
-        data: {
-            labels: sourcesNames,
-            datasets: [{
-                label: 'Ransomware Attacks',
-                data: sourcesCounts,
-                backgroundColor: gradientBar,
-                borderColor: '#00ccff',
-                borderWidth: 1,
-                borderRadius: 3
-            }]
-        },
-        options: {
-            animation: {
-                delay: (context) => context.dataIndex * 100
-            },
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    enabled: true
+            options: {
+                animation: { animateRotate: true, animateScale: true, duration: 3000, easing: 'easeOutElastic' },
+                responsive: true, maintainAspectRatio: false, cutout: '72%',
+                plugins: {
+                    legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, color: '#fff' } },
+                    datalabels: { color: '#fff', font: { weight: 'bold' }, formatter: (v) => v > 0 ? v : '' }
+                },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const index = activeEls[0].index;
+                        const label = e.chart.data.labels[index];
+                        window.location.href = "{{ url_for('monitoring.index') }}?severity=" + label;
+                    }
                 }
-            },
-            scales: {
-                x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: { grid: { display: false }, ticks: { font: { size: 10 } } }
-            },
-            onHover: (evt, activeElements, chart) => {
-                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
             }
-        }
-    });
+        }, 400);
+
+        // --- B. TREND TENDENCY (Line) ---
+        deploy('trendChart', {
+            type: 'line',
+            data: {
+                labels: {{ chart_data.trend_dates|safe if chart_data else '[]' }},
+                datasets: [{
+                    label: 'Threats', data: {{ chart_data.trend_counts|safe if chart_data else '[]' }},
+                    borderColor: '#00ffcc', backgroundColor: 'rgba(0, 255, 204, 0.1)',
+                    borderWidth: 2, fill: true, tension: 0.4, pointRadius: 3
+                }]
+            },
+            options: {
+                animation: { y: { from: 500, duration: 2000, easing: 'easeOutQuart' } },
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: {
+                        display: true,
+                        align: 'top',
+                        offset: 2,
+                        color: '#00ffcc',
+                        font: { size: 10, weight: 'bold' },
+                        formatter: (v) => v > 0 ? v : ''
+                    }
+                },
+                scales: { 
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.03)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        }, 800);
+
+        // --- C. TOP ATTACK TARGETS (Bar) ---
+        deploy('sourcesChart', {
+            type: 'bar',
+            data: {
+                labels: {{ chart_data.top_sources_names|safe if chart_data else '[]' }},
+                datasets: [{
+                    label: 'Attacks', data: {{ chart_data.top_sources_counts|safe if chart_data else '[]' }},
+                    backgroundColor: 'rgba(0, 204, 255, 0.4)', borderRadius: 2
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                animation: { x: { from: -500, duration: 2000, easing: 'easeOutQuart' } },
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const index = activeEls[0].index;
+                        const label = e.chart.data.labels[index];
+                        window.location.href = "{{ url_for('monitoring.index') }}?source=" + label;
+                    }
+                }
+            }
+        }, 1200);
 
     {% if current_category == 'main_dashboard' %}
-    // Breach Chart (Doughnut)
-    const breachNames = {{ chart_data.breach_names| safe if 'breach_names' in chart_data else '[]' }};
-    const breachCounts = {{ chart_data.breach_counts| safe if 'breach_counts' in chart_data else '[]' }};
-    const ctxBreach = document.getElementById('breachChart').getContext('2d');
-    new Chart(ctxBreach, {
-        type: 'doughnut',
-        data: {
-            labels: breachNames,
-            datasets: [{
-                data: breachCounts,
-                backgroundColor: ['#ff1a1a', '#ffaa00', '#00ffcc', '#00ccff', '#9933ff'],
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            animation: {
-                animateRotate: true,
-                animateScale: true,
-                delay: 200
+        // --- D. BREACH MARKET (Doughnut) ---
+        deploy('breachChart', {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_data.breach_names|safe if 'breach_names' in chart_data else '[]' }},
+                datasets: [{
+                    data: {{ chart_data.breach_counts|safe if 'breach_counts' in chart_data else '[]' }},
+                    backgroundColor: ['#ff1a1a', '#ffaa00', '#00ffcc', '#00ccff', '#9933ff', '#ff00ff'],
+                    borderWidth: 0
+                }]
             },
-            responsive: true, maintainAspectRatio: false, cutout: '65%',
-            plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 10 } } }
-            },
-            onClick: (evt, activeElements, chart) => {
-                if (activeElements.length > 0) {
-                    const index = activeElements[0].index;
-                    const label = chart.data.labels[index];
-                    const baseUrl = "{{ url_for('breach_intel.breach_intel') }}";
-                    window.location.href = baseUrl + "?q=" + encodeURIComponent(label);
+            options: {
+                animation: { animateRotate: true, animateScale: true, duration: 3000, easing: 'easeOutElastic' },
+                responsive: true, maintainAspectRatio: false, cutout: '72%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, color: '#fff' } },
+                    datalabels: { color: '#fff', font: { weight: 'bold' }, formatter: (v) => v > 0 ? v : '' }
+                },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const index = activeEls[0].index;
+                        const label = e.chart.data.labels[index];
+                        // Redirect to the Breach Intel specialized page
+                        window.location.href = "{{ url_for('breach_intel.breach_intel') }}?q=" + encodeURIComponent(label);
+                    }
                 }
-            },
-            onHover: (evt, activeElements, chart) => {
-                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
             }
-        }
-    });
+        }, 1600);
 
-    // Ransomware Chart (Bar)
-    const rwNames = {{ chart_data.rw_names| safe if 'rw_names' in chart_data else '[]' }};
-    const rwCounts = {{ chart_data.rw_counts| safe if 'rw_counts' in chart_data else '[]' }};
-    const ctxRw = document.getElementById('ransomwareChart').getContext('2d');
-    let rwGradient = ctxRw.createLinearGradient(0, 0, 400, 0);
-    rwGradient.addColorStop(0, 'rgba(255, 102, 0, 0.2)');
-    rwGradient.addColorStop(1, 'rgba(255, 102, 0, 0.8)');
-    new Chart(ctxRw, {
-        type: 'bar',
-        data: {
-            labels: rwNames,
-            datasets: [{
-                label: 'Victims', data: rwCounts, backgroundColor: rwGradient,
-                borderColor: '#ff6600', borderWidth: 1, borderRadius: 3
-            }]
-        },
-        options: {
-            animation: {
-                delay: (context) => context.dataIndex * 80
+        // --- E. RANSOMWARE VICTIMS (Bar) ---
+        deploy('ransomwareChart', {
+            type: 'bar',
+            data: {
+                labels: {{ chart_data.rw_names|safe if 'rw_names' in chart_data else '[]' }},
+                datasets: [{
+                    label: 'Victims', data: {{ chart_data.rw_counts|safe if 'rw_counts' in chart_data else '[]' }},
+                    backgroundColor: 'rgba(255, 102, 0, 0.4)', borderRadius: 2
+                }]
             },
-            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
+            options: {
+                indexAxis: 'y',
+                animation: { x: { from: -500, duration: 1500 } },
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        }, 2000);
+
+        // --- F. DEFACEMENT HITS (Bar) ---
+        deploy('defacementChart', {
+            type: 'bar',
+            data: {
+                labels: {{ chart_data.def_names|safe if 'def_names' in chart_data else '[]' }},
+                datasets: [{
+                    label: 'Hits', data: {{ chart_data.def_counts|safe if 'def_counts' in chart_data else '[]' }},
+                    backgroundColor: 'rgba(0, 255, 204, 0.4)', borderRadius: 2
+                }]
             },
-            scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } },
-            onClick: (evt, activeElements, chart) => {
-                if (activeElements.length > 0) {
-                    const index = activeElements[0].index;
-                    const label = chart.data.labels[index];
-                    const baseUrl = "{{ url_for('darkweb.ransomware_victims') }}";
-                    window.location.href = baseUrl + "?q=" + encodeURIComponent(label);
+            options: {
+                animation: { y: { from: 500, duration: 2000 } },
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        }, 2400);
+
+        // --- G. INTERNAL ASSET DISTRIBUTION (Bar) ---
+        deploy('inventoryChart', {
+            type: 'bar',
+            data: {
+                labels: {{ chart_data.inv_names|safe if 'inv_names' in chart_data else '[]' }},
+                datasets: [{
+                    data: {{ chart_data.inv_counts|safe if 'inv_counts' in chart_data else '[]' }},
+                    backgroundColor: {{ chart_data.inv_names|safe if 'inv_names' in chart_data else '[]' }}.map(n => ({'Critical':'#ff1a1a','High':'#ff6600','Medium':'#ffaa00','Low':'#00ffcc','Info':'#00ccff'}[n] || '#00ccff')),
+                    borderWidth: 0, borderRadius: 3
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                animation: { x: { from: -300, duration: 2000 } },
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#fff',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (v) => v > 0 ? v : '0',
+                        anchor: 'end',
+                        align: 'right',
+                        offset: 4
+                    }
+                },
+                scales: {
+                    x: { display: false, grid: { display: false } },
+                    y: {
+                        grid: { display: false },
+                        ticks: {
+                            color: '#fff',
+                            font: { family: "'Rajdhani', sans-serif", size: 11 }
+                        }
+                    }
                 }
-            },
-            onHover: (evt, activeElements, chart) => {
-                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
             }
-        }
-    });
+        }, 2800);
 
-    // Defacement Chart (Polar Area / Bar)
-    const defNames = {{ chart_data.def_names| safe if 'def_names' in chart_data else '[]' }};
-    const defCounts = {{ chart_data.def_counts| safe if 'def_counts' in chart_data else '[]' }};
-    const ctxDef = document.getElementById('defacementChart').getContext('2d');
-    let defGradient = ctxDef.createLinearGradient(0, 0, 0, 400);
-    defGradient.addColorStop(0, 'rgba(0, 255, 204, 0.6)');
-    defGradient.addColorStop(1, 'rgba(0, 255, 204, 0.1)');
-    new Chart(ctxDef, {
-        type: 'bar',
-        data: {
-            labels: defNames,
-            datasets: [{
-                label: 'Sites Defaced', data: defCounts,
-                backgroundColor: defGradient, borderColor: '#00ffcc',
-                borderWidth: 1, borderRadius: 3
-            }]
-        },
-        options: {
-            animation: {
-                y: { duration: 1500, easing: 'easeOutBounce' },
-                delay: (context) => context.dataIndex * 150
+        // --- H. EXPLOIT DATABASE DISTRIBUTION (Bar) ---
+        deploy('exploitDistChart', {
+            type: 'bar',
+            data: {
+                labels: {{ chart_data.exp_names|safe if 'exp_names' in chart_data else '[]' }},
+                datasets: [{
+                    data: {{ chart_data.exp_counts|safe if 'exp_counts' in chart_data else '[]' }},
+                    backgroundColor: {{ chart_data.exp_names|safe if 'exp_names' in chart_data else '[]' }}.map(n => ({'Critical':'#ff1a1a','High':'#ff6600','Medium':'#ffaa00','Low':'#00ffcc','Info':'#00ccff'}[n] || '#00ccff')),
+                    borderWidth: 0, borderRadius: 3
+                }]
             },
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 9 } } } },
-            onClick: (evt, activeElements, chart) => {
-                if (activeElements.length > 0) {
-                    const index = activeElements[0].index;
-                    const label = chart.data.labels[index];
-                    const baseUrl = "{{ url_for('darkweb.defacements') }}";
-                    window.location.href = baseUrl + "?q=" + encodeURIComponent(label);
+            options: {
+                indexAxis: 'y',
+                animation: { x: { from: -300, duration: 2500 } },
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#fff',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (v) => v > 0 ? v : '0',
+                        anchor: 'end',
+                        align: 'right',
+                        offset: 4
+                    }
+                },
+                scales: {
+                    x: { display: false, grid: { display: false } },
+                    y: {
+                        grid: { display: false },
+                        ticks: {
+                            color: '#fff',
+                            font: { family: "'Rajdhani', sans-serif", size: 11 }
+                        }
+                    }
                 }
-            },
-            onHover: (evt, activeElements, chart) => {
-                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
             }
-        }
-    });
-
-    // Inventory Chart (Polar Area)
-    const invNames = {{ chart_data.inv_names| safe if 'inv_names' in chart_data else '[]' }};
-    const invCounts = {{ chart_data.inv_counts| safe if 'inv_counts' in chart_data else '[]' }};
-    const ctxInv = document.getElementById('inventoryChart').getContext('2d');
-    new Chart(ctxInv, {
-        type: 'bar',
-        data: {
-            labels: invNames,
-            datasets: [{
-                label: 'Assets',
-                data: invCounts,
-                backgroundColor: [
-                    'rgba(0, 255, 204, 0.4)', 'rgba(0, 204, 255, 0.4)',
-                    'rgba(255, 170, 0, 0.4)', 'rgba(255, 102, 0, 0.4)',
-                    'rgba(153, 51, 255, 0.4)'
-                ],
-                borderColor: [
-                    '#00ffcc', '#00ccff', '#ffaa00', '#ff6600', '#9933ff'
-                ],
-                borderWidth: 1, borderRadius: 2
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: { grid: { display: false }, ticks: { font: { size: 9 } } }
-            },
-            onHover: (evt, activeElements, chart) => {
-                evt.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
-            }
-        }
-    });
+        }, 3200);
     {% endif %}
     });
 </script>

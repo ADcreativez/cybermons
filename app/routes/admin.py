@@ -132,10 +132,47 @@ def test_feed():
         except Exception as e:
             return jsonify({'success': False, 'message': f"NVD Connection error: {str(e)}"})
 
+    # Handle Exploit-DB Testing
+    if url.startswith('exploitdb://'):
+        try:
+            # Simple check of GitLab mirror availability
+            r = req.get("https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv", timeout=10, stream=True)
+            if r.status_code == 200:
+                feeds = load_feeds()
+                for f in feeds:
+                    if f['url'] == url:
+                        f['status'] = 'OK'
+                        f['last_error'] = None
+                        break
+                save_feeds(feeds)
+                return jsonify({'success': True, 'message': "Exploit-DB GitLab mirror is reachable and responding correctly."})
+            else:
+                return jsonify({'success': False, 'message': f"GitLab returned error status: {r.status_code}"})
+        except Exception as e:
+            return jsonify({'success': False, 'message': f"Exploit-DB Connection error: {str(e)}"})
+
+    # Handle CISA KEV Testing
+    if url.startswith('cisakev://'):
+        try:
+            r = req.get("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", timeout=10, stream=True, verify=False)
+            if r.status_code == 200:
+                feeds = load_feeds()
+                for f in feeds:
+                    if f['url'] == url:
+                        f['status'] = 'OK'
+                        f['last_error'] = None
+                        break
+                save_feeds(feeds)
+                return jsonify({'success': True, 'message': "CISA KEV official feed is reachable and responding correctly."})
+            else:
+                return jsonify({'success': False, 'message': f"CISA Server returned error status: {r.status_code}"})
+        except Exception as e:
+            return jsonify({'success': False, 'message': f"CISA KEV Connection error: {str(e)}"})
+
     # Standard RSS testing
     try:
-        # Use requests with User-Agent to avoid being blocked (more reliable than feedparser'sFetcher)
-        r = req.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+        # Use requests with User-Agent and verify=False to avoid being blocked by security sites with cert issues
+        r = req.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'}, verify=False)
         if r.status_code != 200:
             return jsonify({'success': False, 'message': f"Mirror/Server returned HTTP {r.status_code}"})
             

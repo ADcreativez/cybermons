@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Full Screen & Layout Reset */
+    header, footer, main, body {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    main {
+        display: block !important;
+        overflow-y: auto !important;
+        padding: 20px 30px !important;
+        height: auto !important;
+    }
+    .whats-new-container {
+        padding: 0;
+        width: 100%;
+        max-width: 100%;
+        margin-top: 20px;
+    }
+
+    /* ====== FILTER BUTTON STYLES ====== */
+    .page-btn {
+        background: rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 5px;
+        color: rgba(255,255,255,0.45);
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        padding: 5px 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+    .page-btn:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+        background: rgba(0, 255, 204, 0.05);
+    }
+    .page-btn.active {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+        background: rgba(0, 255, 204, 0.1);
+        box-shadow: 0 0 8px rgba(0, 255, 204, 0.1);
+        font-weight: 700;
+    }
+
+    /* Filter Bar Styling */
+    .controls-header {
+        background: rgba(20, 25, 25, 0.4);
+        border: 1px dashed rgba(0, 255, 204, 0.15);
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        backdrop-filter: blur(10px);
+    }
+    .filter-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    .filter-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .date-input-group {
+        display: flex;
+        align-items: center;
+        background: rgba(0,0,0,0.5);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 2px 2px 2px 12px;
+    }
+    .date-input {
+        background: transparent;
+        border: none;
+        color: #fff;
+        padding: 8px 5px;
+        font-family: var(--font-mono);
+        font-size: 0.95rem;
+        outline: none;
+        width: 160px;
+    }
+    
+    .btn-apply {
+        background: var(--accent-color);
+        color: #000;
+        border: none;
+        padding: 6px 16px;
+        border-radius: 5px;
+        font-weight: 800;
+        cursor: pointer;
+        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s;
+    }
+    .btn-apply:hover { background: #00e6b8; box-shadow: 0 0 15px rgba(0, 255, 204, 0.3); }
+
+    .category-label {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+        opacity: 0.5;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--accent-color);
+    }
+
+    /* Table & Components */
+    .feed-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(10, 14, 14, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .feed-head {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: #0d1117;
+    }
+    .feed-head th {
+        padding: 18px 20px;
+        text-align: left;
+        color: var(--accent-color);
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        background: #0d1117;
+        border-bottom: 2px solid var(--accent-color);
+    }
+    .feed-row {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+    .feed-row:hover { background: rgba(0, 255, 204, 0.02); }
+    .feed-row td {
+        padding: 18px 20px;
+        vertical-align: middle;
+        font-size: 1rem;
+    }
+
+    .type-pill {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+    .type-THREAT           { background: rgba(0, 255, 204, 0.1); color: var(--accent-color); border: 1px solid rgba(0, 255, 204, 0.2); }
+    .type-RANSOMWARE_VICTIM { background: rgba(255, 68, 68, 0.1); color: #ff4d4d; border: 1px solid rgba(255, 68, 68, 0.2); }
+    .type-DEFACEMENT       { background: rgba(255, 170, 0, 0.1); color: #ffaa00; border: 1px solid rgba(255, 170, 0, 0.2); }
+    .type-BREACH           { background: rgba(180, 77, 255, 0.1); color: #b44dff; border: 1px solid rgba(180, 77, 255, 0.2); }
+    .type-EXPLOIT          { background: rgba(218, 112, 214, 0.1); color: #da70d6; border: 1px solid rgba(218, 112, 214, 0.2); }
+</style>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div style="margin-bottom: 20px;">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category if category != 'message' else 'info' }}" style="padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; background: rgba(0, 255, 204, 0.1); border-left: 4px solid var(--accent-color); font-family: var(--font-mono); font-size: 0.85rem;">
+          <i class="fa-solid fa-circle-info" style="margin-right: 8px; opacity: 0.7;"></i> {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<div class="header" style="margin-bottom:30px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+        <div>
+            <h1><i class="fa-solid fa-sparkles" style="color:#ffaa00"></i> WHATS NEW TODAY</h1>
+            <p style="opacity:0.6; font-size:1.1rem; margin-top:5px;">Edge-to-edge intelligence audit for SOC Operations</p>
+        </div>
+        <div style="text-align:right">
+            <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--text-secondary);">
+                STATUS: <span style="color:var(--accent-color);">ACTIVE MONITORING</span>
+            </div>
+            <div style="font-size:0.75rem; opacity:0.4; margin-top:4px;">AUDIT RANGE: {{ current_date or '48 HOURS' }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="sync-status-bar">
+    {% if is_syncing %}
+        <i class="fa-solid fa-sync fa-spin"></i> 
+        STATUS: <span class="syncing-text">SYNCING IN PROGRESS...</span>
+    {% else %}
+        <i class="fa-solid fa-sync fa-spin-hover"></i> 
+        LAST GLOBAL SYNC: <span class="sync-time">{{ last_sync }}</span>
+    {% endif %}
+    <span class="sync-separator">|</span>
+    <a href="{{ url_for('monitoring.refresh_data') }}" class="refresh-link" {% if is_syncing %}style="opacity:0.3; pointer-events:none;"{% endif %}>
+        <i class="fa-solid fa-rotate"></i> REFRESH ALL DATA
+    </a>
+</div>
+
+<div class="controls-header shadow-glow">
+    <!-- Row 1: Historical Search -->
+    <div class="filter-row">
+        <div class="filter-group">
+            <label class="category-label">1. Historical Audit:</label>
+            <div class="date-input-group">
+                <i class="fa-solid fa-calendar-days" style="opacity:0.3; font-size:0.8rem;"></i>
+                <input type="date" id="date-picker" class="date-input" value="{{ current_date }}" list="available-dates">
+                <datalist id="available-dates">
+                    {% for d in available_dates %}
+                    <option value="{{ d }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            <button onclick="applyDateFilter()" class="btn-apply">
+                <i class="fa-solid fa-bolt"></i> APPLY SYNC
+            </button>
+            {% if current_date %}
+                <button onclick="window.location.href='/whats-new'" class="btn-apply" style="background:rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1)">
+                    <i class="fa-solid fa-rotate-left"></i> RESET
+                </button>
+            {% endif %}
+        </div>
+        
+        <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--text-secondary); opacity:0.6;">
+            AUDIT MODE: <span style="color:var(--accent-color);">{{ 'DATE_QUERY' if current_date else 'REAL_TIME' }}</span>
+        </div>
+    </div>
+
+    <!-- Row 2: Category Triage -->
+    <div class="filter-row" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+        <div class="filter-group">
+            <label class="category-label" style="margin-right:10px;">2. Triage Category:</label>
+            <div style="display:flex; gap:10px;" id="category-tabs">
+                <button class="page-btn active" data-filter="all">SHOW ALL FEEDS</button>
+                <button class="page-btn" data-filter="THREAT">SYSTEM THREATS</button>
+                <button class="page-btn" data-filter="EXPLOIT">EXPLOIT DATABASE</button>
+                <button class="page-btn" data-filter="RANSOMWARE_VICTIM">RANSOMWARE LEAKS</button>
+                <button class="page-btn" data-filter="BREACH">BREACH MARKET</button>
+                <button class="page-btn" data-filter="DEFACEMENT">DEFACEMENTS</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="whats-new-container">
+    <table class="feed-table">
+        <thead class="feed-head">
+            <tr>
+                <th style="width: 140px;">DATE / TIME</th>
+                <th style="width: 150px;">TYPE</th>
+                <th>INTELLIGENCE SUMMARY</th>
+                <th style="width: 180px;">SOURCE</th>
+                <th style="width: 100px; text-align: center;">RISK</th>
+                <th style="width: 60px;"></th>
+            </tr>
+        </thead>
+        <tbody id="feed-tbody">
+            {% for item in feed %}
+            <tr class="feed-row" data-type="{{ item.type }}">
+                <td>
+                    {% if item.time.strftime('%H:%M:%S') == '00:00:00' %}
+                        <div style="font-family:var(--font-mono); color:var(--accent-color); font-weight:700; opacity:0.4;">—</div>
+                    {% else %}
+                        <div style="font-family:var(--font-mono); color:var(--accent-color); font-weight:700;">{{ item.time.strftime('%H:%M:%S') }}</div>
+                    {% endif %}
+                    <div style="font-size:0.75rem; opacity:0.4;">{{ item.time.strftime('%Y-%m-%d') }}</div>
+                </td>
+                <td>
+                    <span class="type-pill type-{{ item.type }}">{{ item.type|replace('_', ' ') }}</span>
+                </td>
+                <td>
+                    {% if item.type == 'DEFACEMENT' %}
+                        <a href="javascript:void(0)" 
+                           onclick="openMirrorModal('{{ item.mirror_id }}', '{{ item.attacker }}', '{{ item.team }}', '{{ item.domain }}', '', '{{ item.date_str }}')"
+                           style="font-weight:600; color:#fff; text-decoration:none; display:block; margin-bottom:4px;"
+                           title="Passive Mirror Intelligence">
+                            <i class="fa-solid fa-eye" style="color:var(--accent-color); font-size:0.8rem; margin-right:5px; opacity:0.7;"></i>{{ item.title }}
+                        </a>
+                    {% else %}
+                        <a href="{{ item.link }}" target="_blank" style="font-weight:600; color:#fff; text-decoration:none; display:block; margin-bottom:4px;">{{ item.title }}</a>
+                    {% endif %}
+                    <div style="font-size:0.85rem; opacity:0.6; line-height:1.4;">{{ item.summary|safe|striptags|truncate(160) }}</div>
+                </td>
+                <td>
+                    <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--text-secondary);"><i class="fa-solid fa-satellite" style="opacity:0.3; margin-right:5px;"></i> {{ item.source|truncate(20) }}</div>
+                </td>
+                <td style="text-align: center;">
+                    <span class="risk-badge risk-{{ item.severity|upper }}" style="font-size:0.65rem;">{{ item.severity|upper }}</span>
+                </td>
+                <td style="text-align: center;">
+                    {% if item.type == 'DEFACEMENT' %}
+                        <a href="javascript:void(0)" 
+                           onclick="openMirrorModal('{{ item.mirror_id }}', '{{ item.attacker }}', '{{ item.team }}', '{{ item.domain }}', '', '{{ item.date_str }}')"
+                           style="color:var(--accent-color); opacity:0.8;"
+                           title="Passive Intel Scan">
+                            <i class="fa-solid fa-microchip"></i>
+                        </a>
+                    {% else %}
+                        <a href="{{ item.link }}" target="_blank" style="color:var(--accent-color); opacity:0.5;"><i class="fa-solid fa-up-right-from-square"></i></a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div id="no-results" style="display:none; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.1); border-radius:12px; padding:800px; text-align:center; margin-top:20px;">
+        <i class="fa-solid fa-inbox" style="font-size:3rem; opacity:0.2; margin-bottom:20px; display:block;"></i>
+        <h3 style="opacity:0.6;">No activity identified for this triage category</h3>
+        <p style="opacity:0.4; font-size:0.9rem;">Try SHOW ALL FEEDS or selecting a different date</p>
+    </div>
+
+    {% if not feed %}
+    <div style="background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.1); border-radius:12px; padding:100px; text-align:center; margin-top:20px;">
+        <i class="fa-solid fa-magnifying-glass" style="font-size:3rem; opacity:0.2; margin-bottom:20px; display:block;"></i>
+        <h3 style="opacity:0.6;">No database records found for this selection</h3>
+        <p style="opacity:0.4; font-size:0.9rem;">Ensure your intel sync is active</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function applyDateFilter() {
+    const d = document.getElementById('date-picker').value;
+    if (d) window.location.href = `/whats-new?date=${d}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const rows = document.querySelectorAll('.feed-row');
+    const filterBtns = document.querySelectorAll('#category-tabs .page-btn');
+    const noResults = document.getElementById('no-results');
+
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filter = btn.dataset.filter.trim();
+            console.log("Filtering by:", filter);
+            
+            // Update Tab UI
+            filterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            let visibleCount = 0;
+            rows.forEach(r => {
+                const rowType = r.dataset.type.trim();
+                if (filter === 'all' || rowType === filter) {
+                    r.style.display = 'table-row';
+                    visibleCount++;
+                } else {
+                    r.style.display = 'none';
+                }
+            });
+
+            // Show no-results only if some rows exist but none are filtered
+            if (rows.length > 0 && visibleCount === 0) {
+                noResults.style.display = 'block';
+            } else {
+                noResults.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

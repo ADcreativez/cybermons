@@ -26,6 +26,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-primary);
     font-family: var(--font-ui);
+    font-size: 18px;
     height: 100vh;
     overflow: hidden;
     position: relative;
@@ -212,6 +213,62 @@ main {
 .btn-delete-icon:hover {
     color: var(--danger-color);
     text-shadow: 0 0 5px var(--danger-color);
+}
+
+/* Sync Status Bar */
+.sync-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 255, 204, 0.05);
+    border: 1px solid rgba(0, 255, 204, 0.15);
+    padding: 8px 15px;
+    margin-bottom: 20px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    border-radius: 4px;
+}
+
+.sync-status-bar i.fa-sync {
+    color: var(--accent-color);
+}
+
+.sync-time {
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.sync-separator {
+    opacity: 0.2;
+}
+
+.refresh-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    transition: all 0.2s;
+    font-weight: 600;
+}
+
+.refresh-link:hover {
+    text-shadow: 0 0 8px var(--accent-color);
+    color: #fff;
+}
+
+.fa-spin-hover:hover {
+    animation: fa-spin 2s infinite linear;
+}
+
+@keyframes syncing-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+.syncing-text {
+    color: var(--accent-color);
+    font-weight: 700;
+    animation: syncing-pulse 1.5s infinite ease-in-out;
 }
 
 .status-bar {

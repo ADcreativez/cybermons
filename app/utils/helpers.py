@@ -3,8 +3,9 @@ import os
 import re
 from datetime import datetime
 from ..extensions import db
-from ..models import SystemLog
+from ..models import SystemLog, Inventory, Threat, DismissedAlert
 from flask_login import current_user
+from sqlalchemy import or_, and_
 
 DARKWEB_CONFIG_FILE = 'darkweb_config.json'
 FEED_FILE = 'feeds.json'
@@ -143,6 +144,70 @@ def determine_severity(title, summary, category='threat'):
     if any(re.search(rf'\b{kw}\b', combined) for kw in medium_keywords): return 'Medium'
     if any(re.search(rf'\b{kw}\b', combined) for kw in low_keywords): return 'Low'
     
-    # 6. Fallback for CVEs
+    # 6. Exploit Category
+    if category == 'exploit':
+        critical_exploit = ['rce', 'zero-day', '0-day', 'unauthenticated', 'remote code execution', 'kernel', 'root']
+        if any(re.search(rf'\b{kw}\b', combined) for kw in critical_exploit): return 'Critical'
+        high_exploit = ['exploit', 'poc', 'privilege escalation', 'bypass', 'authenticated']
+        if any(re.search(rf'\b{kw}\b', combined) for kw in high_exploit): return 'High'
+        return 'Medium'
+
+    # 7. Fallback for CVEs
     if 'cve' in combined: return 'Medium'
     return 'Info'
+
+def get_inventory_alerts(group_id, severity=None):
+    if not group_id: return []
+    dismissed_ids = [d.threat_id for d in DismissedAlert.query.filter_by(group_id=group_id).all()]
+    group_inventory = Inventory.query.filter_by(group_id=group_id).all()
+    alerts = []
+    for item in group_inventory:
+        brand_lower = item.brand.lower()
+        module_lower = item.module.lower()
+        query = Threat.query.filter(or_(
+            and_(Threat.title.ilike(f"%{brand_lower}%"), Threat.title.ilike(f"%{module_lower}%")),
+            and_(Threat.summary.ilike(f"%{brand_lower}%"), Threat.summary.ilike(f"%{module_lower}%"))
+        ))
+        if severity: query = query.filter(Threat.severity.ilike(severity))
+        if dismissed_ids: query = query.filter(Threat.id.notin_(dismissed_ids))
+        matches = query.all()
+        for match in matches:
+            alerts.append({
+                'inventory_item': f"{item.brand} {item.module} {item.version if item.version else ''}".strip(),
+                'threat': match
+            })
+    
+    # Sort alerts by threat published date DESC (Newest first)
+    alerts.sort(key=lambda x: x['threat'].published, reverse=True)
+    return alerts
+
+def normalize_url(url):
+    """Ensure URL has a protocol prefix (https://) if missing."""
+    if not url or url == '#': return '#'
+    url = url.strip()
+    # Check if starts with a known protocol
+    if not re.match(r'^[a-z]+://', url, re.I):
+        # Default to https:// if missing
+        return f"https://{url}"
+    return url
+
+def find_binary(name):
+    """
+    Search for a binary in three locations:
+    1. Workspace ./bin/ folder (Private Env)
+    2. Virtual Environment bin/ folder
+    3. System PATH
+    """
+    import shutil
+    # 1. Project local bin
+    local_bin = os.path.join(os.getcwd(), 'bin', name)
+    if os.path.exists(local_bin) and os.access(local_bin, os.X_OK):
+        return local_bin
+    
+    # 2. Venv bin
+    venv_bin = os.path.join(os.getcwd(), 'venv', 'bin', name)
+    if os.path.exists(venv_bin) and os.access(venv_bin, os.X_OK):
+        return venv_bin
+        
+    # 3. System Path
+    return shutil.which(name)

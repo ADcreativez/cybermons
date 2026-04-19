@@ -51,55 +51,51 @@ elif [[ "$OS_TYPE" == "Darwin" ]]; then
 fi
 
 # ─────────────────────────────────────────
-# STEP 1.5: Advanced Recon Tools (Subfinder)
+# STEP 1.5: Advanced Recon Tools (Local Install)
 # ─────────────────────────────────────────
-if ! command -v subfinder &> /dev/null; then
-    echo -e "${YELLOW}[1.5/5] Installing Subfinder...${NC}"
-    if [[ "$OS_TYPE" == "Linux" && "$ARCH_TYPE" == "x86_64" ]]; then
-        TEMP_DIR=$(mktemp -d)
-        SUB_VERSION="2.6.7"
-        echo "  → Downloading Subfinder v${SUB_VERSION} for Linux x64..."
-        curl -sL "https://github.com/projectdiscovery/subfinder/releases/download/v${SUB_VERSION}/subfinder_${SUB_VERSION}_linux_amd64.zip" -o "$TEMP_DIR/subfinder.zip"
-        unzip -q "$TEMP_DIR/subfinder.zip" -d "$TEMP_DIR"
-        sudo mv "$TEMP_DIR/subfinder" /usr/local/bin/
-        sudo chmod +x /usr/local/bin/subfinder
-        rm -rf "$TEMP_DIR"
-        echo -e "${GREEN}  ✓ Subfinder installed to /usr/local/bin${NC}"
-    elif [[ "$OS_TYPE" == "Darwin" ]]; then
-        if command -v brew &> /dev/null; then
-            brew install subfinder
-        fi
-    else
-        echo -e "${YELLOW}  ⚠ Manual installation required for Subfinder on this architecture/OS.${NC}"
-    fi
-else
-    echo -e "${GREEN}  ✓ Subfinder already installed${NC}"
-fi
+mkdir -p bin
+BIN_DIR="$(pwd)/bin"
 
-# ─────────────────────────────────────────
-# STEP 1.6: Historical URL Tools (Waybackurls)
-# ─────────────────────────────────────────
-if ! command -v waybackurls &> /dev/null; then
-    echo -e "${YELLOW}[1.6/5] Installing Waybackurls...${NC}"
-    if [[ "$OS_TYPE" == "Linux" && "$ARCH_TYPE" == "x86_64" ]]; then
+install_local_tool() {
+    local name=$1
+    local version=$2
+    local url=$3
+    local type=$4 # zip or tgz
+    
+    if [ ! -f "bin/$name" ]; then
+        echo -e "${YELLOW}  → Installing $name v$version to $BIN_DIR...${NC}"
         TEMP_DIR=$(mktemp -d)
-        WAY_VERSION="0.1.0"
-        echo "  → Downloading Waybackurls v${WAY_VERSION} for Linux x64..."
-        curl -sL "https://github.com/tomnomnom/waybackurls/releases/download/v${WAY_VERSION}/waybackurls-linux-amd64-${WAY_VERSION}.tgz" -o "$TEMP_DIR/waybackurls.tgz"
-        tar -xzf "$TEMP_DIR/waybackurls.tgz" -C "$TEMP_DIR"
-        sudo mv "$TEMP_DIR/waybackurls" /usr/local/bin/
-        sudo chmod +x /usr/local/bin/waybackurls
-        rm -rf "$TEMP_DIR"
-        echo -e "${GREEN}  ✓ Waybackurls installed to /usr/local/bin${NC}"
-    elif [[ "$OS_TYPE" == "Darwin" ]]; then
-        if command -v brew &> /dev/null; then
-            brew install waybackurls
+        curl -sL "$url" -o "$TEMP_DIR/download.$type"
+        if [ "$type" == "zip" ]; then
+            unzip -q "$TEMP_DIR/download.$type" -d "$TEMP_DIR"
+        else
+            tar -xzf "$TEMP_DIR/download.tgz" -C "$TEMP_DIR"
         fi
+        find "$TEMP_DIR" -type f -name "$name" -exec mv {} "$BIN_DIR/$name" \;
+        chmod +x "$BIN_DIR/$name"
+        rm -rf "$TEMP_DIR"
+        echo -e "${GREEN}  ✓ $name installed locally.${NC}"
     else
-        echo -e "${YELLOW}  ⚠ Manual installation required for Waybackurls on this architecture/OS.${NC}"
+        echo -e "${GREEN}  ✓ $name already present in bin/${NC}"
     fi
-else
-    echo -e "${GREEN}  ✓ Waybackurls already installed${NC}"
+}
+
+if [[ "$OS_TYPE" == "Linux" && "$ARCH_TYPE" == "x86_64" ]]; then
+    install_local_tool "subfinder" "2.6.7" "https://github.com/projectdiscovery/subfinder/releases/download/v2.6.7/subfinder_2.6.7_linux_amd64.zip" "zip"
+    install_local_tool "waybackurls" "0.1.0" "https://github.com/tomnomnom/waybackurls/releases/download/v0.1.0/waybackurls-linux-amd64-0.1.0.tgz" "tgz"
+elif [[ "$OS_TYPE" == "Darwin" ]]; then
+    # On Mac, we'll try brew first, but also support local if brew fails
+    if command -v brew &> /dev/null; then
+        echo "  → Using Homebrew for Mac tools..."
+        brew install subfinder waybackurls nmap whois 2>/dev/null || echo -e "${RED}  ⚠ Brew install failed. Manual local installation of binaries suggested.${NC}"
+    else
+        # Mac ARM64 Fallback (Architecture check)
+        if [[ "$ARCH_TYPE" == "arm64" ]]; then
+            install_local_tool "subfinder" "2.6.7" "https://github.com/projectdiscovery/subfinder/releases/download/v2.6.7/subfinder_2.6.7_macOS_arm64.zip" "zip"
+        else
+             install_local_tool "subfinder" "2.6.7" "https://github.com/projectdiscovery/subfinder/releases/download/v2.6.7/subfinder_2.6.7_macOS_amd64.zip" "zip"
+        fi
+    fi
 fi
 
 echo -e "${GREEN}  ✓ System dependencies check complete${NC}"

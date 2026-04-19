@@ -20,11 +20,12 @@
                     <option value="threat">Threat Intelligence</option>
                     <option value="monitoring.news">Cyber News</option>
                     <option value="monitoring.ransomware">Ransomware</option>
+                    <option value="exploit">Exploit Database</option>
                 </select>
                 <button type="submit" class="btn btn-add">ADD SOURCE</button>
             </form>
             <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 8px; font-family: var(--font-mono); opacity: 0.7;">
-                <i class="fa-solid fa-circle-info"></i> RSS URL atau @TelegramHandle (cth: <code>@cyberthreatid</code>)
+                <i class="fa-solid fa-circle-info"></i> RSS URL, @TelegramHandle, atau Auto-Source (cth: <code>exploitdb://latest</code>)
             </p>
 
             <div class="active-sources-list">
@@ -37,7 +38,7 @@
                             <span class="feed-url">{{ feed.url }}</span>
                             <div class="feed-status-line">
                                 <span class="badge"
-                                    style="background: {% if feed.category == 'monitoring.news' %}var(--warning-color){% elif feed.category == 'monitoring.ransomware' %}var(--danger-color){% else %}var(--info-color){% endif %}; color: #000;">
+                                    style="background: {% if feed.category == 'monitoring.news' %}var(--warning-color){% elif feed.category == 'monitoring.ransomware' %}var(--danger-color){% elif feed.category == 'exploit' %}orchid{% else %}var(--info-color){% endif %}; color: #000;">
                                     {{ feed.category|upper if feed.category else 'THREAT' }}
                                 </span>
                                 {% if feed.status == 'OK' %}

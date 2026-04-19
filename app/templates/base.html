@@ -58,7 +58,7 @@
             })();
         </script>
         {% endif %}
-        <header style="padding: 25px 30px 15px 30px;">
+        <header style="padding: 0px 30px 10px 30px;">
             <div class="header-left">
                 <a href="{{ url_for('monitoring.main_dashboard') }}" class="logo">
                     <i class="fa-solid fa-shield-virus logo-icon"></i>
@@ -80,11 +80,17 @@
                         <span class="alert-count-badge">{{ alert_count }}</span>
                         {% endif %}
                     </a>
+                    <span style="opacity:0.15; margin:0 2px;">|</span>
+                    <div style="display:flex; flex-direction:column; align-items:center; line-height:1.2;">
+                        <span id="clock-time" style="font-family:'Courier New',monospace; font-size:0.82rem; font-weight:700; color:#d0d0d0; letter-spacing:1.5px;">----</span>
+                        <span style="font-family:'Courier New',monospace; font-size:0.52rem; opacity:0.4; letter-spacing:1px;">SYSTEM TIME (UTC)</span>
+                    </div>
+                    <span style="opacity:0.15; margin:0 2px;">|</span>
                     <span class="status-item" style="margin-left: 0;">
                         <i class="fa-solid fa-building"></i> {{ current_user.group.name|upper if current_user.group else
                         'INTERNAL_CORE' }}
                         <span style="opacity: 0.3; margin: 0 5px;">|</span>
-                        <i class="fa-solid fa-user-shield"></i> {{ current_user.username|upper }} [{{
+                        <i class="fa-solid fa-user-shield"></i> {{ current_user.username|upper }} {{
                         current_user.role|upper }}]
                     </span>
                     <a href="{{ url_for('auth.change_password') }}" class="nav-link" title="Change Password"
@@ -103,8 +109,11 @@
                                     style="font-size: 0.7em;"></i>
                             </a>
                             <div class="dropdown-content">
+                                <a href="{{ url_for('monitoring.whats_new') }}" class="dropdown-item" style="color: #ffaa00; font-weight: bold; border-bottom: 1px solid rgba(255,170,0,0.15);">
+                                    <i class="fa-solid fa-bolt-lightning"></i> WHATS NEW TODAY
+                                </a>
                                 <a href="{{ url_for('monitoring.main_dashboard') }}" class="dropdown-item" style="color: var(--accent-color);">
-                                    <i class="fa-solid fa-chart-line"></i> EXECUTIVE PORTAL
+                                    <i class="fa-solid fa-chart-line"></i> EXECUTIVE DASHBOARD
                                 </a>
                                 <a href="{{ url_for('monitoring.index') }}" class="dropdown-item">
                                     <i class="fa-solid fa-radiation"></i> THREAT MONITORING
@@ -114,6 +123,9 @@
                                 </a>
                                 <a href="{{ url_for('monitoring.news') }}" class="dropdown-item">
                                     <i class="fa-solid fa-newspaper"></i> CYBER NEWS
+                                </a>
+                                <a href="{{ url_for('monitoring.exploit_database') }}" class="dropdown-item">
+                                    <i class="fa-solid fa-user-secret"></i> EXPLOIT DATABASE
                                 </a>
                             </div>
                         </div>
@@ -219,10 +231,121 @@
             {% block content %}{% endblock %}
         </main>
 
+        <!-- === GLOBAL MIRROR DETAIL MODAL === -->
+        <div id="mirror-modal-overlay" onclick="closeMirrorModal()"
+            style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9000; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+            <div onclick="event.stopPropagation()"
+                style="background:#0d0d1a; border:1px solid rgba(0,255,204,0.25); border-radius:8px; width:92%; max-width:780px; max-height:90vh; overflow-y:auto; box-shadow:0 0 50px rgba(0,255,204,0.1); position:relative;">
+                <!-- Modal Header -->
+                <div style="padding:20px 24px 14px; border-bottom:1px solid rgba(0,255,204,0.15); display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div style="font-family:var(--font-mono); color:var(--accent-color); font-size:0.7rem; letter-spacing:3px; margin-bottom:4px;">
+                            <i class="fa-solid fa-shield-halved"></i>&nbsp; CYBERMON — PASSIVE MIRROR INTELLIGENCE
+                        </div>
+                        <div id="mir-title" style="font-family:var(--font-mono); color:var(--text-primary); font-size:0.95rem; word-break:break-all;"></div>
+                    </div>
+                    <button onclick="closeMirrorModal()" style="background:none; border:none; color:var(--text-secondary); font-size:1.2rem; cursor:pointer; margin-left:16px; line-height:1;">✕</button>
+                </div>
+                <!-- Modal Body -->
+                <div id="mir-body" style="padding:20px 24px;">
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
+                        <div class="mir-card"><div class="mir-label">ATTACKER</div><div id="mir-attacker" class="mir-value accent"></div></div>
+                        <div class="mir-card"><div class="mir-label">TEAM</div><div id="mir-team" class="mir-value"></div></div>
+                        <div class="mir-card"><div class="mir-label">DATE</div><div id="mir-date" class="mir-value"></div></div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
+                        <div class="mir-card"><div class="mir-label">RECORDED IP</div><div id="mir-ip" class="mir-value danger"></div></div>
+                        <div class="mir-card"><div class="mir-label">MIRROR SERVER</div><div id="mir-server" class="mir-value"></div></div>
+                        <div class="mir-card"><div class="mir-label">MIRROR LOCATION</div><div id="mir-country" class="mir-value"></div></div>
+                    </div>
+                    <div class="mir-card" style="margin-bottom:12px;">
+                        <div class="mir-label">TARGET URL</div>
+                        <div id="mir-url-progress-container" style="display:none; height:2px; background:rgba(0,255,204,0.1); border-radius:2px; margin-bottom:8px; overflow:hidden;">
+                            <div id="mir-url-progress-bar" style="width:0%; height:100%; background:var(--accent-color); box-shadow:0 0 10px var(--accent-color); transition:width 0.3s ease;"></div>
+                        </div>
+                        <a id="mir-url" class="mir-value" target="_blank" style="word-break:break-all; font-size:0.8rem; text-decoration:none; color:var(--accent-color); display:block;"></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function openMirrorModal(mirrorId, attacker, team, targetUrl, country, date, preIP = '', preServer = '') {
+                const modal = document.getElementById('mirror-modal-overlay');
+                const body = document.getElementById('mir-body');
+                
+                document.getElementById('mir-title').innerText = targetUrl;
+                document.getElementById('mir-attacker').innerText = attacker || 'N/A';
+                document.getElementById('mir-team').innerText = team || 'None';
+                document.getElementById('mir-date').innerText = date || 'N/A';
+                document.getElementById('mir-country').innerText = country || '—';
+                const mirUrlEl = document.getElementById('mir-url');
+                mirUrlEl.innerText = targetUrl;
+                mirUrlEl.href = targetUrl.startsWith('http') ? targetUrl : `http://${targetUrl}`;
+
+                modal.style.display = 'flex';
+                const ipVal = document.getElementById('mir-ip');
+                const svVal = document.getElementById('mir-server');
+
+                if (preIP && preIP !== 'N/A') {
+                    ipVal.innerText = preIP; ipVal.classList.remove('danger');
+                    svVal.innerText = preServer || 'Unknown';
+                } else {
+                    ipVal.innerText = 'Searching...'; ipVal.classList.remove('danger');
+                    svVal.innerText = '...';
+                }
+
+                const isTruncated = (targetUrl && targetUrl.includes('...'));
+                if (isTruncated) {
+                    const progCont = document.getElementById('mir-url-progress-container');
+                    const progBar = document.getElementById('mir-url-progress-bar');
+                    progCont.style.display = 'block';
+                    let pWidth = 15;
+                    const pInterval = setInterval(() => {
+                        if (pWidth < 85) { pWidth += Math.random() * 8; progBar.style.width = pWidth + '%'; }
+                    }, 450);
+                    window._urlRecoveryInterval = pInterval;
+                }
+
+                fetch(`/darkweb/defacements/mirror-proxy?id=${mirrorId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (window._urlRecoveryInterval) {
+                            clearInterval(window._urlRecoveryInterval);
+                            document.getElementById('mir-url-progress-bar').style.width = '100%';
+                            setTimeout(() => { document.getElementById('mir-url-progress-container').style.display = 'none'; }, 400);
+                        }
+                        if (data.success) {
+                            const finalUrl = data.full_url || targetUrl;
+                            document.getElementById('mir-url').innerText = finalUrl;
+                            document.getElementById('mir-url').href = finalUrl.startsWith('http') ? finalUrl : `http://${finalUrl}`;
+                            document.getElementById('mir-title').innerText = finalUrl;
+                            if (data.ip && data.ip !== 'N/A') { ipVal.innerText = data.ip; ipVal.classList.remove('danger'); }
+                            if (data.web_server && data.web_server !== 'N/A') svVal.innerText = data.web_server;
+                        }
+                    }).catch(e => console.error("Mirror Proxy Error:", e));
+            }
+            function closeMirrorModal() { document.getElementById('mirror-modal-overlay').style.display = 'none'; }
+        </script>
+
         <footer>
             <p>SYSTEM ID: 0x4829A | VERSION: 2.1.0 | SECURE CONNECTION ESTABLISHED | Developed By : PT Inovasi Informatika Indonesia</p>
         </footer>
     </div>
 </body>
 
+<script>
+(function() {
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function updateClock() {
+        const now = new Date();
+        const dateStr = now.getUTCFullYear() + '-' + pad(now.getUTCMonth()+1) + '-' + pad(now.getUTCDate());
+        const timeStr = pad(now.getUTCHours()) + ':' + pad(now.getUTCMinutes()) + ':' + pad(now.getUTCSeconds());
+        const el = document.getElementById('clock-time');
+        if (el) el.textContent = dateStr + '  ' + timeStr;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+})();
+</script>
 </html>

@@ -7,6 +7,25 @@
             <i class="fa-solid fa-bell"></i> SECURITY ALERTS & MATCHES
         </h2>
 
+        <!-- Triage Filter Bar -->
+        <div class="controls-header shadow-glow" style="background: rgba(20, 25, 25, 0.4); border: 1px dashed rgba(255, 68, 68, 0.15); padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; backdrop-filter: blur(10px);">
+            <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="filter-group" style="display: flex; gap: 10px; align-items: center;">
+                    <label style="font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 1px; opacity: 0.5; font-weight: 700; text-transform: uppercase; color: var(--danger-color); margin-right: 10px;">Risk Level Triage:</label>
+                    <div style="display:flex; gap:10px;">
+                        <button class="page-btn {% if not current_severity %}active{% endif %}" onclick="window.location.href='/alerts'">SHOW ALL</button>
+                        <button class="page-btn {% if current_severity == 'Critical' %}active{% endif %}" onclick="window.location.href='/alerts?severity=Critical'">CRITICAL</button>
+                        <button class="page-btn {% if current_severity == 'High' %}active{% endif %}" onclick="window.location.href='/alerts?severity=High'">HIGH</button>
+                        <button class="page-btn {% if current_severity == 'Medium' %}active{% endif %}" onclick="window.location.href='/alerts?severity=Medium'">MEDIUM</button>
+                        <button class="page-btn {% if current_severity == 'Low' %}active{% endif %}" onclick="window.location.href='/alerts?severity=Low'">LOW</button>
+                    </div>
+                </div>
+                <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--text-secondary); opacity:0.6;">
+                    ALERTS FILTER: <span style="color:var(--danger-color);">{{ (current_severity or 'UNFILTERED')|upper }}</span>
+                </div>
+            </div>
+        </div>
+
         <div id="alerts-loading-status" style="display: none; padding: 15px; background: rgba(0, 180, 255, 0.05); border: 1px solid var(--info-color); color: var(--info-color); margin-bottom: 20px; font-size: 0.85rem;">
             <i class="fa-solid fa-spinner fa-spin"></i> SCANNING PRIVATE LOCAL ASSETS...
         </div>
@@ -36,8 +55,9 @@
                     </div>
 
                     <div class="inventory-label">
-                        <i class="fa-solid fa-cloud" style="color: var(--info-color); font-size: 0.8em; margin-right: 5px;"></i> 
-                        MATCHED CLOUD ASSET: <strong>{{ alert.inventory_item }}</strong>
+                        <i class="fa-solid {% if alert.threat.category == 'exploit' %}fa-bug{% else %}fa-cloud{% endif %}" 
+                           style="color: {% if alert.threat.category == 'exploit' %}#da70d6{% else %}var(--info-color){% endif %}; font-size: 0.8em; margin-right: 5px;"></i> 
+                        MATCHED {% if alert.threat.category == 'exploit' %}EXPLOIT{% else %}CLOUD ASSET{% endif %}: <strong>{{ alert.inventory_item }}</strong>
                     </div>
                     <a href="{{ alert.threat.link }}" target="_blank" class="threat-title"
                         style="font-weight: bold; color: var(--text-primary); text-decoration: none; display: block; margin: 10px 0;">
@@ -47,6 +67,9 @@
                         <span class="badge" style="background: {% if alert.threat.severity == 'High' or alert.threat.severity == 'Critical' %}var(--danger-color){% elif alert.threat.severity == 'Medium' %}var(--warning-color){% else %}var(--info-color){% endif %}; color: #000;">
                             {{ alert.threat.severity|upper }}
                         </span>
+                        {% if alert.threat.category == 'exploit' %}
+                        <span class="badge" style="background: #da70d6; color: #000; margin-left: 5px; font-weight: 800;">EXPLOIT</span>
+                        {% endif %}
                         <span style="margin-left: 10px;"><i class="fa-solid fa-clock"></i> {{ alert.threat.published_str }}</span>
                         <span style="margin-left: 10px;"><i class="fa-solid fa-share-nodes"></i> {{ alert.threat.source }}</span>
                     </div>
@@ -89,7 +112,10 @@
             const resp = await fetch('/api/threats/check', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ items: localData })
+                body: JSON.stringify({ 
+                    items: localData,
+                    severity: '{{ current_severity or "" }}'
+                })
             });
             const matches = await resp.json();
 
@@ -131,6 +157,7 @@
                 <span class="badge" style="background: ${badgeColor}; color: #000; padding: 2px 8px; border-radius: 3px; font-weight: bold; font-size: 0.75rem;">
                     ${severity.toUpperCase()}
                 </span>
+                ${match.threat.category === 'exploit' ? '<span class="badge" style="background: #da70d6; color: #000; margin-left: 5px; padding: 2px 8px; border-radius: 3px; font-weight: 800; font-size: 0.75rem;">EXPLOIT</span>' : ''}
                 <span style="margin-left: 10px;"><i class="fa-solid fa-clock"></i> ${match.threat.published_str}</span>
                 <span style="margin-left: 10px;"><i class="fa-solid fa-share-nodes"></i> ${match.threat.source}</span>
             </div>

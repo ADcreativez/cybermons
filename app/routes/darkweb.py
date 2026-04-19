@@ -14,7 +14,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from ..extensions import db
 from ..models import IOCCache
-from ..utils.helpers import load_darkweb_config, save_darkweb_config, log_event
+from ..utils.helpers import load_darkweb_config, save_darkweb_config, log_event, find_binary
 
 darkweb_bp = Blueprint('darkweb', __name__)
 
@@ -230,9 +230,8 @@ def ransomware_feed():
     target_date = (date.today() - timedelta(days=days_back)).strftime('%Y-%m-%d')
     return jsonify({'results': cache.get(target_date, []), 'date': target_date})
 
-@darkweb_bp.route('/darkweb/ransomware-victims/sync', methods=['POST'])
-@login_required
-def ransomware_sync():
+def run_ransomware_sync():
+    """Core logic to sync ransomware victims from ransomware.live."""
     try:
         resp = req.get('https://api.ransomware.live/recentvictims', headers={'User-Agent': 'Cybermon/1.0'}, timeout=25)
         resp.raise_for_status()
@@ -240,8 +239,17 @@ def ransomware_sync():
         before = sum(len(v) for v in cache.values())
         cache = merge_victims_into_cache(resp.json(), cache)
         save_ransomware_cache(cache)
-        return jsonify({'success': True, 'new_records': sum(len(v) for v in cache.values()) - before})
-    except Exception as e: return jsonify({'success': False, 'error': str(e)}), 500
+        return True, sum(len(v) for v in cache.values()) - before, None
+    except Exception as e:
+        return False, 0, str(e)
+
+@darkweb_bp.route('/darkweb/ransomware-victims/sync', methods=['POST'])
+@login_required
+def ransomware_sync():
+    success, new_count, error = run_ransomware_sync()
+    if success:
+        return jsonify({'success': True, 'new_records': new_count})
+    return jsonify({'success': False, 'error': error}), 500
 
 @darkweb_bp.route('/darkweb/defacements')
 @login_required
@@ -261,9 +269,8 @@ def defacements_feed():
         'message': f"Displaying {len(all_records)} recent defacements from local database."
     })
 
-@darkweb_bp.route('/darkweb/defacements/sync', methods=['POST'])
-@login_required
-def defacements_sync():
+def run_defacements_sync(limit_pages=100):
+    """Core logic to sync defacements from zone-xsec.com."""
     try:
         from datetime import datetime, timedelta
         import time
@@ -274,12 +281,10 @@ def defacements_sync():
         new_count = 0
         pages_crawled = 0
         
-        # Extended deep sync (100 pages)
-        for page in range(1, 101):
+        # Extended deep sync
+        for page in range(1, limit_pages + 1):
             new_data = scrape_zone_xsec(page=page, deep_scrape=(page == 1))
             if not new_data:
-                if page == 1:
-                    return jsonify({'success': False, 'error': 'Failed to fetch data from Zone-XSec.'})
                 break
             
             pages_crawled += 1
@@ -311,13 +316,22 @@ def defacements_sync():
             time.sleep(1) # Be nice to the source
                 
         save_defacement_cache(cache)
+        return True, new_count, pages_crawled, None
+    except Exception as e:
+        return False, 0, 0, str(e)
+
+@darkweb_bp.route('/darkweb/defacements/sync', methods=['POST'])
+@login_required
+def defacements_sync():
+    success, new_count, pages, error = run_defacements_sync()
+    if success:
         return jsonify({
             'success': True, 
             'new_records': new_count,
-            'pages_crawled': pages_crawled,
-            'message': f"Sync successful: {new_count} records merged across {pages_crawled} pages."
+            'pages_crawled': pages,
+            'message': f"Sync successful: {new_count} records merged across {pages} pages."
         })
-    except Exception as e: return jsonify({'success': False, 'error': str(e)}), 500
+    return jsonify({'success': False, 'error': error}), 500
 
 @darkweb_bp.route('/darkweb/defacements/mirror-proxy')
 @login_required
@@ -561,46 +575,59 @@ def cleanup_old_ioc_cache():
         db.session.commit()
     except: db.session.rollback()
 
-def run_mail_protection(query, is_ip):
+def run_mail_protection(domain, is_ip):
     if is_ip: return None
-    results = {'spf': None, 'dmarc': None}
+    results = {'spf': None, 'dmarc': None, 'dkim': []}
+    resolver = dns.resolver.Resolver()
+    # Use public DNS as fallback/primary for better reliability
+    resolver.nameservers = ['8.8.8.8', '8.8.4.4', '1.1.1.1']
+    resolver.timeout = 5
+    resolver.lifetime = 5
+    
     try:
-        resolver = dns.resolver.Resolver()
-        resolver.timeout = 2
-        resolver.lifetime = 2
-        
-        # Check SPF
+        # SPF Check
         try:
-            answers = resolver.resolve(query, 'TXT')
+            answers = resolver.resolve(domain, 'TXT')
             for rdata in answers:
-                txt = b"".join(rdata.strings).decode()
-                if txt.startswith("v=spf1"):
+                txt = str(rdata).strip('"')
+                if txt.startswith('v=spf1'):
                     results['spf'] = txt
+                    break
         except: pass
         
-        # Check DMARC
+        # DMARC Check
         try:
-            answers = resolver.resolve(f"_dmarc.{query}", 'TXT')
+            dmarc_domain = f"_dmarc.{domain}"
+            answers = resolver.resolve(dmarc_domain, 'TXT')
             for rdata in answers:
-                txt = b"".join(rdata.strings).decode()
-                if txt.startswith("v=DMARC1"):
+                txt = str(rdata).strip('"')
+                if txt.startswith('v=DMARC1'):
                     results['dmarc'] = txt
+                    break
         except: pass
         
-        # Check DKIM (Best-effort Brute Force)
-        results['dkim'] = None
-        common_selectors = ['google', 'default', 'mail', 'selector1', 's1', 's2', 'k1', 'k2', 'm1']
-        for sel in common_selectors:
+        # DKIM (Common Selectors)
+        for selector in ['google', 'default', 'mail', 'k1', 'sig1']:
             try:
-                answers = resolver.resolve(f"{sel}._domainkey.{query}", 'TXT')
+                dkim_domain = f"{selector}._domainkey.{domain}"
+                answers = resolver.resolve(dkim_domain, 'TXT')
                 for rdata in answers:
-                    txt = b"".join(rdata.strings).decode()
-                    if txt.startswith("v=DKIM1") or "p=" in txt:
-                        results['dkim'] = f"[{sel}] {txt}"
-                        break
-                if results['dkim']: break
-            except: pass
-    except: pass
+                    txt = str(rdata).strip('"')
+                    if 'v=DKIM1' in txt:
+                        results['dkim'].append({'selector': selector, 'record': txt})
+            except: continue
+            
+    except Exception as e:
+        print(f"RECON DEBUG: Mail protection error: {str(e)}")
+        
+    # Ensure we return "No Records FOUND" instead of None for UI clarity
+    if not results['spf']: results['spf'] = "No SPF Record Detected"
+    if not results['dmarc']: results['dmarc'] = "No DMARC Record Detected"
+    if not results['dkim']: results['dkim'] = [{"selector": "N/A", "record": "No common DKIM selectors identified"}]
+    
+    # Add security assessment for frontend
+    results['is_secure'] = ("v=spf1" in str(results['spf']) and "v=DMARC1" in str(results['dmarc']))
+    
     return results
 
 def detect_web_protection(target):
@@ -609,13 +636,9 @@ def detect_web_protection(target):
     try:
         target_url = target if target.startswith('http') else f"https://{target}"
         # Dynamically find wafw00f in venv or system PATH
-        waf_bin = shutil.which("wafw00f")
-        if not waf_bin:
-            # Fallback to current python's venv bin folder
-            python_dir = os.path.dirname(sys.executable)
-            waf_bin = os.path.join(python_dir, "wafw00f")
+        waf_bin = find_binary("wafw00f")
         
-        if not os.path.exists(waf_bin) and not shutil.which("wafw00f"):
+        if not waf_bin:
              print("RECON DEBUG: wafw00f binary NOT FOUND in PATH or venv")
              return {'waf': 'Tool Not Found (run: pip install wafw00f)', 'provider': 'N/A', 'is_protected': False}
 
@@ -655,161 +678,75 @@ def run_whois(query, is_ip):
     except: pass
 
     # Tier 3: Local CLI whois
-    # Try looking in common binary paths
-    whois_paths = ['whois', '/usr/bin/whois', '/usr/local/bin/whois']
-    for path in whois_paths:
-        whois_bin = shutil.which(path if path == 'whois' else os.path.basename(path))
-        if not whois_bin and os.path.exists(path): whois_bin = path
-        
-        if whois_bin:
-            try:
-                import subprocess
-                proc = subprocess.run([whois_bin, query], capture_output=True, text=True, timeout=15)
-                if proc.returncode == 0 and proc.stdout:
-                    return {'raw_text': proc.stdout}
-            except Exception as e:
-                print(f"RECON DEBUG: whois CLI ({whois_bin}) failed: {str(e)}")
+    whois_bin = find_binary('whois')
+    if whois_bin:
+        try:
+            import subprocess
+            proc = subprocess.run([whois_bin, query], capture_output=True, text=True, timeout=15)
+            if proc.returncode == 0 and proc.stdout:
+                return {'raw_text': proc.stdout}
+        except Exception as e:
+            print(f"RECON DEBUG: whois CLI ({whois_bin}) failed: {str(e)}")
     
     print("RECON DEBUG: All WHOIS sources failed. (Try: sudo apt install whois)")
     return None
 
-def run_dns_recon(query, is_ip):
+def run_dns_recon(domain, is_ip):
     if is_ip: return []
-    dns_results = []
-    seen = set()
-    
-    # Source 1: crt.sh (Certificate Transparency)
     try:
-        print(f"RECON DEBUG: Querying crt.sh for {query}...")
-        # Add retry logic for crt.sh since it often 502s
-        for _ in range(2):
-            try:
-                resp = req.get(f"https://crt.sh/?q=%.{query}&output=json", timeout=90, headers={
-                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
-                })
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for item in data:
-                        name = item.get('name_value', '').lower()
-                        if '*' in name: continue
-                        for sub in name.split('\n'):
-                            sub = sub.strip()
-                            # Clean and deduplicate (ensure it actually belongs to target)
-                            if sub and sub not in seen and query in sub:
-                                seen.add(sub)
-                                dns_results.append({'host': sub, 'ip': 'crt.sh [OSINT]'})
-                    break 
-            except: time.sleep(2)
-        print(f"RECON DEBUG: crt.sh total unique subdomains: {len(dns_results)}")
-    except Exception as e:
-        print(f"RECON DEBUG: crt.sh integration failed: {str(e)}")
-
-    # Source 2: RapidDNS Scraper (Lightweight OSINT fallback)
-    try:
-        print(f"RECON DEBUG: Querying RapidDNS for {query}...")
-        resp = req.get(f"https://rapiddns.io/subdomain/{query}?full=1", timeout=15)
-        if resp.status_code == 200:
-            count = 0
-            matches = re.findall(r'<td>([\w\.-]+\.' + re.escape(query) + r')</td>', resp.text)
-            for sub in matches:
-                sub = sub.lower()
-                if sub not in seen:
-                    seen.add(sub)
-                    dns_results.append({'host': sub, 'ip': 'RapidDNS [OSINT]'})
-                    count += 1
-            print(f"RECON DEBUG: RapidDNS added {count} subdomains")
-    except: pass
-
-    # Source 3: HackerTarget (Quick API)
-    try:
-        print(f"RECON DEBUG: Querying HackerTarget for {query}...")
-        resp = req.get(f"https://api.hackertarget.com/hostsearch/?q={query}", timeout=20, headers={'User-Agent': 'Cybermon/2.1'})
-        if resp.status_code == 200 and 'error' not in resp.text.lower():
-            ht_count = 0
-            for line in resp.text.strip().split('\n'):
-                parts = line.split(',')
-                if len(parts) >= 2:
-                    host = parts[0].strip().lower()
-                    ip = parts[1].strip()
-                    if host and host not in seen:
-                        seen.add(host)
-                        dns_results.append({'host': host, 'ip': ip})
-                        ht_count += 1
-            print(f"RECON DEBUG: HackerTarget added {ht_count} subdomains")
-    except: pass
-
-    # Source 4: Subfinder (Binary tool if available)
-    try:
-        # Check standard and extended paths
-        subfinder_bin = shutil.which('subfinder') or shutil.which('/usr/local/bin/subfinder') or shutil.which('/usr/bin/subfinder')
-        if not subfinder_bin and os.path.exists('/usr/local/bin/subfinder'): subfinder_bin = '/usr/local/bin/subfinder'
-        
+        subfinder_bin = find_binary('subfinder')
         if subfinder_bin:
-            print(f"RECON DEBUG: Running subfinder from {subfinder_bin}...")
-            # Use -all to enable all free sources, -silent to keep output clean
-            proc = subprocess.run([subfinder_bin, '-d', query, '-all', '-silent'], capture_output=True, text=True, timeout=120)
-            if proc.stdout:
-                sf_count = 0
-                for sub in proc.stdout.split('\n'):
-                    sub = sub.strip().lower()
-                    if sub and sub not in seen and query in sub:
-                        seen.add(sub)
-                        dns_results.append({'host': sub, 'ip': 'subfinder [OSINT]'})
-                        sf_count += 1
-                print(f"RECON DEBUG: subfinder added {sf_count} subdomains")
-        else:
-            print("RECON DEBUG: subfinder binary NOT FOUND in PATH")
-    except Exception as e:
-        print(f"RECON DEBUG: subfinder execution error: {e}")
-
-    # Final enrichment: Resolve IPs for any that still use source labels (limit to first 100 for speed)
-    resolved_count = 0
-    resolver = dns.resolver.Resolver()
-    resolver.timeout = 1; resolver.lifetime = 1
-    
-    for entry in dns_results[:200]: # Only resolve first 200 to keep UI snappy
-        if '[OSINT]' in entry['ip']:
+            import subprocess
             try:
-                answers = resolver.resolve(entry['host'], 'A')
-                if answers:
-                    entry['ip'] = str(answers[0])
-                    resolved_count += 1
+                # Use subfinder for deeper discovery if available
+                cmd = [subfinder_bin, "-d", domain, "-silent", "-all"]
+                output = subprocess.check_output(cmd, timeout=30).decode()
+                subs = [s.strip() for s in output.split('\n') if s.strip()]
+                if subs:
+                    # Resolve IPs for found subs
+                    resolved = []
+                    for s in subs[:20]: # Limit for performance
+                        try:
+                            ip = socket.gethostbyname(s)
+                            resolved.append({'host': s, 'ip': ip})
+                        except: resolved.append({'host': s, 'ip': 'Detected'})
+                    if resolved: return resolved
             except: pass
-    print(f"RECON DEBUG: Resolved IPs for {resolved_count} assets.")
-    return dns_results
 
-    # Final check for MX/NS of the main query
-    try:
+        # Fallback to MX/NS records
+        dns_results = []
+        seen = set()
+        resolver = dns.resolver.Resolver()
+        resolver.timeout = 1; resolver.lifetime = 1
         for t in ['MX', 'NS']:
             try:
-                answers = resolver.resolve(query, t)
+                answers = resolver.resolve(domain, t)
                 for rdata in answers:
                     host = str(rdata.exchange if t == 'MX' else rdata.target).rstrip('.')
-
                     if host not in seen:
                         seen.add(host)
                         try:
                             ip_ans = resolver.resolve(host, 'A')
                             ip_val = str(ip_ans[0])
                         except: ip_val = 'Detected'
-                        resolved_results.append({'host': host, 'ip': ip_val})
+                        dns_results.append({'host': host, 'ip': ip_val})
             except: continue
-        return resolved_results
-    except: return resolved_results
+        return dns_results
+    except: return dns_results
 
 def run_nmap_scan(target_ip):
     if not target_ip: return [], False, None
     try:
-        # Dynamically find nmap in PATH
-        nmap_bin = shutil.which('nmap')
+        # Prioritize workspace bin and venv
+        nmap_bin = find_binary('nmap')
         if not nmap_bin:
-             print("RECON DEBUG: nmap binary NOT FOUND (run: sudo apt install nmap)")
-             return [], False, "Nmap not installed. Run: sudo apt install nmap"
+             print("RECON DEBUG: nmap binary NOT FOUND (ensure it is installed in private env or system)")
+             return [], False, "Nmap not installed. Please install it in the 'bin/' directory or run: brew install nmap"
              
         nm = nmap.PortScanner(nmap_search_path=(nmap_bin,))
         # -sT: TCP connect scan (does NOT require root/sudo)
         # -F: Fast mode (top 100 ports)
-        # -Pn: Skip host discovery (assume host is up)
+        # -Pn: Skip host discovery (assume host is up) - REQUIRED if not root
         nm.scan(target_ip, arguments='-sT -F -n -Pn -T4 --version-light')
         ports = []
         if target_ip in nm.all_hosts():
@@ -818,7 +755,13 @@ def run_nmap_scan(target_ip):
                     p_data = nm[target_ip][proto][port]
                     if p_data['state'] == 'open':
                         ports.append({'port': f"{port}/{proto}", 'service': p_data.get('name', 'unknown'), 'source': 'LIVE'})
-        return ports, len(ports) > 15, None
+        
+        # If no ports found and no error, but subfinder found subdomains, suggest potential block
+        error_msg = None
+        if not ports:
+            error_msg = "Scan completed but no open ports were identified. The host may be blocking probes."
+
+        return ports, len(ports) > 15, error_msg
     except Exception as e:
         print(f"RECON DEBUG: nmap scan error: {str(e)}")
         return [], False, str(e)
@@ -845,7 +788,8 @@ def recon_scan():
         results = {
             'whois': whois_f.result(),
             'dns': dns_f.result(),
-            'mail_protection': mail_f.result(),
+            'mail_security': mail_f.result(), # Renamed to match template
+            'mail_protection': mail_f.result(), # Keep for sidebar?
             'web_protection': waf_f.result(),
             'ai_intelligence': get_ai_intelligence(query),
             'resolved_ip': resolved_ip
