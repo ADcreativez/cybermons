@@ -100,21 +100,21 @@
     {
         "url": "exploitdb://latest",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:57",
+        "last_checked": "2026-04-20 01:40:07",
         "category": "exploit",
         "last_error": null
     },
     {
         "url": "cisakev://latest",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:57",
+        "last_checked": "2026-04-20 01:40:08",
         "category": "exploit",
         "last_error": null
     },
     {
         "url": "https://cxsecurity.com/wlb/rss/exploit/",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:59",
+        "last_checked": "2026-04-20 01:40:10",
         "category": "exploit",
         "last_error": null
     }

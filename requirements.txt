@@ -24,3 +24,4 @@ playwright-stealth==2.0.2
 
 cryptography==46.0.7
 gunicorn==23.0.0
+dnsrecon==1.2.0

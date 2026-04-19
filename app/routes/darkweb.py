@@ -693,46 +693,74 @@ def run_whois(query, is_ip):
 
 def run_dns_recon(domain, is_ip):
     if is_ip: return []
+    dns_results = []
+    seen_hosts = set()
+    
+    import subprocess
+    
+    # helper to add results
+    def add_result(host, ip):
+        h = host.strip().lower().rstrip('.')
+        if h and h not in seen_hosts:
+            seen_hosts.add(h)
+            dns_results.append({'host': h, 'ip': ip or 'Detected'})
+
+    # 1. TOOL: subfinder (Fast Passive Discovery)
     try:
         subfinder_bin = find_binary('subfinder')
         if subfinder_bin:
-            import subprocess
+            cmd = [subfinder_bin, "-d", domain, "-silent"]
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            for line in proc.stdout.split('\n'):
+                if line.strip(): add_result(line.strip(), None)
+    except Exception as e:
+        print(f"RECON DEBUG: subfinder execution failed: {e}")
+
+    # 2. TOOL: dnsrecon (Standard DNS Enumeration)
+    try:
+        dnsrecon_bin = find_binary('dnsrecon')
+        if dnsrecon_bin:
+            # -t std: Standard scan (SOA, NS, MX, A, AAAA, SRV)
+            cmd = [dnsrecon_bin, "-d", domain, "-t", "std", "--json", "/tmp/dnsrecon.json"]
+            # We don't necessarily need the json file if stdout is clean, 
+            # but dnsrecon stdout is often messy. However, /tmp might not be accessible.
+            # Let's try to parse stdout for basic records as a fallback.
+            proc = subprocess.run([dnsrecon_bin, "-d", domain, "-t", "std"], capture_output=True, text=True, timeout=20)
+            
+            # Simple grep-like parsing for A records in stdout
+            # Format:  [*] 	 A mail.kompas.com 3.171.198.56
+            for line in proc.stdout.split('\n'):
+                match = re.search(r'A\s+([a-zA-Z0-9\-\.]+)\s+([\d\.]+)', line)
+                if match:
+                    add_result(match.group(1), match.group(2))
+                # Also catch MX/NS
+                match_other = re.search(r'(MX|NS)\s+([a-zA-Z0-9\-\.]+)', line)
+                if match_other:
+                    add_result(match_other.group(2), None)
+    except Exception as e:
+        print(f"RECON DEBUG: dnsrecon execution failed: {e}")
+
+    # 3. Resolve IPs for results that don't have them (limit to top 15 for speed)
+    resolver = dns.resolver.Resolver()
+    resolver.timeout = 1; resolver.lifetime = 1
+    for item in dns_results[:15]:
+        if item['ip'] == 'Detected':
             try:
-                # Use subfinder for deeper discovery if available
-                cmd = [subfinder_bin, "-d", domain, "-silent", "-all"]
-                output = subprocess.check_output(cmd, timeout=30).decode()
-                subs = [s.strip() for s in output.split('\n') if s.strip()]
-                if subs:
-                    # Resolve IPs for found subs
-                    resolved = []
-                    for s in subs[:20]: # Limit for performance
-                        try:
-                            ip = socket.gethostbyname(s)
-                            resolved.append({'host': s, 'ip': ip})
-                        except: resolved.append({'host': s, 'ip': 'Detected'})
-                    if resolved: return resolved
+                ans = resolver.resolve(item['host'], 'A')
+                item['ip'] = str(ans[0])
             except: pass
 
-        # Fallback to MX/NS records
-        dns_results = []
-        seen = set()
-        resolver = dns.resolver.Resolver()
-        resolver.timeout = 1; resolver.lifetime = 1
+    # 4. Fallback/Standard Check via dnspython (if list is still small)
+    if len(dns_results) < 5:
         for t in ['MX', 'NS']:
             try:
                 answers = resolver.resolve(domain, t)
                 for rdata in answers:
                     host = str(rdata.exchange if t == 'MX' else rdata.target).rstrip('.')
-                    if host not in seen:
-                        seen.add(host)
-                        try:
-                            ip_ans = resolver.resolve(host, 'A')
-                            ip_val = str(ip_ans[0])
-                        except: ip_val = 'Detected'
-                        dns_results.append({'host': host, 'ip': ip_val})
+                    add_result(host, None)
             except: continue
-        return dns_results
-    except: return dns_results
+
+    return dns_results
 
 def run_nmap_scan(target_ip):
     if not target_ip: return [], False, None
