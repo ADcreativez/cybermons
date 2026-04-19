@@ -2,98 +2,98 @@
     {
         "url": "https://www.us-cert.gov/ncas/alerts.xml",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:31",
+        "last_checked": "2026-04-20 01:39:22",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://threatpost.com/feed/",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:31",
+        "last_checked": "2026-04-20 01:39:22",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://www.cshub.com/rss/categories/threat-defense",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:32",
+        "last_checked": "2026-04-20 01:39:24",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://news.google.com/rss/search?q=serangan+siber+indonesia+when:7d&hl=id&gl=ID&ceid=ID:id",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:33",
+        "last_checked": "2026-04-20 01:39:25",
         "category": "news",
         "last_error": null
     },
     {
         "url": "https://cvefeed.io/rssfeed/latest.xml",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:33",
+        "last_checked": "2026-04-20 01:39:26",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://news.google.com/rss/search?q=%22kebocoran+data%22+OR+%22data+breach%22+site:id&hl=id&gl=ID&ceid=ID:id",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:34",
+        "last_checked": "2026-04-20 01:39:27",
         "category": "news",
         "last_error": null
     },
     {
         "url": "http://feeds.feedburner.com/TheHackersNews",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:35",
+        "last_checked": "2026-04-20 01:39:29",
         "category": "news",
         "last_error": null
     },
     {
         "url": "https://www.ransomware.live/rss.xml",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:37",
+        "last_checked": "2026-04-20 01:39:33",
         "category": "ransomware",
         "last_error": null
     },
     {
         "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:37",
+        "last_checked": "2026-04-20 01:39:33",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://cybersecuritynews.com/feed/",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:39",
+        "last_checked": "2026-04-20 01:39:36",
         "category": "news",
         "last_error": null
     },
     {
         "url": "https://www.bleepingcomputer.com/feed/",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:39",
+        "last_checked": "2026-04-20 01:39:36",
         "category": "news",
         "last_error": null
     },
     {
         "url": "telegram://cve_mitre_org",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:46",
+        "last_checked": "2026-04-20 01:39:50",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "telegram://itsecalerts",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:53",
+        "last_checked": "2026-04-20 01:40:00",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "nvd://latest",
         "status": "OK",
-        "last_checked": "2026-04-20 00:33:54",
+        "last_checked": "2026-04-20 01:40:02",
         "category": "threat",
         "last_error": null
     },
