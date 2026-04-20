@@ -103,6 +103,8 @@ class BlockedCountry(db.Model):
 class GeoSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     is_whitelist_mode = db.Column(db.Boolean, default=False)
+    is_strict_ip_mode = db.Column(db.Boolean, default=False)
+    secret_knock_key = db.Column(db.String(50), default='1337')
 
 class IOCCache(db.Model):
     id = db.Column(db.Integer, primary_key=True)

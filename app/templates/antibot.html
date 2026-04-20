@@ -8,7 +8,14 @@
             <p>System-wide visitor monitoring and automated threat mitigation</p>
         </div>
         <div style="display: flex; gap: 15px;">
-            <form method="POST" action="{{ url_for('admin.clear_system_logs') }}"
+            <form method="POST" action="{{ url_for('admin.reset_security_rules') }}"
+                onsubmit="return confirm('WARNING: This will PERMANENTLY remove all Whitelist/Blacklist IPs and reset Geo-blocking. Continue?');">
+                <button type="submit" class="btn-primary"
+                    style="background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; color: #ffaa00;">
+                    <i class="fa-solid fa-rotate-left"></i> RESET ALL ACCESS RULES
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('admin.clear_visitor_logs') }}"
                 onsubmit="return confirm('Are you sure you want to PERMANENTLY delete all visitor logs?');">
                 <button type="submit" class="btn-primary"
                     style="background: rgba(220, 53, 69, 0.2); border: 1px solid var(--danger-color); color: var(--danger-color);">
@@ -290,6 +297,40 @@
                             etc.)</p>
                     </div>
                     <span class="stat-value" style="font-size: 0.9em;">15 SIGNATURES</span>
+                </div>
+
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: rgba(255, 65, 0, 0.05); border: 1px solid rgba(255, 65, 0, 0.3); border-left: 4px solid #ff4100;">
+                    <div style="flex: 1;">
+                        <strong style="color: #ff4100; font-size: 1.1rem;"><i class="fa-solid fa-lock"></i> STRICT IP ACCESS MODE</strong>
+                        <p style="font-size: 0.85em; opacity: 0.8; margin: 5px 0 10px 0; color: #ffaa00;">
+                            <strong>EXTREME SECURITY:</strong> When enabled, the system will block ALL traffic EXCEPT IP addresses listed in your <strong>Manual Whitelist</strong>.
+                        </p>
+                        
+                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; margin-top: 10px;">
+                            <label style="font-size: 0.8em; opacity: 0.7; display: block; margin-bottom: 5px;">SECRET KNOCK KEY (Auto-Whitelist Path Suffix)</label>
+                            <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}" id="strictSettingsForm">
+                                <input type="hidden" name="enabled" value="{{ 'true' if geo_settings.is_strict_ip_mode else 'false' }}">
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}" 
+                                           style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 5px 10px; flex: 1;"
+                                           placeholder="e.g. secret-key-2026">
+                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; font-size: 0.8em;">SAVE KEY</button>
+                                </div>
+                            </form>
+                            <p style="font-size: 0.75em; opacity: 0.5; margin: 8px 0 0 0; font-family: monospace;">
+                                Path: /path/to/cybermon/<span style="color: var(--primary-color);">{{ geo_settings.secret_knock_key or '1337' }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}" style="margin-left: 20px;">
+                        <input type="hidden" name="enabled" value="{{ 'false' if geo_settings.is_strict_ip_mode else 'true' }}">
+                        <input type="hidden" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}">
+                        <button type="submit" class="btn-primary" 
+                                style="background: {{ 'var(--danger-color)' if geo_settings.is_strict_ip_mode else 'var(--accent-color)' }}; color: {{ '#fff' if geo_settings.is_strict_ip_mode else '#000' }}; min-width: 140px;">
+                            {{ 'DISABLE STRICT' if geo_settings.is_strict_ip_mode else 'ENABLE STRICT' }}
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

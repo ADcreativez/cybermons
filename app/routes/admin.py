@@ -299,13 +299,33 @@ def delete_ip(id):
 @login_required
 def update_geo():
     if current_user.role != 'admin': abort(403)
-    db.session.query(BlockedCountry).delete()
-    selected_codes = request.form.getlist('blocked_countries')
-    for code in selected_codes:
-        new_block = BlockedCountry(country_code=code)
-        db.session.add(new_block)
-    db.session.commit()
-    log_event("Geo-blocking policy updated.", "success")
+    
+    action = request.form.get('action')
+    settings = GeoSettings.query.first() or GeoSettings(is_whitelist_mode=False)
+
+    if action == 'only_id':
+        # 1. Clear all existing blocks/allows
+        db.session.query(BlockedCountry).delete()
+        # 2. Set to Whitelist Mode (Only allow selected)
+        settings.is_whitelist_mode = True
+        # 3. Add Indonesia
+        id_block = BlockedCountry(country_code='ID')
+        db.session.add(id_block)
+        db.session.add(settings)
+        db.session.commit()
+        log_event("Geo-Blocking restricted to INDONESIA ONLY.", "warning")
+        flash("System restricted to INDONESIA ONLY.", "success")
+    else:
+        # Standard update from checkboxes
+        db.session.query(BlockedCountry).delete()
+        selected_codes = request.form.getlist('blocked_countries')
+        for code in selected_codes:
+            new_block = BlockedCountry(country_code=code)
+            db.session.add(new_block)
+        db.session.commit()
+        log_event("Geo-blocking policy updated.", "success")
+        flash("Geo-blocking policy updated.", "success")
+        
     return redirect(url_for('admin.antibot'))
 
 @admin_bp.route('/admin/antibot/geo/mode', methods=['POST'])
@@ -318,6 +338,44 @@ def geo_mode():
     db.session.add(settings) 
     db.session.commit()
     log_event(f"Geo-Blocking mode changed to {mode.upper()}.", "info")
+    return redirect(url_for('admin.antibot'))
+
+@admin_bp.route('/admin/antibot/reset-all', methods=['POST'])
+@login_required
+def reset_security_rules():
+    if current_user.role != 'admin': abort(403)
+    
+    # 1. Clear all manual IP controls
+    db.session.query(IPAccessControl).delete()
+    # 2. Clear all blocked countries
+    db.session.query(BlockedCountry).delete()
+    # 3. Reset geo mode to blacklist
+    settings = GeoSettings.query.first() or GeoSettings(is_whitelist_mode=False)
+    settings.is_whitelist_mode = False
+    settings.is_strict_ip_mode = False
+    db.session.add(settings)
+    
+    db.session.commit()
+    log_event("GLOBAL SECURITY RESET: All manual barriers cleared.", "danger")
+    flash("GLOBAL SECURITY RESET: All manual barriers cleared.", "warning")
+    return redirect(url_for('admin.antibot'))
+
+@admin_bp.route('/admin/antibot/strict-mode', methods=['POST'])
+@login_required
+def geo_strict_mode():
+    if current_user.role != 'admin': abort(403)
+    enabled = request.form.get('enabled') == 'true'
+    knock_key = request.form.get('secret_knock_key', '1337').strip()
+    
+    settings = GeoSettings.query.first() or GeoSettings(is_whitelist_mode=False)
+    settings.is_strict_ip_mode = enabled
+    settings.secret_knock_key = knock_key
+    db.session.add(settings)
+    db.session.commit()
+    
+    status = "ENABLED" if enabled else "DISABLED"
+    log_event(f"Strict IP Whitelist mode {status} (Knock Path updated).", "warning")
+    flash(f"Security settings updated successfully.", "success")
     return redirect(url_for('admin.antibot'))
 
 @admin_bp.route('/admin/antibot/logs/clear', methods=['POST'])

@@ -2,119 +2,119 @@
     {
         "url": "https://www.us-cert.gov/ncas/alerts.xml",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:22",
+        "last_checked": "2026-04-20 11:37:24",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://threatpost.com/feed/",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:22",
+        "last_checked": "2026-04-20 11:37:26",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://www.cshub.com/rss/categories/threat-defense",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:24",
+        "last_checked": "2026-04-20 11:37:28",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://news.google.com/rss/search?q=serangan+siber+indonesia+when:7d&hl=id&gl=ID&ceid=ID:id",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:25",
+        "last_checked": "2026-04-20 11:37:29",
         "category": "news",
         "last_error": null
     },
     {
         "url": "https://cvefeed.io/rssfeed/latest.xml",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:26",
+        "last_checked": "2026-04-20 11:37:31",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://news.google.com/rss/search?q=%22kebocoran+data%22+OR+%22data+breach%22+site:id&hl=id&gl=ID&ceid=ID:id",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:27",
+        "last_checked": "2026-04-20 11:37:32",
         "category": "news",
         "last_error": null
     },
     {
         "url": "http://feeds.feedburner.com/TheHackersNews",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:29",
+        "last_checked": "2026-04-20 11:37:34",
         "category": "news",
         "last_error": null
     },
     {
         "url": "https://www.ransomware.live/rss.xml",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:33",
+        "last_checked": "2026-04-20 11:37:38",
         "category": "ransomware",
         "last_error": null
     },
     {
         "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:33",
+        "last_checked": "2026-04-20 11:37:38",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "https://cybersecuritynews.com/feed/",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:36",
+        "last_checked": "2026-04-20 11:37:42",
         "category": "news",
         "last_error": null
     },
     {
         "url": "https://www.bleepingcomputer.com/feed/",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:36",
+        "last_checked": "2026-04-20 11:37:43",
         "category": "news",
         "last_error": null
     },
     {
         "url": "telegram://cve_mitre_org",
         "status": "OK",
-        "last_checked": "2026-04-20 01:39:50",
+        "last_checked": "2026-04-20 11:37:53",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "telegram://itsecalerts",
         "status": "OK",
-        "last_checked": "2026-04-20 01:40:00",
+        "last_checked": "2026-04-20 11:38:01",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "nvd://latest",
         "status": "OK",
-        "last_checked": "2026-04-20 01:40:02",
+        "last_checked": "2026-04-20 11:38:24",
         "category": "threat",
         "last_error": null
     },
     {
         "url": "exploitdb://latest",
         "status": "OK",
-        "last_checked": "2026-04-20 01:40:07",
+        "last_checked": "2026-04-20 11:38:28",
         "category": "exploit",
         "last_error": null
     },
     {
         "url": "cisakev://latest",
         "status": "OK",
-        "last_checked": "2026-04-20 01:40:08",
+        "last_checked": "2026-04-20 11:38:28",
         "category": "exploit",
         "last_error": null
     },
     {
         "url": "https://cxsecurity.com/wlb/rss/exploit/",
         "status": "OK",
-        "last_checked": "2026-04-20 01:40:10",
+        "last_checked": "2026-04-20 11:38:30",
         "category": "exploit",
         "last_error": null
     }

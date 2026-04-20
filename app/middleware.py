@@ -4,6 +4,42 @@ from .extensions import db
 from .models import IPAccessControl, GeoSettings, BlockedCountry, VisitorLog
 from .utils.helpers import log_event
 
+knock_tracker = {}
+
+def security_check():
+    if request.path.startswith('/static/'): return
+    client_ip = request.remote_addr
+    if client_ip in ['127.0.0.1', '::1']: return
+
+    # --- SECRET KNOCK LOGIC ---
+    geo_settings = GeoSettings.query.first()
+    secret_key = geo_settings.secret_knock_key if geo_settings else '1337'
+    secret_path = f"/path/to/cybermon/{secret_key}"
+
+    if request.path == secret_path:
+        stats = knock_tracker.get(client_ip, {'count': 0})
+        stats['count'] += 1
+        knock_tracker[client_ip] = stats
+        
+        if stats['count'] >= 3:
+            # Auto-whitelist
+            existing = IPAccessControl.query.filter_by(ip=client_ip, category='whitelist').first()
+            if not existing:
+                new_whitelist = IPAccessControl(ip=client_ip, category='whitelist', reason="SECRET KNOCK SUCCESS")
+                db.session.add(new_whitelist)
+                db.session.commit()
+                log_event(f"SECRET KNOCK: IP {client_ip} has been auto-whitelisted.", "warning")
+            
+            knock_tracker[client_ip] = {'count': 0}
+            return "AUTHENTICATION SUCCESS: IP Whitelisted. Please reload the application."
+        
+        abort(404) # Hide existence until 3rd knock
+    else:
+        # Reset knock if other path accessed (consecutive required)
+        if client_ip in knock_tracker:
+            knock_tracker[client_ip] = {'count': 0}
+    # --------------------------
+
 geo_cache = {}
 
 def get_ip_country(ip):
@@ -34,6 +70,16 @@ def security_check():
     if client_ip in ['127.0.0.1', '::1']: return
 
     whitelisted = IPAccessControl.query.filter_by(ip=client_ip, category='whitelist').first()
+    
+    # Check for Strict IP Mode
+    geo_settings = GeoSettings.query.first()
+    is_strict = geo_settings.is_strict_ip_mode if geo_settings else False
+    
+    if is_strict:
+        if not whitelisted:
+            abort(403, description="STRICT MODE: Access restricted to whitelisted IP addresses only.")
+        return # Whitelisted in strict mode is ALWAYS allowed
+
     if whitelisted: return
 
     blacklisted = IPAccessControl.query.filter_by(ip=client_ip, category='blacklist').first()
