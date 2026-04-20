@@ -38,7 +38,9 @@ server.log
 startup_test.log
 defacement_cache.json
 ransomware_cache.json
+breach_indonesia_cache.json
 feeds.json
+
 
 # =========================
 # Scratch & Temp
