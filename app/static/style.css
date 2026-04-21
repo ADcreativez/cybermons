@@ -49,7 +49,7 @@ body {
 
 .container, .container-fluid {
     margin: 0 auto;
-    padding: 20px;
+    padding: 10px 15px;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -69,8 +69,8 @@ header {
     justify-content: space-between;
     align-items: flex-start;
     border-bottom: 2px solid var(--accent-color);
-    padding-bottom: 15px;
-    margin-bottom: 20px;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
     flex-shrink: 0;
 }
 
@@ -1454,15 +1454,15 @@ input[type="url"]:focus {
 .vision-dashboard {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     height: auto;
     width: 100%;
 }
 
 .vision-widgets-row {
     display: flex;
-    gap: 12px;
-    min-height: 200px;
+    gap: 10px;
+    min-height: 160px;
     flex: 1;
 }
 
@@ -1501,10 +1501,10 @@ input[type="url"]:focus {
 .sources-widget::before { background: linear-gradient(90deg, transparent, var(--info-color), transparent); }
 
 .widget-header {
-    padding: 8px 12px;
+    padding: 4px 10px;
     font-family: var(--font-mono);
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     letter-spacing: 1px;
     display: flex;
     align-items: center;
@@ -1520,7 +1520,7 @@ input[type="url"]:focus {
 
 .chart-container {
     flex: 1;
-    padding: 8px 12px;
+    padding: 4px 10px;
     position: relative;
     width: 100%;
     min-height: 0;
@@ -1528,9 +1528,9 @@ input[type="url"]:focus {
 
 .widget-footer {
     text-align: center;
-    padding: 6px;
+    padding: 4px;
     font-family: var(--font-mono);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-primary);
     background: rgba(0,0,0,0.3);
     border-top: 1px solid rgba(255,255,255,0.05);
