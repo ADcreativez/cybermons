@@ -311,23 +311,37 @@
                             <label style="font-size: 0.8em; opacity: 0.7; display: block; margin-bottom: 5px;">SECRET KNOCK KEY (Auto-Whitelist Path Suffix)</label>
                             <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}" id="strictSettingsForm">
                                 <input type="hidden" name="enabled" value="{{ 'true' if geo_settings.is_strict_ip_mode else 'false' }}">
-                                <div style="display: flex; gap: 10px;">
-                                    <input type="text" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}" 
-                                           style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 5px 10px; flex: 1;"
-                                           placeholder="e.g. secret-key-2026">
-                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; font-size: 0.8em;">SAVE KEY</button>
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    <div style="display: flex; gap: 15px;">
+                                        <div style="flex: 2;">
+                                            <label style="font-size: 0.7em; opacity: 0.6; display: block; margin-bottom: 4px;">SECRET PATH KEY</label>
+                                            <input type="text" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}" 
+                                                   style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px; width: 100%; font-family: monospace;"
+                                                   placeholder="e.g. secret-key-2026">
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <label style="font-size: 0.7em; opacity: 0.6; display: block; margin-bottom: 4px;">REQUIRED KNOCKS</label>
+                                            <input type="number" name="secret_knock_max" value="{{ geo_settings.secret_knock_max or 3 }}" min="1" max="100"
+                                                   style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px; width: 100%;">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-primary" style="padding: 10px 20px; font-size: 0.85em; align-self: flex-start; background: rgba(0, 255, 65, 0.1); border: 1px solid var(--primary-color);">
+                                        <i class="fa-solid fa-floppy-disk"></i> SAVE KNOCK CONFIGURATION
+                                    </button>
                                 </div>
                             </form>
-                            <p style="font-size: 0.75em; opacity: 0.5; margin: 8px 0 0 0; font-family: monospace;">
-                                Path: /path/to/cybermon/<span style="color: var(--primary-color);">{{ geo_settings.secret_knock_key or '1337' }}</span>
+                            <p style="font-size: 0.75em; opacity: 0.5; margin: 12px 0 0 0; font-family: monospace; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+                                Target Path: /path/to/cybermon/<span style="color: var(--primary-color);">{{ geo_settings.secret_knock_key or '1337' }}</span> 
+                                <span style="margin-left: 15px; border-left: 1px solid #444; padding-left: 15px;">Threshold: <span style="color: var(--warning-color);">{{ geo_settings.secret_knock_max or 3 }}</span> accesses</span>
                             </p>
                         </div>
                     </div>
                     <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}" style="margin-left: 20px;">
                         <input type="hidden" name="enabled" value="{{ 'false' if geo_settings.is_strict_ip_mode else 'true' }}">
                         <input type="hidden" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}">
+                        <input type="hidden" name="secret_knock_max" value="{{ geo_settings.secret_knock_max or 3 }}">
                         <button type="submit" class="btn-primary" 
-                                style="background: {{ 'var(--danger-color)' if geo_settings.is_strict_ip_mode else 'var(--accent-color)' }}; color: {{ '#fff' if geo_settings.is_strict_ip_mode else '#000' }}; min-width: 140px;">
+                                style="background: {{ 'var(--danger-color)' if geo_settings.is_strict_ip_mode else 'var(--accent-color)' }}; color: {{ '#fff' if geo_settings.is_strict_ip_mode else '#000' }}; min-width: 140px; font-weight: bold; border: none; padding: 12px;">
                             {{ 'DISABLE STRICT' if geo_settings.is_strict_ip_mode else 'ENABLE STRICT' }}
                         </button>
                     </form>

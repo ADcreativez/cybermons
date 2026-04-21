@@ -366,10 +366,16 @@ def geo_strict_mode():
     if current_user.role != 'admin': abort(403)
     enabled = request.form.get('enabled') == 'true'
     knock_key = request.form.get('secret_knock_key', '1337').strip()
+    knock_max = request.form.get('secret_knock_max', '3')
     
     settings = GeoSettings.query.first() or GeoSettings(is_whitelist_mode=False)
     settings.is_strict_ip_mode = enabled
     settings.secret_knock_key = knock_key
+    try:
+        settings.secret_knock_max = int(knock_max)
+    except:
+        settings.secret_knock_max = 3
+
     db.session.add(settings)
     db.session.commit()
     
