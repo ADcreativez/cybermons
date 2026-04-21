@@ -31,6 +31,9 @@ def create_app():
     login_manager.init_app(app)
     migrate.init_app(app, db)
 
+    # Automatic Schema Repair
+    repair_database(app)
+
     # Register Blueprints
     from .routes.auth import auth_bp
     from .routes.monitoring import monitoring_bp
@@ -81,6 +84,38 @@ def create_app():
         )
 
     return app
+
+def repair_database(app):
+    """
+    Automatically repair the database schema by adding missing columns.
+    This avoids OperationalErrors in production when models are updated.
+    """
+    from sqlalchemy import inspect, text
+    with app.app_context():
+        # Ensure all tables exist first
+        db.create_all()
+        
+        inspector = inspect(db.engine)
+        if 'geo_settings' in inspector.get_table_names():
+            columns = [c['name'] for c in inspector.get_columns('geo_settings')]
+            
+            # Map of column names to their SQLite type definitions
+            required_columns = {
+                'secret_knock_max': 'INTEGER DEFAULT 3',
+                'rate_limit_max': 'INTEGER DEFAULT 60',
+                'auto_ban_duration': 'INTEGER DEFAULT 0',
+                'is_strict_ip_mode': 'BOOLEAN DEFAULT 0'
+            }
+            
+            for col_name, col_def in required_columns.items():
+                if col_name not in columns:
+                    print(f"[*] AUTO-REPAIR: Adding column {col_name} to geo_settings")
+                    try:
+                        db.session.execute(text(f"ALTER TABLE geo_settings ADD COLUMN {col_name} {col_def}"))
+                        db.session.commit()
+                    except Exception as e:
+                        db.session.rollback()
+                        print(f"[!] AUTO-REPAIR FAILED for {col_name}: {e}")
 
 def bootstrap_db(app):
     with app.app_context():
