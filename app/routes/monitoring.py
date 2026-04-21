@@ -254,6 +254,15 @@ def fetch_and_store_all_data(force=False):
                             if hasattr(entry, 'published'):
                                 try: pub_dt = dateutil.parser.parse(entry.published)
                                 except: pass
+                                     # Data Quality Filter: Skip entries that are just version numbers with no summary
+                            is_version_only = re.match(r'^[\d\.]+$', entry.title.strip())
+                            if (not entry.get('summary') or len(entry.get('summary', '').strip()) < 5) and is_version_only:
+                                continue
+                            
+                            # Specific filter for known spammy patterns
+                            if "Service Updates" in entry.source and is_version_only:
+                                continue
+
                             results.append({
                                 'title': entry.title, 'link': entry.link, 
                                 'published': pub_dt, 'summary': entry.get('summary', ''),
