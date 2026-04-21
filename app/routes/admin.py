@@ -368,6 +368,7 @@ def geo_strict_mode():
     knock_key = request.form.get('secret_knock_key', '1337').strip()
     knock_max = request.form.get('secret_knock_max', '3')
     rate_limit = request.form.get('rate_limit_max', '60')
+    ban_duration = request.form.get('auto_ban_duration', '0')
     
     settings = GeoSettings.query.first() or GeoSettings(is_whitelist_mode=False)
     settings.is_strict_ip_mode = enabled
@@ -381,6 +382,11 @@ def geo_strict_mode():
         settings.rate_limit_max = int(rate_limit)
     except:
         settings.rate_limit_max = 60
+
+    try:
+        settings.auto_ban_duration = int(ban_duration)
+    except:
+        settings.auto_ban_duration = 0
 
     db.session.add(settings)
     db.session.commit()

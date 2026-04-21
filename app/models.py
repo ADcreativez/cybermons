@@ -84,6 +84,7 @@ class IPAccessControl(db.Model):
     category = db.Column(db.String(20), nullable=False) # 'blacklist' or 'whitelist'
     reason = db.Column(db.String(255))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)
 
 class DismissedAlert(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -107,6 +108,7 @@ class GeoSettings(db.Model):
     secret_knock_key = db.Column(db.String(50), default='1337')
     secret_knock_max = db.Column(db.Integer, default=3)
     rate_limit_max = db.Column(db.Integer, default=60)
+    auto_ban_duration = db.Column(db.Integer, default=0)
 
 class IOCCache(db.Model):
     id = db.Column(db.Integer, primary_key=True)

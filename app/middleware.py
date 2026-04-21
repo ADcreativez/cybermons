@@ -1,5 +1,6 @@
 import requests
 import time
+from datetime import datetime, timedelta
 from flask import request, abort
 from .extensions import db
 from .models import IPAccessControl, GeoSettings, BlockedCountry, VisitorLog
@@ -52,12 +53,12 @@ def security_check():
     
     # --- 2. RATE LIMITER (ANTI-DDOS / BRUTE FORCE) ---
     rpm_limit = geo_settings.rate_limit_max if geo_settings else 60
-    now = time.time()
-    ip_stats = flood_tracker.get(client_ip, {'count': 0, 'start_time': now})
+    now_ts = time.time()
+    ip_stats = flood_tracker.get(client_ip, {'count': 0, 'start_time': now_ts})
     
-    if now - ip_stats['start_time'] > 60:
+    if now_ts - ip_stats['start_time'] > 60:
         # Reset window
-        ip_stats = {'count': 1, 'start_time': now}
+        ip_stats = {'count': 1, 'start_time': now_ts}
     else:
         ip_stats['count'] += 1
     
@@ -105,8 +106,18 @@ def security_check():
 
     blacklisted = IPAccessControl.query.filter_by(ip=client_ip, category='blacklist').first()
     if blacklisted:
-        log_visit(client_ip, country_code)
-        abort(403, description="Your IP has been blacklisted due to suspicious activity.")
+        # Check Expiry Management
+        if blacklisted.expires_at and blacklisted.expires_at < datetime.utcnow():
+            db.session.delete(blacklisted)
+            try:
+                db.session.commit()
+                log_event(f"AUTO-BAN EXPIRED: Access restored for IP {client_ip}.", "info")
+            except:
+                db.session.rollback()
+        else:
+            log_visit(client_ip, country_code)
+            expiry_str = f" until {blacklisted.expires_at.strftime('%Y-%m-%d %H:%M')}" if blacklisted.expires_at else " permanently"
+            abort(403, description=f"Your IP has been blacklisted{expiry_str} due to suspicious activity.")
 
     if country_code:
         is_whitelist_geo = geo_settings.is_whitelist_mode if geo_settings else False
@@ -169,15 +180,31 @@ def security_check():
     log_visit(client_ip, country_code)
 
 def auto_ban(ip, reason, country_code):
-    existing = IPAccessControl.query.filter_by(ip=ip).first()
+    geo_settings = GeoSettings.query.first()
+    duration_days = geo_settings.auto_ban_duration if geo_settings else 0
+    
+    expires_at = None
+    if duration_days > 0:
+        expires_at = datetime.utcnow() + timedelta(days=duration_days)
+        
+    existing = IPAccessControl.query.filter_by(ip=ip, category='blacklist').first()
     if not existing:
-        new_ban = IPAccessControl(ip=ip, category='blacklist', reason=reason)
+        new_ban = IPAccessControl(ip=ip, category='blacklist', reason=reason, expires_at=expires_at)
         try:
             db.session.add(new_ban)
             db.session.commit()
-            log_event(f"AUTO-BAN: IP {ip} blacklisted for {reason}", "danger")
+            log_event(f"AUTO-BAN: IP {ip} blacklisted for {reason}. Expiry: {expires_at or 'Permanent'}", "danger")
         except:
             db.session.rollback()
+    elif expires_at:
+        # Update expiry if already blacklisted
+        existing.expires_at = expires_at
+        existing.reason = reason
+        try:
+            db.session.commit()
+        except:
+            db.session.rollback()
+            
     log_visit(ip, country_code)
 
 def log_visit(ip, country_code):

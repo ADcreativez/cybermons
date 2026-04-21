@@ -314,6 +314,15 @@
                                 <input type="number" name="rate_limit_max" value="{{ geo_settings.rate_limit_max or 60 }}" min="10" max="600"
                                        style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; width: 100%; margin-bottom: 5px;">
                                 <p style="font-size: 0.7em; opacity: 0.5;">Max requests allowed per IP per minute before AUTO-BAN.</p>
+
+                                <label style="font-size: 0.75em; opacity: 0.6; display: block; margin-bottom: 8px; margin-top: 15px;">AUTO-BAN DURATION (Days)</label>
+                                <select name="auto_ban_duration" style="background: rgba(30,30,30,0.9); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; width: 100%; cursor: pointer;">
+                                    <option value="0" {{ 'selected' if geo_settings.auto_ban_duration == 0 }}>Permanent</option>
+                                    <option value="1" {{ 'selected' if geo_settings.auto_ban_duration == 1 }}>1 Day</option>
+                                    <option value="7" {{ 'selected' if geo_settings.auto_ban_duration == 7 }}>7 Days</option>
+                                    <option value="30" {{ 'selected' if geo_settings.auto_ban_duration == 30 }}>30 Days</option>
+                                </select>
+                                <p style="font-size: 0.7em; opacity: 0.5; margin-top: 5px;">How long the automated block should last.</p>
                                 
                                 <label style="font-size: 0.75em; opacity: 0.6; display: block; margin-bottom: 8px; margin-top: 20px;">HONEYPOT TRAPS</label>
                                 <div style="display: flex; align-items: center; gap: 10px; color: var(--warning-color); font-size: 0.8em;">
