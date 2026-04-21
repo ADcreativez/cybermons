@@ -90,11 +90,11 @@
                         <i class="fa-solid fa-building"></i> {{ current_user.group.name|upper if current_user.group else
                         'INTERNAL_CORE' }}
                         <span style="opacity: 0.3; margin: 0 5px;">|</span>
-                        <i class="fa-solid fa-user-shield"></i> {{ current_user.username|upper }} {{
+                        <i class="fa-solid fa-user-shield"></i> {{ current_user.username|upper }} [{{
                         current_user.role|upper }}]
                     </span>
-                    <a href="{{ url_for('auth.change_password') }}" class="nav-link" title="Change Password"
-                        style="margin-right: 0;"><i class="fa-solid fa-key"></i></a>
+                    <a href="{{ url_for('auth.profile') }}" class="nav-link" title="My Profile"
+                        style="margin-right: 0;"><i class="fa-solid fa-user-gear"></i></a>
                     <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger" title="Logout"
                         style="margin-right: 0;"><i class="fa-solid fa-power-off"></i></a>
                 </div>

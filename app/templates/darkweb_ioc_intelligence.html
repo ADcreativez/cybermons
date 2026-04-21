@@ -193,6 +193,17 @@
                             <div style="text-align: center; opacity: 0.5; padding: 20px;">NO DATA</div>
                         </div>
                     </div>
+
+                    <!-- FortiGuard Threat Intel -->
+                    <div class="panel" style="border: 1px solid rgba(0,255,204,0.1); background: rgba(0,0,0,0.2);">
+                        <div class="panel-header"
+                            style="font-size: 0.8rem; border-bottom: 1px solid rgba(0,255,204,0.1); background: rgba(0,255,204,0.03);">
+                            <i class="fa-solid fa-shield-halved"></i> FORTIGUARD THREAT INTEL
+                        </div>
+                        <div id="fortiguard-content" style="padding: 20px; font-family: var(--font-mono);">
+                            <div style="text-align: center; opacity: 0.5; padding: 20px;">NO DATA</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Extended Metadata (Specific to Type) -->
@@ -532,9 +543,36 @@
             cpCont.innerHTML = '<div style="text-align:center;opacity:0.5;padding:20px;">NO DATA</div>';
         }
 
+        // FortiGuard
+        const fgCont = document.getElementById('fortiguard-content');
+        if (data.results.fortiguard && data.results.fortiguard.success) {
+            const fg = data.results.fortiguard;
+            let repColor = "var(--accent-color)";
+            if (fg.reputation === 'Malicious') repColor = "var(--danger-color)";
+            else if (fg.reputation === 'Suspicious') repColor = "var(--warning-color)";
+            
+            fgCont.innerHTML = `
+                <div style="text-align:center;margin-bottom:15px;">
+                    <div style="font-size:1.5rem;color:${repColor};text-transform:uppercase;font-weight:bold;">${fg.reputation}</div>
+                    <div class="meta-label" style="font-size:0.6rem;">FORTIGUARD REPUTATION</div>
+                </div>
+                <div class="meta-item"><span class="meta-label">Category:</span><span class="meta-value">${fg.category || 'N/A'}</span></div>
+                <div class="meta-item"><span class="meta-label">Organization:</span><span class="meta-value">${fg.owner || 'N/A'}</span></div>
+                ${fg.results && fg.results.length > 0 ? `<div style="margin-top:10px;font-size:0.65rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:10px;">
+                    <div class="meta-label" style="margin-bottom:5px;">RECENT SIGNATURES:</div>
+                    ${fg.results.map(r => `<div style="margin-bottom:3px;color:rgba(255,255,255,0.7)">• ${r.value} <span style="opacity:0.5">(${r.type})</span></div>`).join('')}
+                </div>` : ''}
+            `;
+        } else {
+            fgCont.innerHTML = '<div style="text-align:center;opacity:0.5;padding:20px;">CLEAN / NO THREATS DETECTED</div>';
+        }
+
         // Summary Status
         const summaryMsg = document.getElementById('res-status-summary');
-        const isMalicious = (data.results.virustotal?.last_analysis_stats?.malicious > 0) || (data.results.threatfox?.length > 0) || (data.results.abuseipdb?.abuseConfidenceScore > 50);
+        const isMalicious = (data.results.virustotal?.last_analysis_stats?.malicious > 0) || 
+                          (data.results.threatfox?.length > 0) || 
+                          (data.results.abuseipdb?.abuseConfidenceScore > 50) ||
+                          (data.results.fortiguard?.reputation === 'Malicious');
         if (isMalicious) {
             summaryMsg.innerText = 'IOC STATUS: MALICIOUS ACTIVITY IDENTIFIED';
             summaryMsg.style.color = 'var(--danger-color)';

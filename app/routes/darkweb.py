@@ -15,6 +15,7 @@ from flask_login import login_required, current_user
 from ..extensions import db
 from ..models import IOCCache
 from ..utils.helpers import load_darkweb_config, save_darkweb_config, log_event, find_binary
+from ..utils.scrapers import fetch_fortiguard_threat_intel
 
 darkweb_bp = Blueprint('darkweb', __name__)
 
@@ -857,7 +858,13 @@ def ioc_check():
     #         })
 
     config = load_darkweb_config()
-    results = {'virustotal': None, 'abuseipdb': None, 'threatfox': None, 'urlscan': None, 'checkphish': None}
+    results = {'virustotal': None, 'abuseipdb': None, 'threatfox': None, 'urlscan': None, 'checkphish': None, 'fortiguard': None}
+
+    # 0. FortiGuard Threat Intel (Playwright Scraper)
+    try:
+        results['fortiguard'] = asyncio.run(fetch_fortiguard_threat_intel(indicator))
+    except Exception as e:
+        print(f"IOC DEBUG: FortiGuard Scraper Error: {str(e)}")
     
     # 1. VirusTotal
     vt_keys = [k.strip() for k in config.get('vt_api_key', '').split(',') if k.strip()]
