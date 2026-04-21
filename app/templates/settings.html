@@ -82,6 +82,62 @@
                 </ul>
             </div>
         </div>
+        
+        <!-- Member Contributions -->
+        <div class="settings-section" style="margin-top: 30px;">
+            <h3><i class="fa-solid fa-handshake-angle"></i> GLOBAL MEMBER CONTRIBUTIONS</h3>
+            <p style="font-size: 0.9em; opacity: 0.7; margin-bottom: 20px;">Review and manage links submitted by Cybermon users.</p>
+            
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85em; font-family: var(--font-mono);">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--accent-color); text-align: left;">
+                            <th style="padding: 10px; width: 150px; color: var(--accent-color);">TIMESTAMP</th>
+                            <th style="padding: 10px; width: 120px; color: var(--accent-color);">CONTRIBUTOR</th>
+                            <th style="padding: 10px; color: var(--accent-color);">DATA SOURCE</th>
+                            <th style="padding: 10px; width: 100px; color: var(--accent-color);">SCORE</th>
+                            <th style="padding: 10px; width: 100px; color: var(--accent-color);">STATUS</th>
+                            <th style="padding: 10px; width: 50px; text-align: right; color: var(--accent-color);">ACT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in contributions %}
+                        <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.1);">
+                            <td style="padding: 8px 10px; opacity: 0.7;">{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td style="padding: 8px 10px; color: var(--accent-color);">{{ c.user.username|upper }}</td>
+                            <td style="padding: 8px 10px;">
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: bold; color: #fff;">{{ c.title or 'Untitled Source' }}</span>
+                                    <a href="{{ c.url }}" target="_blank" style="font-size: 0.7rem; opacity: 0.5; color: #fff; text-decoration: none;">{{ c.url|truncate(60) }}</a>
+                                </div>
+                            </td>
+                            <td style="padding: 8px 10px;">{{ c.relevance_score }}</td>
+                            <td style="padding: 8px 10px;">
+                                {% if c.status == 'approved' %}
+                                <span style="color: var(--primary-color);">[ SYNCED ]</span>
+                                {% elif c.status == 'rejected' %}
+                                <span style="color: var(--danger-color);">[ REJECTED ]</span>
+                                {% else %}
+                                <span style="color: #ffaa00;">[ PENDING ]</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 8px 10px; text-align: right;">
+                                <form action="{{ url_for('admin.delete_contribution', id=c.id) }}" method="POST" onsubmit="return confirm('Purge this contribution and its dashboard entry?');">
+                                    <button type="submit" style="background:none; border:none; color:var(--danger-color); cursor:pointer; opacity:0.6;">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="padding: 20px; text-align: center; opacity: 0.5;">NO CONTRIBUTIONS RECORDED</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <!-- Dark Web API Keys Section (Admin Only) -->
         <div class="settings-section" style="margin-top: 30px;">

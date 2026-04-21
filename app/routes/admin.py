@@ -8,7 +8,7 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from ..extensions import db
-from ..models import User, UserGroup, SystemLog, VisitorLog, IPAccessControl, GeoSettings, BlockedCountry
+from ..models import User, UserGroup, SystemLog, VisitorLog, IPAccessControl, GeoSettings, BlockedCountry, Threat, Contribution
 from ..utils.helpers import load_feeds, save_feeds, load_darkweb_config, save_darkweb_config, log_event
 
 admin_bp = Blueprint('admin', __name__)
@@ -19,7 +19,31 @@ def settings():
     if current_user.role != 'admin': abort(403)
     feeds = load_feeds()
     logs = SystemLog.query.order_by(SystemLog.timestamp.desc()).limit(100).all()
-    return render_template('settings.html', feeds=feeds, logs=logs, darkweb_config=load_darkweb_config())
+    contributions = Contribution.query.order_by(Contribution.created_at.desc()).all()
+    return render_template('settings.html', 
+                         feeds=feeds, 
+                         logs=logs, 
+                         contributions=contributions,
+                         darkweb_config=load_darkweb_config())
+
+@admin_bp.route('/settings/contributions/delete/<int:id>', methods=['POST'])
+@login_required
+def delete_contribution(id):
+    if current_user.role != 'admin': abort(403)
+    contrib = Contribution.query.get_or_404(id)
+    url = contrib.url
+    
+    # Clean up associated threat if it exists
+    associated_threat = Threat.query.filter_by(link=url).first()
+    if associated_threat:
+        db.session.delete(associated_threat)
+        
+    db.session.delete(contrib)
+    db.session.commit()
+    
+    log_event(f"Admin deleted contribution from {contrib.user.username}: {url}", "warning")
+    flash("Contribution and associated dashboard entry removed.", "success")
+    return redirect(url_for('admin.settings'))
 
 @admin_bp.route('/admin/users')
 @login_required
@@ -317,14 +341,21 @@ def update_geo():
         flash("System restricted to INDONESIA ONLY.", "success")
     else:
         # Standard update from checkboxes
-        db.session.query(BlockedCountry).delete()
         selected_codes = request.form.getlist('blocked_countries')
+        mode = request.form.get('mode')
+        
+        if mode:
+            settings.is_whitelist_mode = (mode == 'whitelist')
+            db.session.add(settings)
+
+        db.session.query(BlockedCountry).delete()
         for code in selected_codes:
             new_block = BlockedCountry(country_code=code)
             db.session.add(new_block)
+            
         db.session.commit()
-        log_event("Geo-blocking policy updated.", "success")
-        flash("Geo-blocking policy updated.", "success")
+        log_event(f"Geo-blocking policy updated (Mode: {'WHITELIST' if settings.is_whitelist_mode else 'BLACKLIST'}).", "success")
+        flash("Geo-blocking policy updated successfully.", "success")
         
     return redirect(url_for('admin.antibot'))
 
