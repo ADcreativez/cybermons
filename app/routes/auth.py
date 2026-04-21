@@ -6,8 +6,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_user, login_required, logout_user, current_user
 from datetime import datetime
 from ..extensions import db, login_manager
-from ..models import User, UserGroup
-from ..utils.helpers import log_event
+from ..models import User, UserGroup, Threat, Contribution
+from ..utils.helpers import log_event, determine_severity
+from ..utils.scrapers import fetch_url_metadata, calculate_relevance
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -84,7 +85,7 @@ def mfa_verify():
 def mfa_setup():
     if current_user.mfa_enabled:
         flash('MFA is already enabled.', 'info')
-        return redirect(url_for('auth.change_password'))
+        return redirect(url_for('auth.profile'))
         
     if not current_user.mfa_secret:
         current_user.mfa_secret = pyotp.random_base32()
@@ -115,7 +116,7 @@ def mfa_enable():
     else:
         flash('Invalid verification token. MFA not enabled.', 'danger')
         
-    return redirect(url_for('auth.change_password'))
+    return redirect(url_for('auth.profile'))
 
 @auth_bp.route('/settings/mfa/disable', methods=['POST'])
 @login_required
@@ -125,24 +126,133 @@ def mfa_disable():
     db.session.commit()
     flash('MFA has been disabled.', 'warning')
     log_event(f"User {current_user.username} disabled MFA.", "warning")
-    return redirect(url_for('auth.change_password'))
+    return redirect(url_for('auth.profile'))
 
-@auth_bp.route('/profile/change-password', methods=['GET', 'POST'])
+@auth_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    return render_template('profile.html')
+
+@auth_bp.route('/profile/change-password', methods=['POST'])
 @login_required
 def change_password():
-    if request.method == 'POST':
-        old_password = request.form.get('old_password')
-        new_password = request.form.get('new_password')
-        confirm_password = request.form.get('confirm_password')
+    old_password = request.form.get('old_password')
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+    
+    if not current_user.check_password(old_password):
+        flash('Incorrect current password', 'danger')
+    elif new_password != confirm_password:
+        flash('New passwords do not match', 'danger')
+    else:
+        current_user.set_password(new_password)
+        db.session.commit()
+        flash('Password updated successfully!', 'success')
+        log_event(f"User {current_user.username} updated their password.", "info")
         
-        if not current_user.check_password(old_password):
-            flash('Incorrect current password', 'danger')
-        elif new_password != confirm_password:
-            flash('New passwords do not match', 'danger')
-        else:
-            current_user.set_password(new_password)
-            db.session.commit()
-            flash('Password updated successfully!', 'success')
-            return redirect(url_for('monitoring.index'))
+    return redirect(url_for('auth.profile'))
+
+@auth_bp.route('/profile/contribute', methods=['POST'])
+@login_required
+def contribute_link():
+    url = request.form.get('url')
+    category = request.form.get('category', 'threat')
+    
+    # 1. Detect and Handle Telegram Links
+    if 't.me/' in url or 'telegram.me/' in url:
+        handle = url.strip('/').split('/')[-1]
+        if 's/' in url: handle = url.split('/s/')[-1].split('/')[0]
+        
+        from .monitoring import scrape_telegram_source
+        messages = scrape_telegram_source(handle)
+        
+        if not messages:
+            flash(f'No public messages found for Telegram channel: @{handle}', 'warning')
+            return redirect(url_for('auth.profile'))
             
-    return render_template('change_password.html')
+        added_count = 0
+        for msg in messages:
+            # Check for duplicate link
+            if Contribution.query.filter_by(url=msg['link']).first(): continue
+            
+            score, is_relevant = calculate_relevance(f"{msg['title']} {msg['summary']}")
+            
+            new_contribution = Contribution(
+                user_id=current_user.id, url=msg['link'],
+                title=msg['title'], summary=msg['summary'],
+                category=category, relevance_score=score,
+                status='approved' if is_relevant else 'rejected'
+            )
+            db.session.add(new_contribution)
+            
+            if is_relevant:
+                severity = determine_severity(msg['title'], msg['summary'], category=category)
+                new_threat = Threat(
+                    title=f"[COMMUNITY/TG] {msg['title']}", link=msg['link'],
+                    published=msg['published'],
+                    published_str=msg['published'].strftime("%Y-%m-%d %H:%M"),
+                    summary=msg['summary'], source=f"Contributor: {current_user.username} (via TG)",
+                    severity=severity, category=category
+                )
+                db.session.add(new_threat)
+                added_count += 1
+                
+        db.session.commit()
+        if added_count > 0:
+            flash(f'Success! Synchronized {added_count} security updates from Telegram channel @{handle}.', 'success')
+            log_event(f"COMMUNITY TG SYNC: User {current_user.username} synced {added_count} items from @{handle}", "success")
+        else:
+            flash('Telegram channel scanned, but no security-relevant messages were found.', 'info')
+        return redirect(url_for('auth.profile'))
+
+    # 2. Standard URL Processing (Single Link)
+    # Check for duplicate
+    existing = Contribution.query.filter_by(url=url).first()
+    if existing:
+        flash('This URL has already been submitted.', 'info')
+        return redirect(url_for('auth.profile'))
+
+    # Process Link
+    metadata = fetch_url_metadata(url)
+    if not metadata:
+        flash('Failed to fetch content from the provided URL.', 'danger')
+        return redirect(url_for('auth.profile'))
+        
+    # Security Relevance Check
+    text_to_check = f"{metadata['title']} {metadata['summary']}"
+    score, is_relevant = calculate_relevance(text_to_check)
+    
+    new_contribution = Contribution(
+        user_id=current_user.id,
+        url=url,
+        title=metadata['title'],
+        summary=metadata['summary'],
+        category=category,
+        relevance_score=score,
+        status='approved' if is_relevant else 'rejected'
+    )
+    
+    db.session.add(new_contribution)
+    
+    if is_relevant:
+        # Add to Global Threat Inventory
+        severity = determine_severity(metadata['title'], metadata['summary'], category=category)
+        new_threat = Threat(
+            title=f"[COMMUNITY] {metadata['title']}",
+            link=url,
+            published=datetime.utcnow(),
+            published_str=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+            summary=metadata['summary'],
+            source=f"Contributor: {current_user.username}",
+            severity=severity,
+            category=category
+        )
+        db.session.add(new_threat)
+        flash('Thank you! Your contribution has been verified and added to the dashboard.', 'success')
+        log_event(f"COMMUNITY CONTRIBUTION: User {current_user.username} added {url}", "success")
+    else:
+        flash('Contribution received, but it does not appear to be security-related. System rejected.', 'warning')
+        log_event(f"REJECTED CONTRIBUTION: User {current_user.username} submitted irrelevant link: {url}", "warning")
+        
+    db.session.commit()
+    return redirect(url_for('auth.profile'))
