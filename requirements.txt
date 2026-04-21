@@ -24,4 +24,5 @@ playwright-stealth==2.0.2
 
 cryptography==46.0.7
 gunicorn==23.0.0
+user-agents==2.2.0
 

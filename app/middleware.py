@@ -3,6 +3,7 @@ from flask import request, abort
 from .extensions import db
 from .models import IPAccessControl, GeoSettings, BlockedCountry, VisitorLog
 from .utils.helpers import log_event
+from user_agents import parse
 
 knock_tracker = {}
 
@@ -121,11 +122,21 @@ def security_check():
             db.session.rollback()
         abort(403, description=block_reason)
 
-    ua_parsed = request.user_agent
+    ua_string = request.headers.get('User-Agent', '')
+    parsed_ua = parse(ua_string)
+
+    # Robust parsing for Device/OS/Browser
+    device_info = f"{'Mobile' if parsed_ua.is_mobile else 'Tablet' if parsed_ua.is_tablet else 'PC'} / {parsed_ua.device.family}"
+    os_info = f"{parsed_ua.os.family} {parsed_ua.os.version_string}".strip()
+    browser_info = f"{parsed_ua.browser.family} {parsed_ua.browser.version_string}".strip()
+    if country_code:
+        browser_info += f" ({country_code})"
+
     new_log = VisitorLog(
-        ip=client_ip, user_agent=ua,
-        device=ua_parsed.platform or 'Unknown', os=ua_parsed.platform or 'Unknown',
-        browser=f"{ua_parsed.browser or 'Unknown'} ({country_code})" if country_code else (ua_parsed.browser or 'Unknown'),
+        ip=client_ip, user_agent=ua_string,
+        device=device_info[:100], 
+        os=os_info[:100],
+        browser=browser_info[:100],
         path=request.path, method=request.method
     )
     db.session.add(new_log)
