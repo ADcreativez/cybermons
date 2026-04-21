@@ -299,50 +299,68 @@
                     <span class="stat-value" style="font-size: 0.9em;">15 SIGNATURES</span>
                 </div>
 
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: rgba(255, 65, 0, 0.05); border: 1px solid rgba(255, 65, 0, 0.3); border-left: 4px solid #ff4100;">
-                    <div style="flex: 1;">
-                        <strong style="color: #ff4100; font-size: 1.1rem;"><i class="fa-solid fa-lock"></i> STRICT IP ACCESS MODE</strong>
-                        <p style="font-size: 0.85em; opacity: 0.8; margin: 5px 0 10px 0; color: #ffaa00;">
-                            <strong>EXTREME SECURITY:</strong> When enabled, the system will block ALL traffic EXCEPT IP addresses listed in your <strong>Manual Whitelist</strong>.
-                        </p>
+                <!-- Smart Shield Controls -->
+                <div style="background: rgba(0, 255, 204, 0.03); border: 1px solid rgba(0, 255, 204, 0.2); padding: 20px; border-radius: 4px;">
+                    <h4 style="color: var(--primary-color); margin-top: 0;"><i class="fa-solid fa-shield-virus"></i> SMART SHIELD & AUTO-BAN</h4>
+                    <p style="font-size: 0.85em; opacity: 0.7; margin-bottom: 20px;">Automated mitigation for sophisticated attack patterns and high-volume flooding.</p>
+                    
+                    <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}">
+                        <input type="hidden" name="enabled" value="{{ 'true' if geo_settings.is_strict_ip_mode else 'false' }}">
                         
-                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; margin-top: 10px;">
-                            <label style="font-size: 0.8em; opacity: 0.7; display: block; margin-bottom: 5px;">SECRET KNOCK KEY (Auto-Whitelist Path Suffix)</label>
-                            <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}" id="strictSettingsForm">
-                                <input type="hidden" name="enabled" value="{{ 'true' if geo_settings.is_strict_ip_mode else 'false' }}">
-                                <div style="display: flex; flex-direction: column; gap: 12px;">
-                                    <div style="display: flex; gap: 15px;">
-                                        <div style="flex: 2;">
-                                            <label style="font-size: 0.7em; opacity: 0.6; display: block; margin-bottom: 4px;">SECRET PATH KEY</label>
-                                            <input type="text" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}" 
-                                                   style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px; width: 100%; font-family: monospace;"
-                                                   placeholder="e.g. secret-key-2026">
-                                        </div>
-                                        <div style="flex: 1;">
-                                            <label style="font-size: 0.7em; opacity: 0.6; display: block; margin-bottom: 4px;">REQUIRED KNOCKS</label>
-                                            <input type="number" name="secret_knock_max" value="{{ geo_settings.secret_knock_max or 3 }}" min="1" max="100"
-                                                   style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px; width: 100%;">
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="btn-primary" style="padding: 10px 20px; font-size: 0.85em; align-self: flex-start; background: rgba(0, 255, 65, 0.1); border: 1px solid var(--primary-color);">
-                                        <i class="fa-solid fa-floppy-disk"></i> SAVE KNOCK CONFIGURATION
-                                    </button>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+                            <!-- Column 1: Thresholds -->
+                            <div style="background: rgba(0,0,0,0.2); padding: 15px; border: 1px solid rgba(255,255,255,0.05);">
+                                <label style="font-size: 0.75em; opacity: 0.6; display: block; margin-bottom: 8px;">RATE LIMIT (Anti-DDoS / Brute Force)</label>
+                                <input type="number" name="rate_limit_max" value="{{ geo_settings.rate_limit_max or 60 }}" min="10" max="600"
+                                       style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; width: 100%; margin-bottom: 5px;">
+                                <p style="font-size: 0.7em; opacity: 0.5;">Max requests allowed per IP per minute before AUTO-BAN.</p>
+                                
+                                <label style="font-size: 0.75em; opacity: 0.6; display: block; margin-bottom: 8px; margin-top: 20px;">HONEYPOT TRAPS</label>
+                                <div style="display: flex; align-items: center; gap: 10px; color: var(--warning-color); font-size: 0.8em;">
+                                    <i class="fa-solid fa-check-circle"></i> PROTECTING /.ENV, /.GIT, /WP-ADMIN
                                 </div>
-                            </form>
-                            <p style="font-size: 0.75em; opacity: 0.5; margin: 12px 0 0 0; font-family: monospace; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
-                                Target Path: /path/to/cybermon/<span style="color: var(--primary-color);">{{ geo_settings.secret_knock_key or '1337' }}</span> 
-                                <span style="margin-left: 15px; border-left: 1px solid #444; padding-left: 15px;">Threshold: <span style="color: var(--warning-color);">{{ geo_settings.secret_knock_max or 3 }}</span> accesses</span>
-                            </p>
+                                <p style="font-size: 0.7em; opacity: 0.5; margin-top: 5px;">Instant blacklist for directory enumeration tools.</p>
+                            </div>
+
+                            <!-- Column 2: Secret Knock -->
+                            <div style="background: rgba(0,0,0,0.2); padding: 15px; border: 1px solid rgba(255,255,255,0.05);">
+                                <label style="font-size: 0.75em; opacity: 0.6; display: block; margin-bottom: 8px;">SECRET KNOCK CONFIGURATION</label>
+                                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                    <input type="text" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}" 
+                                           style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; flex: 2; font-family: monospace;"
+                                           placeholder="Path Key">
+                                    <input type="number" name="secret_knock_max" value="{{ geo_settings.secret_knock_max or 3 }}" min="1" max="20"
+                                           style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; flex: 1;"
+                                           title="Sequences">
+                                </div>
+                                <p style="font-size: 0.75em; opacity: 0.5; font-family: monospace;">
+                                    Path: /path/to/cybermon/...<span style="color: var(--primary-color);">{{ geo_settings.secret_knock_key or '1337' }}</span>
+                                </p>
+                                
+                                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 25px; background: rgba(0, 255, 204, 0.1); border-color: var(--primary-color);">
+                                    <i class="fa-solid fa-sync"></i> REFRESH SMART DEFENSE RULES
+                                </button>
+                            </div>
                         </div>
+                    </form>
+                </div>
+
+                <!-- Strict Mode Toggle (Now integrated but kept separate for prominence) -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: rgba(255, 65, 0, 0.05); border: 1px solid rgba(255, 65, 0, 0.3); border-left: 4px solid #ff4100; margin-top: 20px;">
+                    <div style="flex: 1;">
+                        <strong style="color: #ff4100; font-size: 1.1rem;"><i class="fa-solid fa-lock"></i> LOCKDOWN: STRICT IP ACCESS</strong>
+                        <p style="font-size: 0.85em; opacity: 0.8; margin: 5px 0 0 0; color: #ffaa00;">
+                            Blocks ALL traffic EXCEPT IPs in your <strong>Manual Whitelist</strong>.
+                        </p>
                     </div>
-                    <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}" style="margin-left: 20px;">
+                    <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}">
                         <input type="hidden" name="enabled" value="{{ 'false' if geo_settings.is_strict_ip_mode else 'true' }}">
                         <input type="hidden" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}">
                         <input type="hidden" name="secret_knock_max" value="{{ geo_settings.secret_knock_max or 3 }}">
+                        <input type="hidden" name="rate_limit_max" value="{{ geo_settings.rate_limit_max or 60 }}">
                         <button type="submit" class="btn-primary" 
-                                style="background: {{ 'var(--danger-color)' if geo_settings.is_strict_ip_mode else 'var(--accent-color)' }}; color: {{ '#fff' if geo_settings.is_strict_ip_mode else '#000' }}; min-width: 140px; font-weight: bold; border: none; padding: 12px;">
-                            {{ 'DISABLE STRICT' if geo_settings.is_strict_ip_mode else 'ENABLE STRICT' }}
+                                style="background: {{ 'var(--danger-color)' if geo_settings.is_strict_ip_mode else 'var(--accent-color)' }}; color: {{ '#fff' if geo_settings.is_strict_ip_mode else '#000' }}; min-width: 160px; font-weight: bold; padding: 12px;">
+                            {{ 'DEACTIVATE LOCKDOWN' if geo_settings.is_strict_ip_mode else 'ACTIVATE LOCKDOWN' }}
                         </button>
                     </form>
                 </div>

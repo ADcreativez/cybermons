@@ -1,4 +1,5 @@
 import requests
+import time
 from flask import request, abort
 from .extensions import db
 from .models import IPAccessControl, GeoSettings, BlockedCountry, VisitorLog
@@ -6,6 +7,7 @@ from .utils.helpers import log_event
 from user_agents import parse
 
 knock_tracker = {}
+flood_tracker = {}
 geo_cache = {}
 
 def get_ip_country(ip):
@@ -25,7 +27,14 @@ def get_ip_country(ip):
     return None, None
 
 def is_bot_request(ua_string):
-    bot_keywords = ['bot', 'crawler', 'spider', 'slurp', 'search', 'fetch', 'nmap', 'nikto', 'dirbuster', 'sqlmap', 'zaproxy', 'masscan', 'censys', 'shodan', 'python-requests', 'curl', 'wget']
+    # Industrial Scanners & Modern Recon Tools
+    bot_keywords = [
+        'bot', 'crawler', 'spider', 'slurp', 'search', 'fetch', 
+        'nmap', 'nikto', 'dirbuster', 'sqlmap', 'zaproxy', 'masscan', 'censys', 'shodan', 
+        'python-requests', 'curl', 'wget',
+        'nessus', 'acunetix', 'netsparker', 'appscan', 'burpsuite', 'gobuster', 'feroxbuster', 
+        'nuclei', 'katana', 'ffuf', 'amass', 'subfinder'
+    ]
     if not ua_string: return True
     ua_lower = ua_string.lower()
     return any(keyword in ua_lower for keyword in bot_keywords)
@@ -33,54 +42,65 @@ def is_bot_request(ua_string):
 def security_check():
     if request.path.startswith('/static/'): return
     client_ip = request.remote_addr
+    
+    # 1. WHITELIST BYPASS (Localhost)
     if client_ip in ['127.0.0.1', '::1']: return
 
-    # --- 1. SETTINGS & CONTEXT ---
+    # --- SETTINGS & CONTEXT ---
     geo_settings = GeoSettings.query.first()
     country_code, country_name = get_ip_country(client_ip)
     
-    # --- 2. SECRET KNOCK LOGIC ---
+    # --- 2. RATE LIMITER (ANTI-DDOS / BRUTE FORCE) ---
+    rpm_limit = geo_settings.rate_limit_max if geo_settings else 60
+    now = time.time()
+    ip_stats = flood_tracker.get(client_ip, {'count': 0, 'start_time': now})
+    
+    if now - ip_stats['start_time'] > 60:
+        # Reset window
+        ip_stats = {'count': 1, 'start_time': now}
+    else:
+        ip_stats['count'] += 1
+    
+    flood_tracker[client_ip] = ip_stats
+    
+    if ip_stats['count'] > rpm_limit:
+        auto_ban(client_ip, f"DDoS/Flood protection: {ip_stats['count']} RPM exceeded.", country_code)
+        abort(429, description="Too many requests. Your IP has been temporarily flagged.")
+
+    # --- 3. SECRET KNOCK LOGIC ---
     secret_key = geo_settings.secret_knock_key if geo_settings else '1337'
     secret_path = f"/path/to/cybermon/{secret_key}"
     knock_max = geo_settings.secret_knock_max if geo_settings else 3
     
-    is_knock_path = (request.path == secret_path)
-    
-    if is_knock_path:
+    if request.path == secret_path:
         stats = knock_tracker.get(client_ip, {'count': 0})
         stats['count'] += 1
         knock_tracker[client_ip] = stats
         
         if stats['count'] >= knock_max:
-            # Auto-whitelist
             existing = IPAccessControl.query.filter_by(ip=client_ip, category='whitelist').first()
             if not existing:
                 new_whitelist = IPAccessControl(ip=client_ip, category='whitelist', reason="SECRET KNOCK SUCCESS")
                 db.session.add(new_whitelist)
                 db.session.commit()
                 log_event(f"SECRET KNOCK: IP {client_ip} has been auto-whitelisted.", "warning")
-            
             knock_tracker[client_ip] = {'count': 0}
             return "AUTHENTICATION SUCCESS: IP Whitelisted. Please reload the application."
         
-        # Log the knock and hide the existence
         log_visit(client_ip, country_code)
         abort(404) 
     else:
-        # Reset knock if other path accessed (consecutive required)
         if client_ip in knock_tracker:
             knock_tracker[client_ip] = {'count': 0}
 
-    # --- 3. ACCESS CONTROL (Whitelist/Blacklist/Geo) ---
+    # --- 4. ACCESS CONTROL (Whitelist/Blacklist/Geo) ---
     whitelisted = IPAccessControl.query.filter_by(ip=client_ip, category='whitelist').first()
     is_strict = geo_settings.is_strict_ip_mode if geo_settings else False
     
-    if is_strict:
-        if not whitelisted:
-            log_visit(client_ip, country_code)
-            abort(403, description="STRICT MODE: Access restricted to whitelisted IP addresses only.")
-        return # Whitelisted in strict mode is ALWAYS allowed
-
+    if is_strict and not whitelisted:
+        log_visit(client_ip, country_code)
+        abort(403, description="STRICT MODE: Access restricted to whitelisted IP addresses only.")
+    
     if whitelisted: return
 
     blacklisted = IPAccessControl.query.filter_by(ip=client_ip, category='blacklist').first()
@@ -102,33 +122,63 @@ def security_check():
             log_visit(client_ip, country_code)
             abort(403, description=f"Access from your location ({country_name}) is currently restricted.")
 
-    # --- 4. BEHAVIORAL SECURITY (Bots/Malicious) ---
+    # --- 5. HONEYPOT TRAPS ---
+    honeypots = [
+        '/.env', '/.git', '/wp-admin', '/phpmyadmin', '/config.php', 
+        '/backup.sql', '/shell.php', '/.aws/credentials', '/admin/setup'
+    ]
+    if request.path.lower() in honeypots:
+        auto_ban(client_ip, f"Honeypot Trap Triggered: {request.path}", country_code)
+        abort(404)
+
+    # --- 6. ADVANCED PAYLOAD MATCHING (WAF) ---
     ua_string = request.headers.get('User-Agent', '')
+    payload = (request.path + str(request.args) + str(request.form)).lower()
+    
     is_malicious = False
     block_reason = ""
     
     if is_bot_request(ua_string):
         is_malicious = True
-        block_reason = f"Bot signature detected."
-        
-    malicious_patterns = ['../', 'etc/passwd', '<script>', 'phpinfo', '.env', 'eval(', 'config.php']
-    if any(pattern in request.path.lower() for pattern in malicious_patterns) or any(pattern in str(request.args).lower() for pattern in malicious_patterns):
-        is_malicious = True
-        block_reason = "Suspicious payload or path detected."
+        block_reason = "Industrial Scanner or Verification Tool detected."
+    
+    # Modern Attack Signatures
+    signatures = {
+        'XSS': ['<script>', 'alert(', 'onerror=', 'onload=', 'javascript:'],
+        'SSTI': ['{{', '${', '@{', '#{', '{{7*7}}'],
+        'SQLi': ['union select', 'order by', "' or '1'='1", '--', '/*', 'information_schema', 'drop table'],
+        'CmdInj': ['; whoami', '&& whoami', '| whoami', '$(whoami)', 'etc/passwd', 'cat /']
+    }
+    
+    for category, patterns in signatures.items():
+        if any(p in payload for p in patterns):
+            is_malicious = True
+            block_reason = f"{category} Attack Pattern detected."
+            break
 
     if is_malicious:
-        new_ban = IPAccessControl(ip=client_ip, category='blacklist', reason=block_reason)
+        # Industrial Scanner Header Check
+        scanner_headers = ['X-Scanner', 'Acunetix-Aspect', 'X-Nessus-ID', 'X-Netsparker-Identify']
+        if any(h in request.headers for h in scanner_headers):
+            block_reason = "Confirmed Industrial Vulnerability Scanner detected via headers."
+
+        auto_ban(client_ip, block_reason, country_code)
+        abort(403, description=block_reason)
+
+    # --- 7. SUCCESSFUL PASS ---
+    log_visit(client_ip, country_code)
+
+def auto_ban(ip, reason, country_code):
+    existing = IPAccessControl.query.filter_by(ip=ip).first()
+    if not existing:
+        new_ban = IPAccessControl(ip=ip, category='blacklist', reason=reason)
         try:
             db.session.add(new_ban)
             db.session.commit()
-            log_event(f"AUTO-BAN: IP {client_ip} blacklisted.", "danger")
+            log_event(f"AUTO-BAN: IP {ip} blacklisted for {reason}", "danger")
         except:
             db.session.rollback()
-        log_visit(client_ip, country_code)
-        abort(403, description=block_reason)
-
-    # --- 5. LOGGING ---
-    log_visit(client_ip, country_code)
+    log_visit(ip, country_code)
 
 def log_visit(ip, country_code):
     ua_string = request.headers.get('User-Agent', '')

@@ -106,6 +106,7 @@ class GeoSettings(db.Model):
     is_strict_ip_mode = db.Column(db.Boolean, default=False)
     secret_knock_key = db.Column(db.String(50), default='1337')
     secret_knock_max = db.Column(db.Integer, default=3)
+    rate_limit_max = db.Column(db.Integer, default=60)
 
 class IOCCache(db.Model):
     id = db.Column(db.Integer, primary_key=True)
