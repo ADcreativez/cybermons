@@ -1,5 +1,6 @@
 import os
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 from .extensions import db, login_manager, migrate
 from .middleware import security_check
 from .models import User, UserGroup
@@ -7,6 +8,11 @@ from .models import User, UserGroup
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
     
+    # Handle Proxy headers
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
+    )
+
     # Configuration
     app.config.from_mapping(
         SECRET_KEY='cybermon_secret_key',
