@@ -1455,15 +1455,16 @@ input[type="url"]:focus {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    height: auto;
+    height: calc(100vh - 142px);
     width: 100%;
+    overflow: hidden;
 }
 
 .vision-widgets-row {
     display: flex;
     gap: 10px;
-    min-height: 160px;
     flex: 1;
+    min-height: 0;
 }
 
 .vision-widget {
