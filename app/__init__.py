@@ -96,26 +96,39 @@ def repair_database(app):
         db.create_all()
         
         inspector = inspect(db.engine)
-        if 'geo_settings' in inspector.get_table_names():
-            columns = [c['name'] for c in inspector.get_columns('geo_settings')]
-            
-            # Map of column names to their SQLite type definitions
-            required_columns = {
+        tables = inspector.get_table_names()
+        
+        # Define all required column updates for existing tables
+        schema_updates = {
+            'geo_settings': {
                 'secret_knock_max': 'INTEGER DEFAULT 3',
                 'rate_limit_max': 'INTEGER DEFAULT 60',
                 'auto_ban_duration': 'INTEGER DEFAULT 0',
                 'is_strict_ip_mode': 'BOOLEAN DEFAULT 0'
+            },
+            'ip_access_control': {
+                'expires_at': 'DATETIME'
+            },
+            'user': {
+                'mfa_secret': 'VARCHAR(32)',
+                'mfa_enabled': 'BOOLEAN DEFAULT 0',
+                'is_active_account': 'BOOLEAN DEFAULT 1',
+                'created_at': 'DATETIME'
             }
-            
-            for col_name, col_def in required_columns.items():
-                if col_name not in columns:
-                    print(f"[*] AUTO-REPAIR: Adding column {col_name} to geo_settings")
-                    try:
-                        db.session.execute(text(f"ALTER TABLE geo_settings ADD COLUMN {col_name} {col_def}"))
-                        db.session.commit()
-                    except Exception as e:
-                        db.session.rollback()
-                        print(f"[!] AUTO-REPAIR FAILED for {col_name}: {e}")
+        }
+        
+        for table_name, columns_to_add in schema_updates.items():
+            if table_name in tables:
+                existing_columns = [c['name'] for c in inspector.get_columns(table_name)]
+                for col_name, col_def in columns_to_add.items():
+                    if col_name not in existing_columns:
+                        print(f"[*] AUTO-REPAIR: Adding column {col_name} to {table_name}")
+                        try:
+                            db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_def}"))
+                            db.session.commit()
+                        except Exception as e:
+                            db.session.rollback()
+                            print(f"[!] AUTO-REPAIR FAILED for {table_name}.{col_name}: {e}")
 
 def bootstrap_db(app):
     with app.app_context():
