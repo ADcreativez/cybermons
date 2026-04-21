@@ -1464,7 +1464,7 @@ input[type="url"]:focus {
     display: flex;
     gap: 10px;
     flex: 1;
-    min-height: 0;
+    min-height: 120px;
 }
 
 .vision-widget {
@@ -1524,7 +1524,13 @@ input[type="url"]:focus {
     padding: 4px 10px;
     position: relative;
     width: 100%;
-    min-height: 0;
+    min-height: 80px;
+}
+
+.chart-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .widget-footer {
