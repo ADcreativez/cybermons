@@ -65,7 +65,9 @@
                         <tbody>
                             {% for c in current_user.contributions|sort(attribute='created_at', reverse=True) %}
                             <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
-                                <td style="padding: 10px; opacity: 0.6;">{{ c.created_at.strftime('%m-%d %H:%M') }}</td>
+                                <td style="padding: 10px; opacity: 0.8;" class="utc-time" data-utc="{{ c.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') }}">
+                                    {{ c.created_at.strftime('%m-%d %H:%M') }}
+                                </td>
                                 <td style="padding: 10px;">
                                     <a href="{{ c.url }}" target="_blank" style="color: var(--accent-color); text-decoration: none;">
                                         {{ c.title or c.url|truncate(40) }}
@@ -139,4 +141,34 @@
         </div>
     </div>
 </div>
+<script>
+    function localizeTimestamps() {
+        document.querySelectorAll('.utc-time').forEach(el => {
+            const utcStr = el.getAttribute('data-utc');
+            if (!utcStr) return;
+            
+            const utcDate = new Date(utcStr);
+            if (isNaN(utcDate.getTime())) return;
+            
+            const pad = (n) => n.toString().padStart(2, '0');
+            const localDate = `${utcDate.getFullYear()}-${pad(utcDate.getMonth() + 1)}-${pad(utcDate.getDate())} ${pad(utcDate.getHours())}:${pad(utcDate.getMinutes())}:${pad(utcDate.getSeconds())}`;
+            
+            const diffMs = new Date() - utcDate;
+            const diffSecs = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSecs / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            
+            let relative = '';
+            if (diffSecs < 60) relative = '(just now)';
+            else if (diffMins < 60) relative = `(${diffMins}m ago)`;
+            else if (diffHours < 24) relative = `(${diffHours}h ago)`;
+            else relative = `(${diffDays}d ago)`;
+            
+            el.innerHTML = `<span style="color: var(--accent-color); font-weight: bold;">${localDate}</span> <span style="font-size: 0.7rem; opacity: 0.6; display: block;">${relative}</span>`;
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', localizeTimestamps);
+</script>
 {% endblock %}

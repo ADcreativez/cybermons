@@ -103,7 +103,9 @@
                     <tbody>
                         {% for c in contributions %}
                         <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.1);">
-                            <td style="padding: 8px 10px; opacity: 0.7;">{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td style="padding: 8px 10px; opacity: 0.7;" class="utc-time" data-utc="{{ c.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') }}">
+                                {{ c.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
                             <td style="padding: 8px 10px; color: var(--accent-color);">{{ c.user.username|upper }}</td>
                             <td style="padding: 8px 10px;">
                                 <div style="display: flex; flex-direction: column;">
@@ -369,8 +371,9 @@
                     <tbody>
                         {% for log in logs %}
                         <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.1);">
-                            <td style="padding: 8px 10px; opacity: 0.7;">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                                }}</td>
+                            <td style="padding: 8px 10px; opacity: 0.7;" class="utc-time" data-utc="{{ log.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ') }}">
+                                {{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                            </td>
                             <td style="padding: 8px 10px;">{{ log.user.username if log.user else 'SYSTEM' }}</td>
                             <td style="padding: 8px 10px;">
                                 {% if log.category == 'success' %}
@@ -565,5 +568,33 @@
         `;
         container.appendChild(div);
     }
+    function localizeTimestamps() {
+        document.querySelectorAll('.utc-time').forEach(el => {
+            const utcStr = el.getAttribute('data-utc');
+            if (!utcStr) return;
+            
+            const utcDate = new Date(utcStr);
+            if (isNaN(utcDate.getTime())) return;
+            
+            const pad = (n) => n.toString().padStart(2, '0');
+            const localDate = `${utcDate.getFullYear()}-${pad(utcDate.getMonth() + 1)}-${pad(utcDate.getDate())} ${pad(utcDate.getHours())}:${pad(utcDate.getMinutes())}:${pad(utcDate.getSeconds())}`;
+            
+            const diffMs = new Date() - utcDate;
+            const diffSecs = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSecs / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            
+            let relative = '';
+            if (diffSecs < 60) relative = '(just now)';
+            else if (diffMins < 60) relative = `(${diffMins}m ago)`;
+            else if (diffHours < 24) relative = `(${diffHours}h ago)`;
+            else relative = `(${diffDays}d ago)`;
+            
+            el.innerHTML = `<span style="color: var(--accent-color); font-weight: bold;">${localDate}</span> <span style="font-size: 0.75rem; opacity: 0.6; display: block;">${relative}</span>`;
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', localizeTimestamps);
 </script>
 {% endblock %}

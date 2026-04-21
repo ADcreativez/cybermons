@@ -92,8 +92,9 @@
                         {% endif %}
                         {% for log in logs %}
                         <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.1);">
-                            <td style="padding: 12px; white-space: nowrap;">{{ log.timestamp.strftime('%Y-%m-%d
-                                %H:%M:%S') }}</td>
+                            <td style="padding: 12px; white-space: nowrap;" class="utc-time" data-utc="{{ log.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ') }}">
+                                {{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                            </td>
                             <td style="padding: 12px;"><code style="color: var(--primary-color);">{{ log.ip }}</code>
                             </td>
                             <td style="padding: 12px;">
@@ -196,21 +197,9 @@
     <!-- Tab 4: Geo Blocking -->
     <div id="geo-blocking" class="tab-content">
         <div class="settings-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3><i class="fa-solid fa-earth-americas"></i> GEOGRAPHIC IP RESTRICTION</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;"><i class="fa-solid fa-earth-americas"></i> GEOGRAPHIC IP RESTRICTION</h3>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <form method="POST" action="{{ url_for('admin.geo_mode') }}" id="geo-mode-form"
-                        style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.3); padding: 5px 15px; border: 1px solid rgba(0,255,204,0.2);">
-                        <span style="font-size: 0.8rem; opacity: 0.7;">POLICY MODE:</span>
-                        <select name="mode" onchange="this.form.submit()"
-                            style="background: none; border: none; color: var(--primary-color); font-family: var(--font-mono); cursor: pointer; outline: none;">
-                            <option value="blacklist" {% if not geo_settings.is_whitelist_mode %}selected{% endif %}>
-                                BLACKLIST (BLOCK SELECTED)</option>
-                            <option value="whitelist" {% if geo_settings.is_whitelist_mode %}selected{% endif %}>
-                                WHITELIST (ALLOW SELECTED)</option>
-                        </select>
-                    </form>
-
                     <form method="POST" action="{{ url_for('admin.update_geo') }}">
                         <input type="hidden" name="action" value="only_id">
                         <button type="submit" class="btn-primary"
@@ -235,6 +224,16 @@
 
             <form method="POST" action="{{ url_for('admin.update_geo') }}">
                 <input type="hidden" name="action" value="update">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: rgba(0,255,204,0.05); padding: 10px 15px; border-radius: 4px; border: 1px solid rgba(0,255,204,0.1);">
+                    <i class="fa-solid fa-shield-halved" style="color: var(--primary-color);"></i>
+                    <span style="font-size: 0.9rem; font-weight: bold;">POLICY EXECUTION MODE:</span>
+                    <select name="mode" style="background: rgba(0,0,0,0.3); border: 1px solid var(--primary-color); color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer; outline: none;">
+                        <option value="blacklist" {% if not geo_settings.is_whitelist_mode %}selected{% endif %}>
+                            BLACKLIST (BLOCK SELECTED)</option>
+                        <option value="whitelist" {% if geo_settings.is_whitelist_mode %}selected{% endif %}>
+                            WHITELIST (ALLOW SELECTED)</option>
+                    </select>
+                </div>
                 <div
                     style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; padding: 20px; background: rgba(0,0,0,0.2); border: 1px solid rgba(0,255,204,0.1);">
                     {% for code, name in countries %}
@@ -460,6 +459,44 @@
         }
         document.getElementById(tabName).classList.add("active");
         evt.currentTarget.classList.add("active");
+    }
+    function localizeTimestamps() {
+        document.querySelectorAll('.utc-time').forEach(el => {
+            const utcStr = el.getAttribute('data-utc');
+            if (!utcStr) return;
+            
+            const utcDate = new Date(utcStr);
+            if (isNaN(utcDate.getTime())) return;
+            
+            // Format to local string: YYYY-MM-DD HH:MM:SS
+            const pad = (n) => n.toString().padStart(2, '0');
+            const localDate = `${utcDate.getFullYear()}-${pad(utcDate.getMonth() + 1)}-${pad(utcDate.getDate())} ${pad(utcDate.getHours())}:${pad(utcDate.getMinutes())}:${pad(utcDate.getSeconds())}`;
+            
+            // Calculate relative time
+            const diffMs = new Date() - utcDate;
+            const diffSecs = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSecs / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            
+            let relative = '';
+            if (diffSecs < 60) relative = '(just now)';
+            else if (diffMins < 60) relative = `(${diffMins}m ago)`;
+            else if (diffHours < 24) relative = `(${diffHours}h ago)`;
+            else relative = `(${diffDays}d ago)`;
+            
+            el.innerHTML = `<span style="color: var(--accent-color); font-weight: bold;">${localDate}</span> <span style="font-size: 0.75rem; opacity: 0.6; display: block;">${relative}</span>`;
+        });
+    }
+
+    // Run on load and after tab switch
+    document.addEventListener('DOMContentLoaded', localizeTimestamps);
+    
+    // Original openTab enhancement
+    const originalOpenTab = openTab;
+    window.openTab = function(evt, tabName) {
+        originalOpenTab(evt, tabName);
+        if (tabName === 'visitor-log') localizeTimestamps();
     }
 </script>
 {% endblock %}
