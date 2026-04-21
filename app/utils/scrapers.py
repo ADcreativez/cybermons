@@ -104,73 +104,76 @@ async def fetch_fortiguard_threat_intel(indicator):
             await page.wait_for_timeout(3000)
             
             # Extract data
-            intel_data = await page.evaluate("""() => {
+            intel_data = await page.evaluate(r"""() => {
                 const results = [];
-                // FortiGuard uses div.row[role="button"] for results
-                const items = document.querySelectorAll('div.row[role="button"]');
+                // More aggressive row detection
+                const potentialRows = [...document.querySelectorAll('div')].filter(el => 
+                    el.innerText && el.innerText.length > 5 && el.innerText.length < 500 &&
+                    (el.innerText.includes('found as') || el.innerText.includes('located on') || el.innerText.includes('blocklist'))
+                );
                 
-                items.forEach(item => {
-                    const categoryEl = item.querySelector('div.col-md-3 small');
-                    const valueEl = item.querySelector('div.col-md-3 b') || item.querySelector('div.col-md-3 small'); // Might be domain or IP
-                    const detailsEl = item.querySelector('div.col-md-9 small');
-                    
-                    if (categoryEl && detailsEl) {
-                        results.push({ 
-                            type: categoryEl.innerText.trim(), 
-                            value: valueEl ? valueEl.innerText.trim() : 'N/A', 
-                            details: detailsEl.innerText.trim() 
+                potentialRows.forEach(row => {
+                    // Try to find a header and a value
+                    const text = row.innerText.trim();
+                    const parts = text.split(/\n/);
+                    if (parts.length >= 2) {
+                        results.push({
+                            type: parts[0].trim(),
+                            details: parts.slice(1).join(' ').trim()
+                        });
+                    } else {
+                        results.push({
+                            type: 'Intelligence',
+                            details: text
                         });
                     }
                 });
 
-                // Heuristic for Reputation
-                let reputation = "Clean";
                 const bodyText = document.body.innerText;
-                const bodyHtml = document.body.innerHTML;
                 
-                // Better heuristic: look for specific red/green markers or explicit keywords
-                const maliciousKeywords = ['Malicious Websites', 'Phishing', 'Spam', 'C&C', 'Botnet', 'Malware', 'Blocklist'];
-                const suspiciousKeywords = ['Suspicious', 'Unrated', 'Newly Observed', 'Proxy-Avoidance', 'Tor-Relay'];
+                // Reputation Heuristic
+                let reputation = "Clean";
+                const maliciousMarkers = ['blocklist', 'Malicious', 'Phishing', 'Spam', 'C&C', 'Botnet', 'Malware', 'Blocklist', 'High Risk'];
+                const suspiciousMarkers = ['Suspicious', 'Unrated', 'Newly Observed', 'Proxy-Avoidance', 'Tor', 'VPN'];
                 
-                // Check if any malicious keyword appears in the first 5000 chars of body text
-                // excluding generic mentions
-                const firstSection = bodyText.substring(0, 5000);
-                
-                let isMalicious = maliciousKeywords.some(mw => firstSection.includes(mw));
-                let isSuspicious = suspiciousKeywords.some(sw => firstSection.includes(sw));
+                let isMalicious = maliciousMarkers.some(m => bodyText.includes(m));
+                let isSuspicious = suspiciousMarkers.some(m => bodyText.includes(m)) || bodyText.includes('found as Tor');
 
-                if (isMalicious) {
-                    reputation = "Malicious";
-                } else if (isSuspicious) {
-                    reputation = "Suspicious";
-                } else if (bodyText.includes('Safe') || bodyText.includes('Clean')) {
-                    reputation = "Clean";
-                }
+                if (isMalicious) reputation = "Malicious";
+                else if (isSuspicious) reputation = "Suspicious";
+                else if (bodyText.includes('Safe') || bodyText.includes('Clean')) reputation = "Clean";
 
-                // Look for categorization from the first result if available
+                // Extract Category and Organization from the results
                 let category = "N/A";
-                // Try to find "Category:" in the text
-                const catMatch = bodyText.match(/Category[:\\s]+([^<\\n\\r]+)/i);
-                if (catMatch) category = catMatch[1].trim();
-                else if (results.length > 0) category = results[0].type;
-                
-                // Look for ISP/Owner/Organization
                 let owner = "N/A";
-                const ownerSelectors = [
-                    /Organization[:\\s]+([^<\\n\\r]+)/i,
-                    /ISP[:\\s]+([^<\\n\\r]+)/i,
-                    /Owner[:\\s]+([^<\\n\\r]+)/i
-                ];
-                for (const reg of ownerSelectors) {
-                    const m = bodyText.match(reg);
-                    if (m) { owner = m[1].trim(); break; }
+
+                results.forEach(r => {
+                    // Organization/Location extraction
+                    if (r.type.toLowerCase().includes('geolocation') || r.details.toLowerCase().includes('located on')) {
+                        const locMatch = r.details.match(/located on ([^<\n\r]+)/i);
+                        owner = locMatch ? locMatch[1].trim() : r.details;
+                    }
+                    
+                    // Category extraction
+                    if (r.details.toLowerCase().includes('found as') || r.type.toLowerCase().includes('security') || r.type.toLowerCase().includes('antispam')) {
+                        if (category === "N/A") {
+                            const foundMatch = r.details.match(/found as ([^<\n\r]+)/i);
+                            category = foundMatch ? foundMatch[1].trim() : r.type;
+                        }
+                    }
+                });
+
+                // Final Pass: Search for Location info directly if not found
+                if (owner === "N/A") {
+                    const geoMatch = bodyText.match(/The IP is located on ([^<\n\r]+)/i);
+                    if (geoMatch) owner = geoMatch[1].trim();
                 }
 
                 return {
                     reputation: reputation,
                     category: category,
                     owner: owner,
-                    results: results.slice(0, 5)
+                    results: results.slice(0, 10)
                 };
             }""")
             
