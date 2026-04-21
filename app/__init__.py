@@ -90,13 +90,16 @@ def repair_database(app):
     Automatically repair the database schema by adding missing columns.
     This avoids OperationalErrors in production when models are updated.
     """
+    import sys
     from sqlalchemy import inspect, text
     with app.app_context():
+        print("[!] Starting automatic database schema repair...", file=sys.stderr)
         # Ensure all tables exist first
         db.create_all()
         
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
+        print(f"[*] Detected tables: {tables}", file=sys.stderr)
         
         # Define all required column updates for existing tables
         schema_updates = {
@@ -119,16 +122,24 @@ def repair_database(app):
         
         for table_name, columns_to_add in schema_updates.items():
             if table_name in tables:
-                existing_columns = [c['name'] for c in inspector.get_columns(table_name)]
+                col_info = inspector.get_columns(table_name)
+                existing_columns = [c['name'] for c in col_info]
                 for col_name, col_def in columns_to_add.items():
                     if col_name not in existing_columns:
-                        print(f"[*] AUTO-REPAIR: Adding column {col_name} to {table_name}")
+                        print(f"[+] REPAIR: Adding column {col_name} to {table_name}", file=sys.stderr)
                         try:
-                            db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_def}"))
-                            db.session.commit()
+                            # Use connection.execute for more direct execution if session fails
+                            with db.engine.connect() as conn:
+                                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_def}"))
+                                conn.commit()
+                            print(f"[V] REPAIR SUCCESS: Added {col_name} to {table_name}", file=sys.stderr)
                         except Exception as e:
-                            db.session.rollback()
-                            print(f"[!] AUTO-REPAIR FAILED for {table_name}.{col_name}: {e}")
+                            print(f"[X] REPAIR FAILED for {table_name}.{col_name}: {e}", file=sys.stderr)
+                    else:
+                        print(f"[-] REPAIR: Column {col_name} already exists in {table_name}", file=sys.stderr)
+            else:
+                print(f"[?] REPAIR: Table {table_name} not found in database.", file=sys.stderr)
+        print("[!] Database schema repair process finished.", file=sys.stderr)
 
 def bootstrap_db(app):
     with app.app_context():
