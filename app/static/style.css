@@ -26,9 +26,10 @@ body {
     background-color: var(--bg-color);
     color: var(--text-primary);
     font-family: var(--font-ui);
-    font-size: 18px;
-    height: 100vh;
-    overflow: hidden;
+    font-size: 15px;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
     position: relative;
 }
 
@@ -49,7 +50,7 @@ body {
 .container, .container-fluid {
     margin: 0 auto;
     padding: 20px;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
@@ -111,13 +112,8 @@ header {
 
 main {
     flex: 1;
-    /* Take remaining space */
     display: flex;
-    /* To contain grid */
-    overflow: hidden;
-    /* Prevent spillover */
     min-height: 0;
-    /* Important for nested flex scroll */
 }
 
 /* Dashboard Grid */
@@ -298,8 +294,7 @@ main {
     grid-template-columns: 300px 1fr;
     gap: 20px;
     flex: 1;
-    overflow: hidden;
-    height: 100%;
+    height: auto;
     min-height: 0;
 }
 
@@ -1459,18 +1454,16 @@ input[type="url"]:focus {
 .vision-dashboard {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    height: 100%;
+    gap: 12px;
+    height: auto;
     width: 100%;
-    overflow: hidden;
 }
 
 .vision-widgets-row {
     display: flex;
-    gap: 20px;
-    min-height: 300px;
+    gap: 12px;
+    min-height: 200px;
     flex: 1;
-    flex-shrink: 0;
 }
 
 .vision-widget {
@@ -1508,10 +1501,10 @@ input[type="url"]:focus {
 .sources-widget::before { background: linear-gradient(90deg, transparent, var(--info-color), transparent); }
 
 .widget-header {
-    padding: 12px 15px;
+    padding: 8px 12px;
     font-family: var(--font-mono);
     color: var(--text-secondary);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     letter-spacing: 1px;
     display: flex;
     align-items: center;
@@ -1527,7 +1520,7 @@ input[type="url"]:focus {
 
 .chart-container {
     flex: 1;
-    padding: 15px;
+    padding: 8px 12px;
     position: relative;
     width: 100%;
     min-height: 0;
@@ -1535,9 +1528,9 @@ input[type="url"]:focus {
 
 .widget-footer {
     text-align: center;
-    padding: 10px;
+    padding: 6px;
     font-family: var(--font-mono);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-primary);
     background: rgba(0,0,0,0.3);
     border-top: 1px solid rgba(255,255,255,0.05);
