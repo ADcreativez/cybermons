@@ -1,7 +1,7 @@
-# i3-CYBERMON: Intelijen Ancaman Generasi Berikutnya & Pemantauan Terpadu
+# CYBERMON: Intelijen Ancaman Generasi Berikutnya & Pemantauan Terpadu
 
 ## 1. Ikhtisar Produk
-**i3-CYBERMON** adalah dashboard Security Operations Center (SOC) premium yang dirancang untuk intelijen ancaman real-time, pengintaian dark web, dan pemantauan aset proaktif. Produk ini mengonsolidasikan data keamanan yang terfragmentasi ke dalam satu antarmuka "Vision" yang interaktif dan berkualitas tinggi.
+**CYBERMON** adalah dashboard Security Operations Center (SOC) premium yang dirancang untuk intelijen ancaman real-time, pengintaian dark web, dan pemantauan aset proaktif. Produk ini mengonsolidasikan data keamanan yang terfragmentasi ke dalam satu antarmuka "Vision" yang interaktif dan berkualitas tinggi.
 
 ## 2. Tujuan Strategis (Goals)
 *   **Visibilitas Terpadu**: Menghapus sekat data dengan mengagregasi umpan dari RSS, Media Sosial (Telegram), dan API resmi (NVD).
@@ -25,7 +25,7 @@
 *   **Jejak Audit Sistem**: Log persisten yang tidak dapat disangkal untuk semua tindakan operator dan peristiwa operasional sistem.
 *   **Ketahanan Aman**: Pencadangan database terenkripsi AES-256, autentikasi multi-faktor (MFA), dan pemblokiran IP otomatis.
 
-## 4. Cara Kerja i3-CYBERMON (Langkah demi Langkah)
+## 4. Cara Kerja CYBERMON (Langkah demi Langkah)
 
 1.  **Pengumpulan Data (Data Ingestion)**:
     Sistem secara otomatis menarik data dari berbagai sumber intelijen siber global dalam waktu nyata (Real-time), termasuk feed RSS keamanan, kanal Telegram khusus peretas, database kerentanan NVD (CVE), serta situs pelacak Ransomware dan Defacement.
@@ -44,7 +44,7 @@
 
 ## 5. Teknologi yang Diadopsi (Tech Stack)
 
-i3-CYBERMON mengadopsi tumpukan teknologi modern yang mengutamakan performa, keamanan, dan skalabilitas:
+CYBERMON mengadopsi tumpukan teknologi modern yang mengutamakan performa, keamanan, dan skalabilitas:
 
 *   **Backend & Engine**: Menggunakan **Python** dengan framework **Flask** untuk pengolahan data yang cepat dan manajemen routing yang efisien.
 *   **Database**: Manajemen data relasional yang andal menggunakan **SQLAlchemy** (ORM) untuk integritas database ancaman.
@@ -62,7 +62,7 @@ i3-CYBERMON mengadopsi tumpukan teknologi modern yang mengutamakan performa, kea
 *   **Penyebaran (Deployment)**: **Gunicorn** sebagai server HTTP WSGI untuk performa produksi yang stabil.
 
 ## 6. Struktur Draf Slide Presentasi
-*   **Slide 1: Ikhtisar** – Misi tingkat tinggi i3-CYBERMON.
+*   **Slide 1: Ikhtisar** – Misi tingkat tinggi CYBERMON.
 *   **Slide 2: Intelijen Terfragmentasi** – Masalah pengumpulan data manual dan alat yang terisolasi.
 *   **Slide 3: Solusi Terpadu** – Tiga pilar i3: Intelligence, Insight, Infrastructure.
 *   **Slide 4: Fokus Fitur: Ingesti Global** – Sinergi RSS, Media Sosial, dan API NVD.

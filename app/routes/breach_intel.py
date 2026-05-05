@@ -101,6 +101,21 @@ INDONESIA_INCIDENTS = [
         'sector': 'Pemerintahan Daerah',
     },
     {
+        'id': 'yogya-citizen-2026',
+        'title': 'Database Warga Yogyakarta',
+        'org_type': 'Pemerintah Daerah / Kependudukan',
+        'date': '2026-05',
+        'attacker': 'DailyDarkWeb (X) / Underground Forum',
+        'attack_type': 'BREACH',
+        'impact': 'Kebocoran data kependudukan warga Yogyakarta yang diklaim berisi NIK, Nama Lengkap, Tanggal Lahir, dan Nomor Telepon.',
+        'records': 'Unknown / Large Scale',
+        'ransom': None,
+        'risk': 'CRITICAL',
+        'ref': 'https://jogjapolitan.harianjogja.com/read/2026/05/01/510/1173000/data-penduduk-yogya-diduga-bocor-kominfo-diy-sebut-data-pusat-yang-diolah',
+        'tags': ['Yogyakarta', 'Kependudukan', 'NIK', 'Darkweb Alert'],
+        'sector': 'Pemerintahan Daerah',
+    },
+    {
         'id': 'ksp-2024',
         'title': 'KSP (Kantor Staf Presiden)',
         'org_type': 'Pemerintah',
@@ -746,10 +761,33 @@ def _build_indonesia_cache():
                     seen.add(t)
                     results['news'].append({'title':t,'summary':inc['impact'],'link':inc['ref'],
                                             'date':fd,'source':'Arsip Insiden Nasional','tag':inc['attack_type']})
-        results['news'].sort(key=lambda x: x['date'], reverse=True)
-        results['news'] = results['news'][:100]
+        
+        results['news'].sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)
     except Exception as e:
-        results['errors'].append(f'RSS: {e}')
+        results['errors'].append(f'RSS News: {e}')
+
+    try:
+        CURATED_FEEDS = [
+            {'url': 'https://dailydarkweb.net/category/data-breaches/feed/', 'source': 'Daily Dark Web'},
+            {'url': 'https://dailydarkweb.net/feed/', 'source': 'Daily Dark Web (Global)'},
+        ]
+        results['curated'] = []
+        for feed in CURATED_FEEDS:
+            for entry in feedparser.parse(feed['url']).entries[:20]:
+                t = entry.get('title', '').strip()
+                if t in seen: continue
+                seen.add(t)
+                results['curated'].append({
+                    'title': t,
+                    'summary': BeautifulSoup(entry.get('summary',''), 'html.parser').get_text()[:350],
+                    'link': entry.get('link',''),
+                    'date': entry.get('published', entry.get('updated','')),
+                    'source': feed['source'],
+                    'tag': classify_post(t, entry.get('summary','')),
+                })
+        results['curated'].sort(key=lambda x: x['date'], reverse=True)
+    except Exception as e:
+        results['errors'].append(f'Curated Feeds: {e}')
 
     try:
         with open(_INDONESIA_CACHE_FILE, 'w') as f:
@@ -783,7 +821,41 @@ def indonesia_breach():
         try:
             with open(_INDONESIA_CACHE_FILE, 'r') as f:
                 data = json.load(f)
-            data['incidents'] = incidents
+            
+            # Combine static incidents with live DB intel
+            full_incidents = list(incidents)
+            seen_titles = {inc['title'] for inc in full_incidents}
+            
+            try:
+                id_threats = Threat.query.filter(
+                    Threat.source.in_(['Daily Dark Web', 'DarkWeb Informer']),
+                    (Threat.title.ilike('%Indonesia%')) | (Threat.summary.ilike('%Indonesia%'))
+                ).order_by(Threat.published.desc()).all()
+                
+                for it in id_threats:
+                    # Clean title for display
+                    display_title = it.title.replace('Indonesia ', '').replace('Indonesian ', '')
+                    if display_title in seen_titles: continue
+                    seen_titles.add(display_title)
+                    
+                    full_incidents.append({
+                        'title': it.title,
+                        'date': it.published.strftime('%Y-%m') if it.published else 'Unknown',
+                        'impact': it.summary[:200],
+                        'attack_type': it.category,
+                        'risk': it.severity or 'High',
+                        'attacker': it.source,
+                        'records': 'Unknown',
+                        'org_type': 'Private/Public',
+                        'tags': ['INTEL', 'DARKWEB', it.category],
+                        'ref': it.link
+                    })
+            except: pass
+            
+            # Sort all by date
+            full_incidents.sort(key=lambda x: x['date'], reverse=True)
+            
+            data['incidents'] = full_incidents
             data['from_cache'] = True
             return jsonify({'status': 'success', **data})
         except:
@@ -798,6 +870,54 @@ def indonesia_breach():
         'errors':   ['Cache is being built, please refresh in a moment.'],
         'loading':  True,
     })
+
+
+@breach_intel_bp.route('/darkweb/breach-intel/daily/search')
+@login_required
+def daily_search():
+    """Search for Daily Darkweb entries in the database with filtering."""
+    from app.models import Threat
+    from datetime import datetime, timedelta
+    
+    days = request.args.get('days', 30, type=int)
+    q = request.args.get('q', '').strip()
+    
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    query = Threat.query.filter(Threat.source.in_(['Daily Dark Web', 'DarkWeb Informer']))
+    query = query.filter(Threat.published >= since)
+    
+    if q:
+        query = query.filter(Threat.title.like(f'%{q}%') | Threat.summary.like(f'%{q}%'))
+    
+    results = query.order_by(Threat.published.desc()).all()
+    
+    output = []
+    for t in results:
+        output.append({
+            'title': t.title,
+            'summary': t.summary[:350] + '...' if len(t.summary or '') > 350 else t.summary,
+            'link': t.link,
+            'date': t.published.isoformat() if t.published else t.published_str,
+            'source': t.source,
+            'tag': t.category.upper() if t.category else 'INTEL'
+        })
+    
+    return jsonify({'status': 'success', 'count': len(output), 'results': output})
+
+
+@breach_intel_bp.route('/darkweb/breach-intel/daily/deep-scan', methods=['POST'])
+@login_required
+def daily_deep_scan():
+    """Trigger a deep crawl of all Darkweb intelligence sources."""
+    def run_deep_scan():
+        from scratch.deep_scrape_daily import scrape_daily_breaches
+        from scratch.deep_scrape_dwi import scrape_dwi_fraud
+        scrape_daily_breaches(max_pages=20)
+        scrape_dwi_fraud(max_pages=10)
+        
+    threading.Thread(target=run_deep_scan, daemon=True).start()
+    return jsonify({'status': 'ok', 'message': 'Deep scan started for all sources'})
 
 
 @breach_intel_bp.route('/darkweb/breach-intel/indonesia/refresh', methods=['POST'])

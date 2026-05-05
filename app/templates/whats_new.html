@@ -164,6 +164,8 @@
     .type-DEFACEMENT       { background: rgba(255, 170, 0, 0.1); color: #ffaa00; border: 1px solid rgba(255, 170, 0, 0.2); }
     .type-BREACH           { background: rgba(180, 77, 255, 0.1); color: #b44dff; border: 1px solid rgba(180, 77, 255, 0.2); }
     .type-EXPLOIT          { background: rgba(218, 112, 214, 0.1); color: #da70d6; border: 1px solid rgba(218, 112, 214, 0.2); }
+    .type-DAILY_DARKWEB    { background: rgba(0, 150, 255, 0.1); color: #0096ff; border: 1px solid rgba(0, 150, 255, 0.2); }
+    .type-FRAUD            { background: rgba(255, 100, 0, 0.1); color: #ff6400; border: 1px solid rgba(255, 100, 0, 0.2); }
 </style>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -246,6 +248,8 @@
                 <button class="page-btn" data-filter="EXPLOIT">EXPLOIT DATABASE</button>
                 <button class="page-btn" data-filter="RANSOMWARE_VICTIM">RANSOMWARE LEAKS</button>
                 <button class="page-btn" data-filter="BREACH">BREACH MARKET</button>
+                <button class="page-btn" data-filter="DAILY DARKWEB">DAILY DARKWEB</button>
+                <button class="page-btn" data-filter="FRAUD">FRAUD INTEL</button>
                 <button class="page-btn" data-filter="DEFACEMENT">DEFACEMENTS</button>
             </div>
         </div>

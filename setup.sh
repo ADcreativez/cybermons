@@ -136,17 +136,25 @@ fi
 echo -e "${GREEN}  ✓ Chromium browser installed${NC}"
 
 # ─────────────────────────────────────────
-# STEP 5: Initialize Database
+# STEP 5: Initialize & Repair Database
 # ─────────────────────────────────────────
-echo -e "${YELLOW}[5/5] Initializing database...${NC}"
+echo -e "${YELLOW}[5/5] Initializing & Repairing database...${NC}"
 mkdir -p instance
+# Use the correct venv path (the script uses venv, not .venv based on lines 109, 122)
 ./venv/bin/python3 -c "
 from app import create_app, bootstrap_db
 app = create_app()
 bootstrap_db(app)
-print('Database ready.')
+print('Database initialization complete.')
 "
-echo -e "${GREEN}  ✓ Database initialized${NC}"
+
+# Run the hotfix script to ensure schema is up to date
+if [ -f "fix_production_db.py" ]; then
+    echo -e "${CYAN}  → Applying schema migrations/repairs...${NC}"
+    ./venv/bin/python3 fix_production_db.py
+fi
+
+echo -e "${GREEN}  ✓ Database initialized and repaired${NC}"
 
 # ─────────────────────────────────────────
 # DONE

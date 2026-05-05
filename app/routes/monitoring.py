@@ -260,7 +260,8 @@ def fetch_and_store_all_data(force=False):
                                 continue
                             
                             # Specific filter for known spammy patterns
-                            if "Service Updates" in entry.source and is_version_only:
+                            entry_source = getattr(entry, 'source', '')
+                            if "Service Updates" in entry_source and is_version_only:
                                 continue
 
                             results.append({
@@ -507,7 +508,10 @@ def whats_new():
     threats = Threat.query.filter(Threat.published >= cutoff_start, Threat.published <= cutoff_end).all() if date_mode else Threat.query.filter(Threat.published >= cutoff_start).all()
     for item in threats:
         f_type = 'THREAT'
-        if item.category == 'exploit': f_type = 'EXPLOIT'
+        if item.source in ['Daily Dark Web', 'DarkWeb Informer']:
+            f_type = 'DAILY DARKWEB'
+            if item.category == 'FRAUD': f_type = 'FRAUD'
+        elif item.category == 'exploit': f_type = 'EXPLOIT'
         elif item.category == 'cyber_crime': f_type = 'CRIME'
         elif item.category == 'news': f_type = 'NEWS'
         feed.append({

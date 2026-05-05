@@ -51,6 +51,25 @@
                     <div style="font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Mail Protection (DNS)</div>
                     <div id="mail-items" style="font-family: var(--font-mono); font-size: 0.65rem;"></div>
                 </div>
+
+                <!-- External Intelligence Tools -->
+                <div style="padding: 20px; background: rgba(0,255,204,0.03); border: 1px solid rgba(0,255,204,0.1); border-radius: 8px; margin-bottom: 20px;">
+                    <div style="font-size: 0.6rem; color: var(--accent-color); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;"><i class="fa-solid fa-link"></i> External OSINT Tools</div>
+                    <div id="external-tools" style="display: flex; flex-direction: column; gap: 8px;">
+                        <a id="link-mxtoolbox" href="https://mxtoolbox.com/" target="_blank" class="btn-sm" style="display: block; padding: 8px; font-size: 0.6rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--text-secondary); text-decoration: none; transition: 0.3s;">
+                            <i class="fa-solid fa-toolbox"></i> MXToolbox
+                        </a>
+                        <a id="link-netlas" href="https://app.netlas.io/" target="_blank" class="btn-sm" style="display: block; padding: 8px; font-size: 0.6rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--text-secondary); text-decoration: none; transition: 0.3s;">
+                            <i class="fa-solid fa-network-wired"></i> Netlas.io
+                        </a>
+                        <a id="link-cvedetails" href="https://www.cvedetails.com/" target="_blank" class="btn-sm" style="display: block; padding: 8px; font-size: 0.6rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--text-secondary); text-decoration: none; transition: 0.3s;">
+                            <i class="fa-solid fa-bug"></i> CVEDetails
+                        </a>
+                        <a id="link-virustotal" href="https://www.virustotal.com/" target="_blank" class="btn-sm" style="display: block; padding: 8px; font-size: 0.6rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--text-secondary); text-decoration: none; transition: 0.3s;">
+                            <i class="fa-solid fa-shield-virus"></i> VirusTotal
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -305,6 +324,15 @@
         }
         
         summaryItems.innerHTML = summaryHtml;
+        
+        // Update External Tool Links
+        const query = document.getElementById('recon-query').value.trim();
+        if (query) {
+            document.getElementById('link-mxtoolbox').href = `https://mxtoolbox.com/SuperTool.aspx?action=mx%3a${query}`;
+            document.getElementById('link-netlas').href = `https://app.netlas.io/host/?q=${query}`;
+            document.getElementById('link-cvedetails').href = `https://www.cvedetails.com/google-search-results.php?q=${query}`;
+            document.getElementById('link-virustotal').href = `https://www.virustotal.com/gui/search/${query}`;
+        }
         
         // Render Mail Protection Stats
         const mailCont = document.getElementById('mail-summary');
