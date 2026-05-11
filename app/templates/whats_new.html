@@ -2,22 +2,16 @@
 
 {% block content %}
 <style>
-    /* Full Screen & Layout Reset */
-    header, footer, main, body {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
+    /* Layout Refinement */
     main {
-        display: block !important;
-        overflow-y: auto !important;
-        padding: 20px 30px !important;
-        height: auto !important;
+        overflow-x: hidden !important;
     }
     .whats-new-container {
         padding: 0;
         width: 100%;
         max-width: 100%;
         margin-top: 20px;
+        overflow-x: auto; /* Allow table to scroll if needed on tiny screens */
     }
 
     /* ====== FILTER BUTTON STYLES ====== */
