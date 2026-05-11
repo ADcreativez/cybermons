@@ -3,7 +3,7 @@ import subprocess
 import os
 import importlib.metadata
 
-REQUIRED_FILES = ['requirements.txt', 'app.py']
+REQUIRED_FILES = ['requirements.txt', 'app-cybermon.py']
 
 def check_files():
     """Check if necessary files exist."""
