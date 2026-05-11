@@ -1,20 +1,46 @@
+import sqlite3
 import os
-from app import create_app, db
-from app.models import User
 
-def reset_admin_mfa():
-    app = create_app()
-    with app.app_context():
-        admin = User.query.filter_by(username='admin').first()
-        if admin:
-            admin.mfa_enabled = False
-            admin.mfa_secret = None
-            admin.is_active_account = True # Re-activate the account
-            db.session.commit()
-            print("[+] Success: MFA for user 'admin' has been reset and account REACTIVATED.")
-            print("[!] You can now login using only your password.")
-        else:
-            print("[-] Error: User 'admin' not found.")
+def force_reset_all_dbs():
+    # List all possible database names and locations
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    db_paths = [
+        os.path.join(base_dir, 'instance', 'cybermon_v2.db'),
+        os.path.join(base_dir, 'instance', 'cybermon.db'),
+        os.path.join(base_dir, 'cybermon_v2.db'),
+        os.path.join(base_dir, 'cybermon.db'),
+        'instance/cybermon_v2.db',
+        'instance/cybermon.db',
+        'cybermon_v2.db',
+        'cybermon.db'
+    ]
+    
+    found_any = False
+    for path in db_paths:
+        if os.path.exists(path):
+            abs_path = os.path.abspath(path)
+            print(f"[*] Attempting to fix database at: {abs_path}")
+            try:
+                conn = sqlite3.connect(abs_path)
+                cursor = conn.cursor()
+                
+                # Reset admin MFA and Activate account
+                cursor.execute("UPDATE user SET mfa_enabled=0, mfa_secret=NULL, is_active_account=1 WHERE username='admin'")
+                
+                if cursor.rowcount > 0:
+                    conn.commit()
+                    print(f"[+] SUCCESS: Fixed 'admin' in {path}")
+                    found_any = True
+                else:
+                    print(f"[-] Warning: User 'admin' not found in {path}")
+                
+                conn.close()
+            except Exception as e:
+                print(f"[X] Error fixing {path}: {e}")
+    
+    if not found_any:
+        print("[-] Critical Error: No database files found or 'admin' user not found in any of them.")
+        print("[*] Please check your current directory with 'ls -R'")
 
 if __name__ == "__main__":
-    reset_admin_mfa()
+    force_reset_all_dbs()
