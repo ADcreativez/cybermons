@@ -100,22 +100,22 @@
                 
                 <form action="{{ url_for('auth.change_password') }}" method="POST">
                     <div style="margin-bottom: 15px;">
-                        <label style="display: block; font-size: 0.75em; opacity: 0.6; margin-bottom: 5px;">CURRENT PASSWORD</label>
+                        <label style="display: block; font-size: 0.75em; opacity: 0.6; margin-bottom: 5px; font-family: var(--font-mono);">CURRENT PASSWORD</label>
                         <input type="password" name="old_password" required 
-                               style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px;">
+                               style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 12px; font-family: var(--font-mono);">
                     </div>
                     <div style="margin-bottom: 15px;">
-                        <label style="display: block; font-size: 0.75em; opacity: 0.6; margin-bottom: 5px;">NEW PASSWORD</label>
+                        <label style="display: block; font-size: 0.75em; opacity: 0.6; margin-bottom: 5px; font-family: var(--font-mono);">NEW PASSWORD</label>
                         <input type="password" name="new_password" required 
-                               style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px;">
+                               style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 12px; font-family: var(--font-mono);">
                     </div>
                     <div style="margin-bottom: 25px;">
-                        <label style="display: block; font-size: 0.75em; opacity: 0.6; margin-bottom: 5px;">CONFIRM NEW PASSWORD</label>
+                        <label style="display: block; font-size: 0.75em; opacity: 0.6; margin-bottom: 5px; font-family: var(--font-mono);">CONFIRM NEW PASSWORD</label>
                         <input type="password" name="confirm_password" required 
-                               style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px;">
+                               style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 12px; font-family: var(--font-mono);">
                     </div>
-                    <button type="submit" class="btn btn-add" style="width: 100%; background: var(--warning-color); color: #000; font-weight: bold;">
-                        UPDATE PASSWORD
+                    <button type="submit" class="btn btn-add" style="width: 100%; background: var(--accent-color); color: #000; font-weight: 800; letter-spacing: 2px; border: none; padding: 14px; box-shadow: 0 0 15px rgba(0, 255, 204, 0.3); font-family: var(--font-ui); cursor: pointer; text-transform: uppercase;">
+                        <i class="fa-solid fa-key"></i> UPDATE PASSWORD
                     </button>
                 </form>
 

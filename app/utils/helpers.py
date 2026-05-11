@@ -73,10 +73,16 @@ def save_feeds(feeds):
         json.dump(feeds, f, indent=4)
 
 def log_event(message, category='info'):
+    try:
+        from flask_login import current_user
+        user_id = current_user.id if current_user.is_authenticated else None
+    except:
+        user_id = None
+        
     new_log = SystemLog(
         message=message,
         category=category,
-        user_id=current_user.id if current_user.is_authenticated else None
+        user_id=user_id
     )
     db.session.add(new_log)
     db.session.commit()

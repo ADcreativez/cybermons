@@ -223,6 +223,8 @@ def fetch_and_store_all_data(force=False):
                     return 0
             except: pass
 
+        from ..utils.helpers import log_event
+        log_event("GLOBAL SYNC: Starting data update (Force: {})".format(force), "info")
         print(f"GLOBAL SYNC: Starting data update (Force: {force})")
         
         # 1. Threat Intelligence
@@ -312,8 +314,14 @@ def fetch_and_store_all_data(force=False):
 
         config['last_sync'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         save_darkweb_config(config)
+        log_event("GLOBAL SYNC: Finished. {} items identified.".format(new_count), "success")
         print(f"GLOBAL SYNC: Finished. {new_count} items identified.")
-    except Exception as e: print(f"GLOBAL SYNC Error: {e}")
+    except Exception as e: 
+        print(f"GLOBAL SYNC Error: {e}")
+        try:
+            from ..utils.helpers import log_event
+            log_event("GLOBAL SYNC CRITICAL ERROR: {}".format(str(e)[:200]), "danger")
+        except: pass
     finally:
         try: db.session.remove()
         except: pass

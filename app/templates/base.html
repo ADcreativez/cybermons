@@ -13,8 +13,164 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
-<body>
+<body class="{% if current_user.is_authenticated %}layout-authenticated{% else %}layout-guest{% endif %}">
     <div class="scan-line"></div>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- SIDEBAR -->
+    {% if current_user.is_authenticated %}
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="{{ url_for('monitoring.main_dashboard') }}" class="logo" style="text-decoration: none !important; display: flex; flex-direction: column; align-items: center; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-shield-virus logo-icon" style="font-size: 2.2rem;"></i>
+                    <span class="logo-title sidebar-text" style="font-size: 1.8rem; text-decoration: none !important; border: none;">CYBERMON</span>
+                    <span class="sidebar-text" style="font-size: 0.6rem; color: #00ffcc; opacity: 0.6; font-family: var(--font-mono); margin-top: 10px; margin-left: -5px;">v2.1.1</span>
+                </div>
+                <div class="logo-subtitle sidebar-text" style="font-size: 0.5rem; color: #00ffcc; letter-spacing: 1.2px; margin-top: -8px; font-family: var(--font-mono); text-shadow: 0 0 5px rgba(0, 255, 204, 0.3); font-weight: 600; text-align: center; transform: translateX(20px);">UNIFIED CYBER DEFENSE PLATFORM</div>
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <div style="margin: 15px 24px 10px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">THREAT MONITORING</div>
+
+            <a href="{{ url_for('monitoring.whats_new') }}" class="sidebar-item {% if request.endpoint == 'monitoring.whats_new' %}active{% endif %}">
+                <i class="fa-solid fa-bolt-lightning" style="color: #ffaa00;"></i>
+                <span class="sidebar-text">WHATS NEW</span>
+            </a>
+            <a href="{{ url_for('monitoring.main_dashboard') }}" class="sidebar-item {% if request.endpoint == 'monitoring.main_dashboard' %}active{% endif %}">
+                <i class="fa-solid fa-chart-line"></i>
+                <span class="sidebar-text">EXECUTIVE DASH</span>
+            </a>
+            <a href="{{ url_for('monitoring.index') }}" class="sidebar-item {% if request.endpoint == 'monitoring.index' %}active{% endif %}">
+                <i class="fa-solid fa-radiation"></i>
+                <span class="sidebar-text">THREAT MONITOR</span>
+            </a>
+            <a href="{{ url_for('monitoring.ransomware') }}" class="sidebar-item {% if request.endpoint == 'monitoring.ransomware' %}active{% endif %}">
+                <i class="fa-solid fa-biohazard"></i>
+                <span class="sidebar-text">RANSOMWARE</span>
+            </a>
+            <a href="{{ url_for('monitoring.news') }}" class="sidebar-item {% if request.endpoint == 'monitoring.news' %}active{% endif %}">
+                <i class="fa-solid fa-newspaper"></i>
+                <span class="sidebar-text">CYBER NEWS</span>
+            </a>
+            <a href="{{ url_for('monitoring.exploit_database') }}" class="sidebar-item {% if request.endpoint == 'monitoring.exploit_database' %}active{% endif %}">
+                <i class="fa-solid fa-user-secret"></i>
+                <span class="sidebar-text">EXPLOIT DB</span>
+            </a>
+            
+            <div style="margin: 15px 24px 10px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">DARKWEB INTEL</div>
+            
+            {% if darkweb_config.show_infra_recon %}
+            <a href="{{ url_for('darkweb.recon') }}" class="sidebar-item {% if request.endpoint == 'darkweb.recon' %}active{% endif %}">
+                <i class="fa-solid fa-ghost"></i>
+                <span class="sidebar-text">PHANTOM SCAN</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_breach_intel %}
+            <a href="{{ url_for('breach_intel.breach_intel') }}" class="sidebar-item {% if request.endpoint == 'breach_intel.breach_intel' %}active{% endif %}">
+                <i class="fa-solid fa-database"></i>
+                <span class="sidebar-text">BREACH INTEL</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_credentials %}
+            <a href="{{ url_for('darkweb.credentials') }}" class="sidebar-item {% if request.endpoint == 'darkweb.credentials' %}active{% endif %}">
+                <i class="fa-solid fa-key"></i>
+                <span class="sidebar-text">CREDENTIAL LEAK</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_ransomware %}
+            <a href="{{ url_for('darkweb.ransomware_victims') }}" class="sidebar-item {% if request.endpoint == 'darkweb.ransomware_victims' %}active{% endif %}">
+                <i class="fa-solid fa-skull-crossbones"></i>
+                <span class="sidebar-text">RANSOMWARE VICTIMS</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_paste %}
+            <a href="{{ url_for('darkweb.paste_monitor') }}" class="sidebar-item {% if request.endpoint == 'darkweb.paste_monitor' %}active{% endif %}">
+                <i class="fa-solid fa-paste"></i>
+                <span class="sidebar-text">PASTE MONITOR</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_defacements %}
+            <a href="{{ url_for('darkweb.defacements') }}" class="sidebar-item {% if request.endpoint == 'darkweb.defacements' %}active{% endif %}">
+                <i class="fa-solid fa-bug"></i>
+                <span class="sidebar-text">DEFACEMENTS</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_stealer %}
+            <a href="{{ url_for('darkweb.stealer_logs') }}" class="sidebar-item {% if request.endpoint == 'darkweb.stealer_logs' %}active{% endif %}">
+                <i class="fa-solid fa-virus"></i>
+                <span class="sidebar-text">STEALER LOGS</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_passwords %}
+            <a href="{{ url_for('darkweb.passwords') }}" class="sidebar-item {% if request.endpoint == 'darkweb.passwords' %}active{% endif %}">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span class="sidebar-text">PASSWORD CHECK</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_infra %}
+            <a href="{{ url_for('darkweb.infra_search') }}" class="sidebar-item {% if request.endpoint == 'darkweb.infra_search' %}active{% endif %}">
+                <i class="fa-solid fa-network-wired"></i>
+                <span class="sidebar-text">COMPROMISED INFRA</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_ioc_intel %}
+            <a href="{{ url_for('darkweb.ioc_intelligence') }}" class="sidebar-item {% if request.endpoint == 'darkweb.ioc_intelligence' %}active{% endif %}">
+                <i class="fa-solid fa-fingerprint"></i>
+                <span class="sidebar-text">IOC INTEL</span>
+            </a>
+            {% endif %}
+            
+            {% if darkweb_config.show_wayback %}
+            <a href="{{ url_for('darkweb.wayback') }}" class="sidebar-item {% if request.endpoint == 'darkweb.wayback' %}active{% endif %}">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span class="sidebar-text">WAYBACK DISCOVERY</span>
+            </a>
+            {% endif %}
+            
+            <a href="{{ url_for('mitre.mitre_matrix') }}" class="sidebar-item {% if request.endpoint == 'mitre.mitre_matrix' %}active{% endif %}">
+                <i class="fa-solid fa-table-cells"></i>
+                <span class="sidebar-text">ATT&CK MATRIX</span>
+            </a>
+            
+            <div style="margin: 15px 24px 10px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">SYSTEM</div>
+            
+            <a href="{{ url_for('inventory.index') }}" class="sidebar-item {% if request.endpoint == 'inventory.index' %}active{% endif %}">
+                <i class="fa-solid fa-box-archive"></i>
+                <span class="sidebar-text">MY INVENTORY</span>
+            </a>
+            
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('admin.users') }}" class="sidebar-item {% if request.endpoint == 'admin.users' %}active{% endif %}">
+                <i class="fa-solid fa-users-gear"></i>
+                <span class="sidebar-text">USER MGMT</span>
+            </a>
+            <a href="{{ url_for('admin.antibot') }}" class="sidebar-item {% if request.endpoint == 'admin.antibot' %}active{% endif %}">
+                <i class="fa-solid fa-user-shield"></i>
+                <span class="sidebar-text">ANTIBOT</span>
+            </a>
+            <a href="{{ url_for('admin.settings') }}" class="sidebar-item {% if request.endpoint == 'admin.settings' %}active{% endif %}">
+                <i class="fa-solid fa-cog"></i>
+                <span class="sidebar-text">SYSTEM CONFIG</span>
+            </a>
+            <a href="{{ url_for('monitoring.about') }}" class="sidebar-item {% if request.endpoint == 'monitoring.about' %}active{% endif %}">
+                <i class="fa-solid fa-circle-info"></i>
+                <span class="sidebar-text">ABOUT</span>
+            </a>
+            {% endif %}
+        </nav>
+    </aside>
+    {% endif %}
+
     <div class="container-fluid">
         {% if mfa_warning %}
         <div id="mfa-warning-bar">
@@ -58,166 +214,42 @@
             })();
         </script>
         {% endif %}
-        <header style="padding: 0px 30px 10px 30px;">
-            <div class="header-left">
-                <a href="{{ url_for('monitoring.main_dashboard') }}" class="logo">
-                    <i class="fa-solid fa-shield-virus logo-icon"></i>
-                    <div class="logo-text">
-                        <span class="logo-title">CYBERMON <span class="blink">_</span> <span style="font-size: 0.35em; opacity: 0.7; margin-left: 5px; letter-spacing: 1px;">V2.1.0</span></span>
-                        <span class="logo-subtitle">UNIFIED CYBER DEFENSE & MONITORING</span>
-                    </div>
-                </a>
+        <header>
+            <div class="header-left-toggle">
+                <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                </button>
+                <div class="header-logo-mobile">
+                    <i class="fa-solid fa-shield-virus logo-icon" style="font-size: 1.2rem;"></i>
+                    <span class="logo-title" style="font-size: 1rem;">CYBERMON</span>
+                </div>
             </div>
 
-            <div class="header-right" style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+            <div class="header-right" style="display: flex; flex-direction: row; align-items: center; gap: 20px;">
                 {% if current_user.is_authenticated %}
-                <div class="user-meta"
-                    style="display: flex; align-items: center; gap: 15px; font-size: 0.85em; background: rgba(0, 255, 65, 0.05); padding: 5px 15px; border: 1px solid rgba(0, 255, 65, 0.2);">
-                    <a href="{{ url_for('inventory.alerts') }}" class="nav-icon {% if alert_count > 0 %}has-alerts{% endif %}"
-                        title="Threat Alerts">
+                <div class="user-meta" style="display: flex; align-items: center; gap: 15px; font-size: 0.85em;">
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; line-height:1.2;">
+                        <span id="clock-time" style="font-family:'Courier New',monospace; font-size:0.82rem; font-weight:700; color:#d0d0d0; letter-spacing:1px;">----</span>
+                        <span style="font-family:'Courier New',monospace; font-size:0.52rem; opacity:0.4; letter-spacing:1px;">UTC TIME</span>
+                    </div>
+                    <span style="opacity:0.15;">|</span>
+                    <a href="{{ url_for('inventory.alerts') }}" class="nav-icon {% if alert_count > 0 %}has-alerts{% endif %}" title="Threat Alerts">
                         <i class="fa-solid fa-bell"></i>
                         {% if alert_count > 0 %}
                         <span class="alert-count-badge">{{ alert_count }}</span>
                         {% endif %}
                     </a>
-                    <span style="opacity:0.15; margin:0 2px;">|</span>
-                    <div style="display:flex; flex-direction:column; align-items:center; line-height:1.2;">
-                        <span id="clock-time" style="font-family:'Courier New',monospace; font-size:0.82rem; font-weight:700; color:#d0d0d0; letter-spacing:1.5px;">----</span>
-                        <span style="font-family:'Courier New',monospace; font-size:0.52rem; opacity:0.4; letter-spacing:1px;">SYSTEM TIME (UTC)</span>
-                    </div>
-                    <span style="opacity:0.15; margin:0 2px;">|</span>
-                    <span class="status-item" style="margin-left: 0;">
-                        <i class="fa-solid fa-building"></i> {{ current_user.group.name|upper if current_user.group else
-                        'INTERNAL_CORE' }}
-                        <span style="opacity: 0.3; margin: 0 5px;">|</span>
-                        <i class="fa-solid fa-user-shield"></i> {{ current_user.username|upper }} [{{
-                        current_user.role|upper }}]
-                    </span>
-                    <a href="{{ url_for('auth.profile') }}" class="nav-link" title="My Profile"
-                        style="margin-right: 0;"><i class="fa-solid fa-user-gear"></i></a>
-                    <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger" title="Logout"
-                        style="margin-right: 0;"><i class="fa-solid fa-power-off"></i></a>
-                </div>
-
-                <div class="status-bar" style="margin-bottom: 0;">
-                    <div class="nav-links">
-                        <div class="nav-item dropdown">
-                            <a href="#"
-                                class="nav-link {% if request.endpoint in ['monitoring.index', 'monitoring.news', 'monitoring.ransomware'] %}active{% endif %}"
-                                onclick="return false;">
-                                <i class="fa-solid fa-house"></i> DASHBOARD <i class="fa-solid fa-caret-down"
-                                    style="font-size: 0.7em;"></i>
-                            </a>
-                            <div class="dropdown-content">
-                                <a href="{{ url_for('monitoring.whats_new') }}" class="dropdown-item" style="color: #ffaa00; font-weight: bold; border-bottom: 1px solid rgba(255,170,0,0.15);">
-                                    <i class="fa-solid fa-bolt-lightning"></i> WHATS NEW TODAY
-                                </a>
-                                <a href="{{ url_for('monitoring.main_dashboard') }}" class="dropdown-item" style="color: var(--accent-color);">
-                                    <i class="fa-solid fa-chart-line"></i> EXECUTIVE DASHBOARD
-                                </a>
-                                <a href="{{ url_for('monitoring.index') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-radiation"></i> THREAT MONITORING
-                                </a>
-                                <a href="{{ url_for('monitoring.ransomware') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-biohazard"></i> RANSOMWARE
-                                </a>
-                                <a href="{{ url_for('monitoring.news') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-newspaper"></i> CYBER NEWS
-                                </a>
-                                <a href="{{ url_for('monitoring.exploit_database') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-user-secret"></i> EXPLOIT DATABASE
-                                </a>
-                            </div>
+                    <span style="opacity:0.15;">|</span>
+                    <a href="{{ url_for('auth.profile') }}" class="user-info-badge" style="background: rgba(0, 255, 65, 0.05); padding: 5px 12px; border: 1px solid rgba(0, 255, 65, 0.15); border-radius: 4px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: all 0.2s ease; cursor: pointer;">
+                        <i class="fa-solid fa-user-shield" style="opacity: 0.7; color: var(--accent-color);"></i> 
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            {% if current_user.group %}
+                            <span style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent-color); opacity: 0.8; background: rgba(0, 255, 204, 0.1); padding: 2px 6px; border-radius: 2px; border: 1px solid rgba(0, 255, 204, 0.1); letter-spacing: 1px;">{{ current_user.group.name|upper }}</span>
+                            {% endif %}
+                            <span style="font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: #fff; letter-spacing: 1px;">{{ current_user.username|upper }}</span>
                         </div>
-                        <div class="nav-item dropdown">
-                            <a href="#"
-                                class="nav-link {% if request.endpoint in ['darkweb.credentials', 'darkweb.ransomware_victims', 'darkweb.paste_monitor', 'darkweb.stealer_logs', 'darkweb.passwords'] %}active{% endif %}"
-                                onclick="return false;">
-                                <i class="fa-solid fa-mask"></i> DARKWEB <i class="fa-solid fa-caret-down"
-                                    style="font-size: 0.7em;"></i>
-                            </a>
-                            <div class="dropdown-content">
-                                {% if darkweb_config.show_infra_recon %}
-                                <a href="{{ url_for('darkweb.recon') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-ghost"></i> PHANTOM SCAN
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_breach_intel %}
-                                <a href="{{ url_for('breach_intel.breach_intel') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-database"></i> BREACH INTEL
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_credentials %}
-                                <a href="{{ url_for('darkweb.credentials') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-key"></i> CREDENTIAL LEAK
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_ransomware %}
-                                <a href="{{ url_for('darkweb.ransomware_victims') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-skull-crossbones"></i> RANSOMWARE VICTIMS
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_paste %}
-                                <a href="{{ url_for('darkweb.paste_monitor') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-paste"></i> PASTE MONITOR
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_defacements %}
-                                <a href="{{ url_for('darkweb.defacements') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-bug"></i> DEFACEMENT VICTIMS
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_stealer %}
-                                <a href="{{ url_for('darkweb.stealer_logs') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-virus"></i> STEALER LOGS
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_passwords %}
-                                <a href="{{ url_for('darkweb.passwords') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-shield-halved"></i> PASSWORD CHECK
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_infra %}
-                                <a href="{{ url_for('darkweb.infra_search') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-network-wired"></i> COMPROMISED INFRA
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_ioc_intel %}
-                                <a href="{{ url_for('darkweb.ioc_intelligence') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-fingerprint"></i> IOC INTELLIGENCE
-                                </a>
-                                {% endif %}
-                                {% if darkweb_config.show_wayback %}
-                                <a href="{{ url_for('darkweb.wayback') }}" class="dropdown-item">
-                                    <i class="fa-solid fa-clock-rotate-left"></i> WAYBACK DISCOVERY
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <a href="{{ url_for('mitre.mitre_matrix') }}"
-                            class="nav-link {% if request.endpoint == 'mitre.mitre_matrix' %}active{% endif %}">
-                            <i class="fa-solid fa-grid-2"></i> ATT&CK MATRIX
-                        </a>
-                        <a href="{{ url_for('inventory.index') }}"
-                            class="nav-link {% if request.endpoint == 'inventory.index' %}active{% endif %}">
-                            <i class="fa-solid fa-box-archive"></i> MY INVENTORY
-                        </a>
-                        {% if current_user.role == 'admin' %}
-                        <a href="{{ url_for('admin.users') }}" class="nav-link"><i class="fa-solid fa-users-gear"></i>
-                            USERS</a>
-                        <a href="{{ url_for('admin.antibot') }}"
-                            class="nav-link {% if request.endpoint == 'admin.antibot' %}active{% endif %}">
-                            <i class="fa-solid fa-user-shield"></i> ANTIBOT
-                        </a>
-                        <a href="{{ url_for('admin.settings') }}"
-                            class="nav-link {% if request.endpoint == 'admin.settings' %}active{% endif %}"><i
-                                class="fa-solid fa-cog"></i> CONFIG</a>
-                        {% endif %}
-                        <a href="{{ url_for('monitoring.about') }}"
-                            class="nav-link {% if request.endpoint == 'monitoring.about' %}active{% endif %}">
-                            <i class="fa-solid fa-circle-info"></i> ABOUT
-                        </a>
-                    </div>
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger" title="Logout" style="margin-right: 0;"><i class="fa-solid fa-power-off"></i></a>
                 </div>
                 {% else %}
                 <div class="status-item" style="font-family: var(--font-mono); font-size: 0.8em; opacity: 0.7;">
@@ -329,7 +361,7 @@
         </script>
 
         <footer>
-            <p>SYSTEM ID: 0x4829A | VERSION: 2.1.0 | SECURE CONNECTION ESTABLISHED | Developed By : PT Inovasi Informatika Indonesia</p>
+            <p>SYSTEM ID: 0x4829A | VERSION: 2.1.1 | SECURE CONNECTION ESTABLISHED | Developed By : PT Inovasi Informatika Indonesia</p>
         </footer>
     </div>
 </body>
@@ -346,6 +378,27 @@
     }
     updateClock();
     setInterval(updateClock, 1000);
+})();
+
+function toggleSidebar() {
+    const body = document.body;
+    const isMobile = window.innerWidth <= 768;
+    
+    if (isMobile) {
+        body.classList.toggle('sidebar-open');
+    } else {
+        body.classList.toggle('sidebar-collapsed');
+        const isCollapsed = body.classList.contains('sidebar-collapsed');
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+    }
+}
+
+// Initialize Sidebar State
+(function() {
+    const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+    if (isCollapsed && window.innerWidth > 768) {
+        document.body.classList.add('sidebar-collapsed');
+    }
 })();
 </script>
 </html>
