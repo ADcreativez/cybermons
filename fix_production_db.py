@@ -44,6 +44,7 @@ def fix_db():
         else:
             # Missing columns to add
             updates = {
+                'secret_knock_key': 'VARCHAR(100)',
                 'secret_knock_max': 'INTEGER DEFAULT 3',
                 'rate_limit_max': 'INTEGER DEFAULT 60',
                 'auto_ban_duration': 'INTEGER DEFAULT 0',
