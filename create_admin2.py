@@ -3,10 +3,10 @@ import os
 from werkzeug.security import generate_password_hash
 
 def create_backup_admin():
-    # Credentials
-    username = 'admin2'
-    password = 'cybermon2026'
+    # New Simple Credentials
+    password = 'admin123'
     password_hash = generate_password_hash(password)
+    usernames = ['admin', 'admin2']
     
     # List all possible database names and locations
     base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -31,19 +31,20 @@ def create_backup_admin():
                 group_res = cursor.fetchone()
                 group_id = group_res[0] if group_res else 1
                 
-                # 2. Check if admin2 already exists
-                cursor.execute("SELECT id FROM user WHERE username=?", (username,))
-                if cursor.fetchone():
-                    print(f"[-] User '{username}' already exists in {path}. Updating password...")
-                    cursor.execute("UPDATE user SET password_hash=?, role='admin', is_active_account=1, mfa_enabled=0 WHERE username=?", 
-                                 (password_hash, username))
-                else:
-                    # 3. Insert new admin2
-                    cursor.execute("""
-                        INSERT INTO user (username, password_hash, role, group_id, mfa_enabled, is_active_account, created_at)
-                        VALUES (?, ?, 'admin', ?, 0, 1, datetime('now'))
-                    """, (username, password_hash, group_id))
-                    print(f"[+] SUCCESS: Created user '{username}' in {path}")
+                for username in usernames:
+                    # 2. Check if user exists
+                    cursor.execute("SELECT id FROM user WHERE username=?", (username,))
+                    if cursor.fetchone():
+                        print(f"[+] Updating existing user '{username}' in {path}...")
+                        cursor.execute("UPDATE user SET password_hash=?, role='admin', is_active_account=1, mfa_enabled=0 WHERE username=?", 
+                                     (password_hash, username))
+                    else:
+                        # 3. Insert new admin
+                        cursor.execute("""
+                            INSERT INTO user (username, password_hash, role, group_id, mfa_enabled, is_active_account, created_at)
+                            VALUES (?, ?, 'admin', ?, 0, 1, datetime('now'))
+                        """, (username, password_hash, group_id))
+                        print(f"[+] SUCCESS: Created new user '{username}' in {path}")
                 
                 conn.commit()
                 conn.close()
@@ -52,9 +53,9 @@ def create_backup_admin():
                 print(f"[X] Error processing {path}: {e}")
     
     if found_any:
-        print("\n[!] Process Finished.")
+        print("\n[!] Master Reset Finished.")
         print(f"[!] You can now login with:")
-        print(f"    Username : {username}")
+        print(f"    Username : admin ATAU admin2")
         print(f"    Password : {password}")
     else:
         print("[-] Error: No database files found.")
