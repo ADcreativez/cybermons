@@ -169,9 +169,13 @@ echo -e "  Username : ${YELLOW}admin${NC}"
 echo -e "  Password : ${YELLOW}cybermon2026${NC}"
 echo -e "  ${RED}⚠ CHANGE PASSWORD IMMEDIATELY AFTER FIRST LOGIN!${NC}"
 echo ""
-echo -e "  ${CYAN}Start the app:${NC}"
-echo -e "  ${YELLOW}source venv/bin/activate && python3 launcher.py${NC}"
-echo ""
-echo -e "  ${CYAN}Production mode:${NC}"
-echo -e "  ${YELLOW}source venv/bin/activate && gunicorn --workers 4 --bind 0.0.0.0:5050 'app:create_app()'${NC}"
+echo -e "  ${CYAN}Start the app (Recommended):${NC}
+  ${YELLOW}source venv/bin/activate && python3 launcher.py${NC}
+
+  ${CYAN}Start directly:${NC}
+  ${YELLOW}source venv/bin/activate && python3 run.py${NC}
+
+  ${CYAN}Production mode:${NC}
+  ${YELLOW}source venv/bin/activate && gunicorn --workers 4 --bind 0.0.0.0:5050 'app:create_app()'${NC}
+"
 echo ""
