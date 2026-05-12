@@ -768,7 +768,11 @@ def _build_indonesia_cache():
 
     try:
         CURATED_FEEDS = [
-            {'url': 'https://dailydarkweb.net/category/data-breaches/feed/', 'source': 'Daily Dark Web'},
+            {'url': 'https://cyberpress.org/feed/', 'source': 'CyberPress'},
+            {'url': 'https://www.hackread.com/feed/', 'source': 'HackRead'},
+            {'url': 'https://darknetlive.com/feed/', 'source': 'DarknetLive'},
+            {'url': 'https://securityaffairs.co/wordpress/feed', 'source': 'Security Affairs'},
+            {'url': 'https://dailydarkweb.net/category/data-breaches/feed/', 'source': 'Daily Dark Web (Archive)'},
             {'url': 'https://dailydarkweb.net/feed/', 'source': 'Daily Dark Web (Global)'},
         ]
         results['curated'] = []
@@ -884,7 +888,8 @@ def daily_search():
     
     since = datetime.utcnow() - timedelta(days=days)
     
-    query = Threat.query.filter(Threat.source.in_(['Daily Dark Web', 'DarkWeb Informer']))
+    # 1. Get from Database
+    query = Threat.query.filter(Threat.source.in_(['Daily Dark Web', 'DarkWeb Informer', 'CyberPress', 'HackRead', 'DarknetLive', 'Security Affairs']))
     query = query.filter(Threat.published >= since)
     
     if q:
@@ -893,7 +898,9 @@ def daily_search():
     results = query.order_by(Threat.published.desc()).all()
     
     output = []
+    seen_links = set()
     for t in results:
+        seen_links.add(t.link)
         output.append({
             'title': t.title,
             'summary': t.summary[:350] + '...' if len(t.summary or '') > 350 else t.summary,
@@ -902,6 +909,37 @@ def daily_search():
             'source': t.source,
             'tag': t.category.upper() if t.category else 'INTEL'
         })
+
+    # 2. Merge with Curated RSS Cache (for real-time updates not yet in DB)
+    if os.path.exists(_INDONESIA_CACHE_FILE):
+        try:
+            with open(_INDONESIA_CACHE_FILE, 'r') as f:
+                cache_data = json.load(f)
+                for item in cache_data.get('curated', []):
+                    if item['link'] in seen_links: continue
+                    
+                    # Filter by query if present
+                    if q and q.lower() not in item['title'].lower() and q.lower() not in item.get('summary', '').lower():
+                        continue
+                        
+                    output.append(item)
+                    seen_links.add(item['link'])
+        except:
+            pass
+
+    # Sort combined output by date (newest first)
+    # Handle different date formats (ISO string vs RSS string)
+    def parse_dt(d):
+        try:
+            return d if isinstance(d, datetime) else datetime.fromisoformat(d.replace('Z', '+00:00'))
+        except:
+            try:
+                import email.utils
+                return datetime(*email.utils.parsedate(d)[:6])
+            except:
+                return datetime.min
+
+    output.sort(key=lambda x: parse_dt(x['date']), reverse=True)
     
     return jsonify({'status': 'success', 'count': len(output), 'results': output})
 
@@ -913,6 +951,11 @@ def daily_deep_scan():
     def run_deep_scan():
         from scratch.deep_scrape_daily import scrape_daily_breaches
         from scratch.deep_scrape_dwi import scrape_dwi_fraud
+        
+        # 1. Update the real-time RSS feeds cache
+        _build_indonesia_cache()
+        
+        # 2. Run the existing deep crawlers for database storage
         scrape_daily_breaches(max_pages=20)
         scrape_dwi_fraud(max_pages=10)
         

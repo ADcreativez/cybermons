@@ -133,9 +133,12 @@ def mfa_disable():
 def profile():
     return render_template('profile.html')
 
-@auth_bp.route('/profile/change-password', methods=['POST'])
+@auth_bp.route('/profile/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
+    if request.method == 'GET':
+        return redirect(url_for('auth.profile'))
+    
     old_password = request.form.get('old_password')
     new_password = request.form.get('new_password')
     confirm_password = request.form.get('confirm_password')
