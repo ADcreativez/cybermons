@@ -12,8 +12,9 @@ from ..utils.helpers import load_darkweb_config
 
 breach_intel_bp = Blueprint('breach_intel', __name__)
 
-_INDONESIA_CACHE_FILE = os.path.join(os.getcwd(), 'breach_indonesia_cache.json')
-_MARKET_CACHE_FILE    = os.path.join(os.getcwd(), 'breach_market_cache.json')
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_INDONESIA_CACHE_FILE = os.path.join(_BASE_DIR, 'breach_indonesia_cache.json')
+_MARKET_CACHE_FILE    = os.path.join(_BASE_DIR, 'breach_market_cache.json')
 _CACHE_TTL            = 6 * 3600  # 6 hours
 
 HEADERS = {
