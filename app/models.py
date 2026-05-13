@@ -64,6 +64,7 @@ class Inventory(db.Model):
     brand = db.Column(db.String(100), nullable=False)
     module = db.Column(db.String(100), nullable=False)
     version = db.Column(db.String(50))
+    category = db.Column(db.String(50), default='brand')
     added_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     added_by = db.relationship('User', foreign_keys=[added_by_id])
 

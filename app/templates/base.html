@@ -31,55 +31,51 @@
             </a>
         </div>
         <nav class="sidebar-nav">
-            <div style="margin: 15px 24px 10px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">THREAT MONITORING</div>
-
+            <div style="margin: 20px 24px 8px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">THREAT MONITORING</div>
+            
             <a href="{{ url_for('monitoring.whats_new') }}" class="sidebar-item {% if request.endpoint == 'monitoring.whats_new' %}active{% endif %}">
-                <i class="fa-solid fa-bolt-lightning" style="color: #ffaa00;"></i>
+                <i class="fa-solid fa-bolt" style="color: #ffaa00;"></i>
                 <span class="sidebar-text">WHATS NEW</span>
             </a>
+            
             <a href="{{ url_for('monitoring.main_dashboard') }}" class="sidebar-item {% if request.endpoint == 'monitoring.main_dashboard' %}active{% endif %}">
                 <i class="fa-solid fa-chart-line"></i>
                 <span class="sidebar-text">EXECUTIVE DASH</span>
             </a>
+            
             <a href="{{ url_for('monitoring.index') }}" class="sidebar-item {% if request.endpoint == 'monitoring.index' %}active{% endif %}">
                 <i class="fa-solid fa-radiation"></i>
                 <span class="sidebar-text">THREAT MONITOR</span>
             </a>
+            
             <a href="{{ url_for('monitoring.ransomware') }}" class="sidebar-item {% if request.endpoint == 'monitoring.ransomware' %}active{% endif %}">
-                <i class="fa-solid fa-biohazard"></i>
+                <i class="fa-solid fa-virus"></i>
                 <span class="sidebar-text">RANSOMWARE</span>
             </a>
+            
             <a href="{{ url_for('monitoring.news') }}" class="sidebar-item {% if request.endpoint == 'monitoring.news' %}active{% endif %}">
                 <i class="fa-solid fa-newspaper"></i>
                 <span class="sidebar-text">CYBER NEWS</span>
             </a>
+            
             <a href="{{ url_for('monitoring.exploit_database') }}" class="sidebar-item {% if request.endpoint == 'monitoring.exploit_database' %}active{% endif %}">
                 <i class="fa-solid fa-user-secret"></i>
                 <span class="sidebar-text">EXPLOIT DB</span>
             </a>
-            
+
             <div style="margin: 15px 24px 10px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">DARKWEB INTEL</div>
-            
+
             {% if darkweb_config.show_infra_recon %}
             <a href="{{ url_for('darkweb.recon') }}" class="sidebar-item {% if request.endpoint == 'darkweb.recon' %}active{% endif %}">
                 <i class="fa-solid fa-ghost"></i>
                 <span class="sidebar-text">PHANTOM SCAN</span>
             </a>
             {% endif %}
-            
-            {% if darkweb_config.show_breach_intel %}
+
             <a href="{{ url_for('breach_intel.breach_intel') }}" class="sidebar-item {% if request.endpoint == 'breach_intel.breach_intel' %}active{% endif %}">
                 <i class="fa-solid fa-database"></i>
                 <span class="sidebar-text">BREACH INTEL</span>
             </a>
-            {% endif %}
-            
-            {% if darkweb_config.show_credentials %}
-            <a href="{{ url_for('darkweb.credentials') }}" class="sidebar-item {% if request.endpoint == 'darkweb.credentials' %}active{% endif %}">
-                <i class="fa-solid fa-key"></i>
-                <span class="sidebar-text">CREDENTIAL LEAK</span>
-            </a>
-            {% endif %}
             
             {% if darkweb_config.show_ransomware %}
             <a href="{{ url_for('darkweb.ransomware_victims') }}" class="sidebar-item {% if request.endpoint == 'darkweb.ransomware_victims' %}active{% endif %}">
@@ -87,49 +83,28 @@
                 <span class="sidebar-text">RANSOMWARE VICTIMS</span>
             </a>
             {% endif %}
-            
-            {% if darkweb_config.show_paste %}
-            <a href="{{ url_for('darkweb.paste_monitor') }}" class="sidebar-item {% if request.endpoint == 'darkweb.paste_monitor' %}active{% endif %}">
-                <i class="fa-solid fa-paste"></i>
-                <span class="sidebar-text">PASTE MONITOR</span>
-            </a>
-            {% endif %}
-            
+
             {% if darkweb_config.show_defacements %}
             <a href="{{ url_for('darkweb.defacements') }}" class="sidebar-item {% if request.endpoint == 'darkweb.defacements' %}active{% endif %}">
                 <i class="fa-solid fa-bug"></i>
                 <span class="sidebar-text">DEFACEMENTS</span>
             </a>
             {% endif %}
-            
-            {% if darkweb_config.show_stealer %}
-            <a href="{{ url_for('darkweb.stealer_logs') }}" class="sidebar-item {% if request.endpoint == 'darkweb.stealer_logs' %}active{% endif %}">
-                <i class="fa-solid fa-virus"></i>
-                <span class="sidebar-text">STEALER LOGS</span>
-            </a>
-            {% endif %}
-            
+
             {% if darkweb_config.show_passwords %}
             <a href="{{ url_for('darkweb.passwords') }}" class="sidebar-item {% if request.endpoint == 'darkweb.passwords' %}active{% endif %}">
                 <i class="fa-solid fa-shield-halved"></i>
                 <span class="sidebar-text">PASSWORD CHECK</span>
             </a>
             {% endif %}
-            
-            {% if darkweb_config.show_infra %}
-            <a href="{{ url_for('darkweb.infra_search') }}" class="sidebar-item {% if request.endpoint == 'darkweb.infra_search' %}active{% endif %}">
-                <i class="fa-solid fa-network-wired"></i>
-                <span class="sidebar-text">COMPROMISED INFRA</span>
-            </a>
-            {% endif %}
-            
+
             {% if darkweb_config.show_ioc_intel %}
             <a href="{{ url_for('darkweb.ioc_intelligence') }}" class="sidebar-item {% if request.endpoint == 'darkweb.ioc_intelligence' %}active{% endif %}">
                 <i class="fa-solid fa-fingerprint"></i>
                 <span class="sidebar-text">IOC INTEL</span>
             </a>
             {% endif %}
-            
+
             {% if darkweb_config.show_wayback %}
             <a href="{{ url_for('darkweb.wayback') }}" class="sidebar-item {% if request.endpoint == 'darkweb.wayback' %}active{% endif %}">
                 <i class="fa-solid fa-clock-rotate-left"></i>
@@ -142,31 +117,40 @@
                 <span class="sidebar-text">ATT&CK MATRIX</span>
             </a>
             
-            <div style="margin: 15px 24px 10px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">SYSTEM</div>
+            <div style="margin: 15px 24px 10px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">BRAND INTELLIGENCE</div>
             
             <a href="{{ url_for('inventory.index') }}" class="sidebar-item {% if request.endpoint == 'inventory.index' %}active{% endif %}">
-                <i class="fa-solid fa-box-archive"></i>
-                <span class="sidebar-text">MY INVENTORY</span>
+                <i class="fa-solid fa-tower-observation"></i>
+                <span class="sidebar-text">BRAND MONITORING</span>
+            </a>
+
+            <a href="{{ url_for('inventory.supply_chain') }}" class="sidebar-item {% if request.endpoint == 'inventory.supply_chain' %}active{% endif %}">
+                <i class="fa-solid fa-link-slash"></i>
+                <span class="sidebar-text">SUPPLY CHAIN (SCRM)</span>
             </a>
             
+            <div style="margin: 15px 24px 10px; font-size: 0.65rem; color: #00ffcc; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5); font-weight: 600;" class="sidebar-text">SYSTEM</div>
+
             {% if current_user.role == 'admin' %}
             <a href="{{ url_for('admin.users') }}" class="sidebar-item {% if request.endpoint == 'admin.users' %}active{% endif %}">
                 <i class="fa-solid fa-users-gear"></i>
                 <span class="sidebar-text">USER MGMT</span>
             </a>
+            
             <a href="{{ url_for('admin.antibot') }}" class="sidebar-item {% if request.endpoint == 'admin.antibot' %}active{% endif %}">
-                <i class="fa-solid fa-user-shield"></i>
+                <i class="fa-solid fa-robot"></i>
                 <span class="sidebar-text">ANTIBOT</span>
             </a>
+            
             <a href="{{ url_for('admin.settings') }}" class="sidebar-item {% if request.endpoint == 'admin.settings' %}active{% endif %}">
-                <i class="fa-solid fa-cog"></i>
+                <i class="fa-solid fa-gears"></i>
                 <span class="sidebar-text">SYSTEM CONFIG</span>
             </a>
+            {% endif %}
             <a href="{{ url_for('monitoring.about') }}" class="sidebar-item {% if request.endpoint == 'monitoring.about' %}active{% endif %}">
                 <i class="fa-solid fa-circle-info"></i>
                 <span class="sidebar-text">ABOUT</span>
             </a>
-            {% endif %}
         </nav>
     </aside>
     {% endif %}

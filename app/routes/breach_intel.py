@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 from ..utils.helpers import load_darkweb_config
+from ..models import Threat
 
 breach_intel_bp = Blueprint('breach_intel', __name__)
 
@@ -832,30 +833,40 @@ def indonesia_breach():
             seen_titles = {inc['title'] for inc in full_incidents}
             
             try:
+                # Expanded keywords for better Indonesian threat detection
+                ID_KEYWORDS = ['Indonesia', 'Indonesian', '.id', 'Jakarta', 'Surabaya', 'Bandung', 'Medan', 'Semarang', 'Makassar', 'Pemerintah', 'Dinas', 'Kementerian', 'BUMN', 'Polri', 'TNI', 'Bank', 'Dukcapil']
+                
+                # Dynamic filter building
+                filters = [Threat.title.ilike(f'%{kw}%') for kw in ID_KEYWORDS] + [Threat.summary.ilike(f'%{kw}%') for kw in ID_KEYWORDS]
+                
                 id_threats = Threat.query.filter(
-                    Threat.source.in_(['Daily Dark Web', 'DarkWeb Informer']),
-                    (Threat.title.ilike('%Indonesia%')) | (Threat.summary.ilike('%Indonesia%'))
+                    Threat.source.in_(['Daily Dark Web', 'DarkWeb Informer', 'CyberPress', 'HackRead', 'DarknetLive', 'Security Affairs']),
+                    db.or_(*filters)
                 ).order_by(Threat.published.desc()).all()
                 
                 for it in id_threats:
                     # Clean title for display
-                    display_title = it.title.replace('Indonesia ', '').replace('Indonesian ', '')
+                    display_title = it.title
+                    for kw in ['Indonesia ', 'Indonesian ', '[INDONESIA] ', '[ID] ']:
+                        display_title = display_title.replace(kw, '')
+                        
                     if display_title in seen_titles: continue
                     seen_titles.add(display_title)
                     
                     full_incidents.append({
                         'title': it.title,
                         'date': it.published.strftime('%Y-%m') if it.published else 'Unknown',
-                        'impact': it.summary[:200],
-                        'attack_type': it.category,
+                        'impact': it.summary[:300] if it.summary else 'No summary available',
+                        'attack_type': it.category.upper() if it.category else 'BREACH',
                         'risk': it.severity or 'High',
                         'attacker': it.source,
                         'records': 'Unknown',
-                        'org_type': 'Private/Public',
-                        'tags': ['INTEL', 'DARKWEB', it.category],
+                        'org_type': 'Detected Intel',
+                        'tags': ['INTEL', 'DARKWEB', it.category or 'leak'],
                         'ref': it.link
                     })
-            except: pass
+            except Exception as e:
+                print(f"DEBUG: Indonesia Intel Merge Error: {e}")
             
             # Sort all by date
             full_incidents.sort(key=lambda x: x['date'], reverse=True)
@@ -945,22 +956,25 @@ def daily_search():
     return jsonify({'status': 'success', 'count': len(output), 'results': output})
 
 
+def daily_deep_scan_internal():
+    """Internal version of deep scan for sync integration (blocking)."""
+    try:
+        from scratch.deep_scrape_daily import scrape_daily_breaches
+        from scratch.deep_scrape_dwi import scrape_dwi_fraud
+        
+        print("GLOBAL SYNC: Running Deep Scraper for Daily Dark Web...")
+        scrape_daily_breaches(max_pages=20)
+        
+        print("GLOBAL SYNC: Running Deep Scraper for DarkWeb Informer...")
+        scrape_dwi_fraud(max_pages=10)
+    except Exception as e:
+        print(f"GLOBAL SYNC: Deep Scan Error: {e}")
+
 @breach_intel_bp.route('/darkweb/breach-intel/daily/deep-scan', methods=['POST'])
 @login_required
 def daily_deep_scan():
     """Trigger a deep crawl of all Darkweb intelligence sources."""
-    def run_deep_scan():
-        from scratch.deep_scrape_daily import scrape_daily_breaches
-        from scratch.deep_scrape_dwi import scrape_dwi_fraud
-        
-        # 1. Update the real-time RSS feeds cache
-        _build_indonesia_cache()
-        
-        # 2. Run the existing deep crawlers for database storage
-        scrape_daily_breaches(max_pages=20)
-        scrape_dwi_fraud(max_pages=10)
-        
-    threading.Thread(target=run_deep_scan, daemon=True).start()
+    threading.Thread(target=daily_deep_scan_internal, daemon=True).start()
     return jsonify({'status': 'ok', 'message': 'Deep scan started for all sources'})
 
 

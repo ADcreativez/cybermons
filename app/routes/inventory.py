@@ -14,9 +14,18 @@ inventory_bp = Blueprint('inventory', __name__)
 def index():
     if not current_user.group_id:
         log_event('No group assigned.', 'warning')
-        return render_template('inventory.html', items=[])
-    items = Inventory.query.filter_by(group_id=current_user.group_id).all()
-    return render_template('inventory.html', items=items)
+        return render_template('inventory.html', items=[], category='brand')
+    items = Inventory.query.filter_by(group_id=current_user.group_id, category='brand').all()
+    return render_template('inventory.html', items=items, category='brand')
+
+@inventory_bp.route('/supply-chain')
+@login_required
+def supply_chain():
+    if not current_user.group_id:
+        log_event('No group assigned.', 'warning')
+        return render_template('inventory.html', items=[], category='supply_chain')
+    items = Inventory.query.filter_by(group_id=current_user.group_id, category='supply_chain').all()
+    return render_template('inventory.html', items=items, category='supply_chain')
 
 @inventory_bp.route('/inventory/add', methods=['POST'])
 @login_required
@@ -25,18 +34,24 @@ def add():
     brand = request.form.get('brand')
     module = request.form.get('module')
     version = request.form.get('version')
+    category = request.form.get('category', 'brand')
+    
     if brand and module:
         new_item = Inventory(
             group_id=current_user.group_id, 
             brand=brand, 
             module=module, 
             version=version, 
+            category=category,
             added_by_id=current_user.id
         )
         db.session.add(new_item)
         db.session.commit()
-        log_event('Inventory item added.', 'success')
-    return redirect(url_for('inventory.index'))
+        
+        msg = 'Brand monitoring started.' if category == 'brand' else 'Supply chain monitoring started.'
+        log_event(msg, 'success')
+    
+    return redirect(url_for('inventory.supply_chain' if category == 'supply_chain' else 'inventory.index'))
 
 @inventory_bp.route('/inventory/delete/<int:id>', methods=['POST'])
 @login_required
@@ -45,7 +60,7 @@ def delete(id):
     if item.group_id != current_user.group_id: abort(403)
     db.session.delete(item)
     db.session.commit()
-    log_event('Item removed.', 'info')
+    log_event('Brand removed from monitoring.', 'info')
     return redirect(url_for('inventory.index'))
 
 @inventory_bp.route('/alerts')

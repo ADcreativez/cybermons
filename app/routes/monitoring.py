@@ -310,7 +310,12 @@ def fetch_and_store_all_data(force=False):
         run_breach_market_sync()
         
         # 5. Indonesia Breach (Background)
-        threading.Thread(target=_build_indonesia_cache, daemon=True).start()
+        log_event("GLOBAL SYNC: Updating Indonesia Breach Cache", "info")
+        _build_indonesia_cache()
+        
+        # 6. Deep Scan for Darkweb Sources
+        from .breach_intel import daily_deep_scan_internal
+        daily_deep_scan_internal()
 
         config['last_sync'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         save_darkweb_config(config)
