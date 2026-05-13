@@ -175,6 +175,115 @@
             display: block;
             margin-top: 5px;
         }
+
+        /* Intelligence Sources Modal Styles */
+        .source-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        .source-modal {
+            background: #0a0a14;
+            border: 1px solid var(--accent-color);
+            width: 95%;
+            max-width: 1000px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 50px rgba(0, 255, 204, 0.2);
+        }
+        .source-modal-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 255, 204, 0.03);
+        }
+        .source-modal-body {
+            padding: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .source-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+        }
+        .source-table th {
+            background: rgba(0, 255, 204, 0.05);
+            color: var(--accent-color);
+            text-align: left;
+            padding: 12px 20px;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .source-table td {
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.75rem;
+            color: var(--text-primary);
+        }
+        .source-table tr:hover td {
+            background: rgba(0, 255, 204, 0.02);
+        }
+        .source-tag {
+            background: rgba(0, 255, 204, 0.1);
+            color: var(--accent-color);
+            padding: 2px 8px;
+            border-radius: 2px;
+            font-size: 0.65rem;
+            border: 1px solid rgba(0, 255, 204, 0.2);
+        }
+        .source-url-link {
+            color: var(--accent-color);
+            text-decoration: none;
+            opacity: 0.6;
+        }
+        .source-url-link:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+        .btn-sources {
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 15px 30px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .btn-sources:hover {
+            background: var(--accent-color);
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0.5;
+        }
+        .close-btn:hover {
+            opacity: 1;
+        }
     </style>
 
     <!-- Hero Section -->
@@ -326,11 +435,84 @@
             <h3>PT Inovasi Informatika Indonesia (i3)</h3>
             <p>Cybermon dikembangkan oleh tim <strong>PT Inovasi Informatika Indonesia (i3)</strong> sebagai solusi intelijen ancaman siber yang berfokus pada kebutuhan spesifik organisasi Indonesia. Platform ini terus berkembang mengikuti lanskap ancaman siber yang dinamis, dengan komitmen untuk menghadirkan kapabilitas monitoring kelas enterprise yang mudah dioperasikan oleh tim keamanan dari berbagai skala.</p>
         </div>
-        <div style="margin-left: auto; text-align: center; flex-shrink: 0;">
-            <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 8px;">SYSTEM BUILD</div>
-            <div style="font-family: var(--font-mono); color: var(--accent-color); font-size: 1.1rem; border: 1px solid var(--accent-color); padding: 8px 20px;">v2.1.1 STABLE</div>
+        <div style="margin-left: auto; text-align: center; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; align-items: flex-end;">
+            <div style="text-align: right;">
+                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 8px;">SYSTEM BUILD</div>
+                <div style="font-family: var(--font-mono); color: var(--accent-color); font-size: 1.1rem; border: 1px solid var(--accent-color); padding: 8px 20px;">v2.1.1 STABLE</div>
+            </div>
+            <button class="btn-sources" onclick="openSourcesModal()">
+                <i class="fa-solid fa-database"></i> INTELLIGENCE SOURCES
+            </button>
         </div>
     </div>
+
+    <!-- Intelligence Sources Modal -->
+    <div id="sources-modal" class="source-modal-overlay" onclick="closeSourcesModal()">
+        <div class="source-modal" onclick="event.stopPropagation()">
+            <div class="source-modal-header">
+                <h2 style="margin:0; font-family:var(--font-mono); color:var(--accent-color); font-size:1rem; letter-spacing:3px;">
+                    <i class="fa-solid fa-network-wired"></i> EXTERNAL FEED SOURCES
+                </h2>
+                <button class="close-btn" onclick="closeSourcesModal()">✕</button>
+            </div>
+            <div class="source-modal-body">
+                <table class="source-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">NO</th>
+                            <th>SOURCE NAME</th>
+                            <th>FUNCTION / CATEGORY</th>
+                            <th>REFERENCE LINK</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>01</td><td>Daily Dark Web</td><td><span class="source-tag">DARKWEB INTEL</span></td><td><a href="https://dailydarkweb.net/" class="source-url-link" target="_blank">dailydarkweb.net</a></td></tr>
+                        <tr><td>02</td><td>Ransomware.live</td><td><span class="source-tag">RANSOMWARE TRACKER</span></td><td><a href="https://www.ransomware.live/" class="source-url-link" target="_blank">ransomware.live</a></td></tr>
+                        <tr><td>03</td><td>Zone-Xsec</td><td><span class="source-tag">WEBSITE DEFACEMENT</span></td><td><a href="https://zone-xsec.com/" class="source-url-link" target="_blank">zone-xsec.com</a></td></tr>
+                        <tr><td>04</td><td>CyberPress</td><td><span class="source-tag">BREACH INTEL</span></td><td><a href="https://cyberpress.org/" class="source-url-link" target="_blank">cyberpress.org</a></td></tr>
+                        <tr><td>05</td><td>HackRead</td><td><span class="source-tag">CYBER NEWS / BREACH</span></td><td><a href="https://www.hackread.com/" class="source-url-link" target="_blank">hackread.com</a></td></tr>
+                        <tr><td>06</td><td>Have I Been Pwned</td><td><span class="source-tag">ACCOUNT BREACH</span></td><td><a href="https://haveibeenpwned.com/" class="source-url-link" target="_blank">hibp.com</a></td></tr>
+                        <tr><td>07</td><td>Hudson Rock</td><td><span class="source-tag">INFOSTEALER INTEL</span></td><td><a href="https://www.hudsonrock.com/" class="source-url-link" target="_blank">hudsonrock.com</a></td></tr>
+                        <tr><td>08</td><td>BreachDirectory</td><td><span class="source-tag">CREDENTIAL LEAK</span></td><td><a href="https://breachdirectory.org/" class="source-url-link" target="_blank">breachdirectory.org</a></td></tr>
+                        <tr><td>09</td><td>LeakCheck</td><td><span class="source-tag">CREDENTIAL LEAK</span></td><td><a href="https://leakcheck.net/" class="source-url-link" target="_blank">leakcheck.net</a></td></tr>
+                        <tr><td>10</td><td>DarknetLive</td><td><span class="source-tag">DARKWEB MARKET</span></td><td><a href="https://darknetlive.com/" class="source-url-link" target="_blank">darknetlive.com</a></td></tr>
+                        <tr><td>11</td><td>VirusTotal</td><td><span class="source-tag">IOC INTELLIGENCE</span></td><td><a href="https://www.virustotal.com/" class="source-url-link" target="_blank">virustotal.com</a></td></tr>
+                        <tr><td>12</td><td>AbuseIPDB</td><td><span class="source-tag">IP REPUTATION</span></td><td><a href="https://www.abuseipdb.com/" class="source-url-link" target="_blank">abuseipdb.com</a></td></tr>
+                        <tr><td>13</td><td>ThreatFox</td><td><span class="source-tag">MALWARE IOC</span></td><td><a href="https://threatfox.abuse.ch/" class="source-url-link" target="_blank">threatfox.ch</a></td></tr>
+                        <tr><td>14</td><td>URLScan.io</td><td><span class="source-tag">WEBSITE ANALYSIS</span></td><td><a href="https://urlscan.io/" class="source-url-link" target="_blank">urlscan.io</a></td></tr>
+                        <tr><td>15</td><td>FortiGuard Labs</td><td><span class="source-tag">THREAT INTELLIGENCE</span></td><td><a href="https://www.fortiguard.com/" class="source-url-link" target="_blank">fortiguard.com</a></td></tr>
+                        <tr><td>16</td><td>NVD (NIST CVE)</td><td><span class="source-tag">VULNERABILITY DB</span></td><td><a href="https://nvd.nist.gov/" class="source-url-link" target="_blank">nvd.nist.gov</a></td></tr>
+                        <tr><td>17</td><td>CISA KEV Feed</td><td><span class="source-tag">EXPLOITATION INTEL</span></td><td><a href="https://www.cisa.gov/" class="source-url-link" target="_blank">cisa.gov</a></td></tr>
+                        <tr><td>18</td><td>Exploit-DB</td><td><span class="source-tag">EXPLOIT DATABASE</span></td><td><a href="https://www.exploit-db.com/" class="source-url-link" target="_blank">exploit-db.com</a></td></tr>
+                        <tr><td>19</td><td>MITRE ATT&CK</td><td><span class="source-tag">THREAT TACTIC</span></td><td><a href="https://attack.mitre.org/" class="source-url-link" target="_blank">mitre.org</a></td></tr>
+                        <tr><td>20</td><td>Wayback Machine</td><td><span class="source-tag">RECONNAISSANCE</span></td><td><a href="https://archive.org/" class="source-url-link" target="_blank">archive.org</a></td></tr>
+                        <tr><td>21</td><td>The Hacker News</td><td><span class="source-tag">CYBER NEWS</span></td><td><a href="https://thehackernews.com/" class="source-url-link" target="_blank">thehackernews.com</a></td></tr>
+                        <tr><td>23</td><td>IntelX</td><td><span class="source-tag">BREACH SEARCH</span></td><td><a href="https://intelx.io/" class="source-url-link" target="_blank">intelx.io</a></td></tr>
+                        <tr><td>24</td><td>Criminal IP</td><td><span class="source-tag">THREAT INTELLIGENCE</span></td><td><a href="https://www.criminalip.io/" class="source-url-link" target="_blank">criminalip.io</a></td></tr>
+                        <tr><td>25</td><td>HackerTarget</td><td><span class="source-tag">PASSIVE RECON</span></td><td><a href="https://hackertarget.com/" class="source-url-link" target="_blank">hackertarget.com</a></td></tr>
+                        <tr><td>26</td><td>MXToolbox</td><td><span class="source-tag">DOMAIN RECON</span></td><td><a href="https://mxtoolbox.com/" class="source-url-link" target="_blank">mxtoolbox.com</a></td></tr>
+                        <tr><td>27</td><td>Tempo Nasional</td><td><span class="source-tag">NATIONAL NEWS</span></td><td><a href="https://nasional.tempo.co/" class="source-url-link" target="_blank">tempo.co</a></td></tr>
+                        <tr><td>28</td><td>Antara News</td><td><span class="source-tag">NATIONAL NEWS</span></td><td><a href="https://www.antaranews.com/" class="source-url-link" target="_blank">antaranews.com</a></td></tr>
+                        <tr><td>29</td><td>CNBC Tech</td><td><span class="source-tag">TECH NEWS</span></td><td><a href="https://www.cnbcindonesia.com/tech" class="source-url-link" target="_blank">cnbcindonesia.com</a></td></tr>
+                        <tr><td>30</td><td>Cyberthreat.id</td><td><span class="source-tag">NATIONAL INCIDENT</span></td><td><a href="https://cyberthreat.id/" class="source-url-link" target="_blank">cyberthreat.id</a></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openSourcesModal() {
+            document.getElementById('sources-modal').style.display = 'flex';
+        }
+        function closeSourcesModal() {
+            document.getElementById('sources-modal').style.display = 'none';
+        }
+        // Close on escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') closeSourcesModal();
+        });
+    </script>
 
 </div>
 {% endblock %}
