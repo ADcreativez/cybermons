@@ -304,8 +304,6 @@
                     <p style="font-size: 0.85em; opacity: 0.7; margin-bottom: 20px;">Automated mitigation for sophisticated attack patterns and high-volume flooding.</p>
                     
                     <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}">
-                        <input type="hidden" name="enabled" value="{{ 'true' if geo_settings.is_strict_ip_mode else 'false' }}">
-                        
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
                             <!-- Column 1: Thresholds -->
                             <div style="background: rgba(0,0,0,0.2); padding: 15px; border: 1px solid rgba(255,255,255,0.05);">
@@ -344,32 +342,23 @@
                                 <p style="font-size: 0.75em; opacity: 0.5; font-family: monospace;">
                                     Path: /path/to/cybermon/...<span style="color: var(--primary-color);">{{ geo_settings.secret_knock_key or '1337' }}</span>
                                 </p>
+
+                                <div style="margin-top: 25px; padding: 15px; background: rgba(255, 65, 0, 0.05); border: 1px solid rgba(255, 65, 0, 0.2); border-radius: 4px;">
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                        <input type="checkbox" name="enabled" value="true" id="strict-mode-toggle" {% if geo_settings.is_strict_ip_mode %}checked{% endif %}
+                                               style="width: 20px; height: 20px; cursor: pointer; accent-color: #ff4100;">
+                                        <label for="strict-mode-toggle" style="color: #ff4100; font-weight: bold; cursor: pointer;">ENABLE STRICT LOCKDOWN</label>
+                                    </div>
+                                    <p style="font-size: 0.7rem; opacity: 0.7; color: #ffaa00; margin: 0;">
+                                        Blocks ALL traffic EXCEPT IPs in your <strong>Manual Whitelist</strong>.
+                                    </p>
+                                </div>
                                 
-                                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 25px; background: rgba(0, 255, 204, 0.1); border-color: var(--primary-color);">
-                                    <i class="fa-solid fa-sync"></i> REFRESH SMART DEFENSE RULES
+                                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px; background: var(--primary-color); color: #000; font-weight: bold; border: none; padding: 15px; font-size: 0.9rem; transition: all 0.3s; box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);">
+                                    <i class="fa-solid fa-floppy-disk"></i> SAVE & APPLY WAF CONFIGURATION
                                 </button>
                             </div>
                         </div>
-                    </form>
-                </div>
-
-                <!-- Strict Mode Toggle (Now integrated but kept separate for prominence) -->
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: rgba(255, 65, 0, 0.05); border: 1px solid rgba(255, 65, 0, 0.3); border-left: 4px solid #ff4100; margin-top: 20px;">
-                    <div style="flex: 1;">
-                        <strong style="color: #ff4100; font-size: 1.1rem;"><i class="fa-solid fa-lock"></i> LOCKDOWN: STRICT IP ACCESS</strong>
-                        <p style="font-size: 0.85em; opacity: 0.8; margin: 5px 0 0 0; color: #ffaa00;">
-                            Blocks ALL traffic EXCEPT IPs in your <strong>Manual Whitelist</strong>.
-                        </p>
-                    </div>
-                    <form method="POST" action="{{ url_for('admin.geo_strict_mode') }}">
-                        <input type="hidden" name="enabled" value="{{ 'false' if geo_settings.is_strict_ip_mode else 'true' }}">
-                        <input type="hidden" name="secret_knock_key" value="{{ geo_settings.secret_knock_key or '1337' }}">
-                        <input type="hidden" name="secret_knock_max" value="{{ geo_settings.secret_knock_max or 3 }}">
-                        <input type="hidden" name="rate_limit_max" value="{{ geo_settings.rate_limit_max or 60 }}">
-                        <button type="submit" class="btn-primary" 
-                                style="background: {{ 'var(--danger-color)' if geo_settings.is_strict_ip_mode else 'var(--accent-color)' }}; color: {{ '#fff' if geo_settings.is_strict_ip_mode else '#000' }}; min-width: 160px; font-weight: bold; padding: 12px;">
-                            {{ 'DEACTIVATE LOCKDOWN' if geo_settings.is_strict_ip_mode else 'ACTIVATE LOCKDOWN' }}
-                        </button>
                     </form>
                 </div>
             </div>
