@@ -846,10 +846,10 @@ def fetch_archive_org_apex(indicator):
     seen_urls = set()
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         url = f"https://web.archive.org/cdx/search/cdx?url={indicator}/*&output=json&limit=100&collapse=urlkey"
-        resp = req.get(url, headers=headers, timeout=6, verify=False)
+        resp = req.get(url, headers=headers, timeout=5, verify=False)
         if resp.status_code == 200:
             raw_data = resp.json()
             if len(raw_data) > 1:
@@ -869,34 +869,6 @@ def fetch_archive_org_apex(indicator):
         print(f"[DEBUG] Archive.org CDX apex fetch error: {str(e)}", file=sys.stderr)
     return results
 
-def fetch_archive_org_wildcard(indicator):
-    results = []
-    seen_urls = set()
-    try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        }
-        url = f"https://web.archive.org/cdx/search/cdx?url=*.{indicator}/*&output=json&limit=100&collapse=urlkey"
-        resp = req.get(url, headers=headers, timeout=5, verify=False)
-        if resp.status_code == 200:
-            raw_data = resp.json()
-            if len(raw_data) > 1:
-                header = raw_data[0]
-                for row in raw_data[1:]:
-                    item = dict(zip(header, row))
-                    orig_url = item.get('original', '')
-                    if orig_url and orig_url not in seen_urls:
-                        seen_urls.add(orig_url)
-                        results.append({
-                            'timestamp': item.get('timestamp', '00000000000000'),
-                            'mimetype': item.get('mimetype', 'text/html'),
-                            'statuscode': str(item.get('statuscode', '200')),
-                            'original': orig_url
-                        })
-    except Exception as e:
-        print(f"[DEBUG] Archive.org CDX wildcard fetch error: {str(e)}", file=sys.stderr)
-    return results
-
 def fetch_alienvault(indicator):
     results = []
     seen_urls = set()
@@ -905,7 +877,7 @@ def fetch_alienvault(indicator):
         otx_headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        otx_resp = req.get(otx_url, headers=otx_headers, timeout=10, verify=False)
+        otx_resp = req.get(otx_url, headers=otx_headers, timeout=5, verify=False)
         if otx_resp.status_code == 200:
             otx_data = otx_resp.json()
             urls = otx_data.get('url_list', [])
@@ -934,7 +906,7 @@ def fetch_common_crawl_single(idx_id, indicator):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         cc_url = f"https://index.commoncrawl.org/{idx_id}-index?url=*.{indicator}/*&output=json&limit=100"
-        cc_resp = req.get(cc_url, headers=cc_headers, timeout=8, verify=False)
+        cc_resp = req.get(cc_url, headers=cc_headers, timeout=5, verify=False)
         if cc_resp.status_code == 200:
             for line in cc_resp.text.strip().splitlines():
                 if not line.strip(): continue
@@ -973,29 +945,28 @@ def wayback_search():
     
     print(f"[DEBUG] Wayback search started for: {indicator}", file=sys.stderr)
     
-    # Get latest 6 index IDs from Common Crawl dynamically
+    # Get latest 3 index IDs from Common Crawl dynamically to keep it extremely lightweight
     cc_indexes = []
     try:
         cc_headers = {'User-Agent': 'Mozilla/5.0'}
-        col_resp = req.get("https://index.commoncrawl.org/collinfo.json", headers=cc_headers, timeout=5, verify=False)
+        col_resp = req.get("https://index.commoncrawl.org/collinfo.json", headers=cc_headers, timeout=3, verify=False)
         if col_resp.status_code == 200:
-            cc_indexes = [item.get('id') for item in col_resp.json()[:6] if item.get('id')]
+            cc_indexes = [item.get('id') for item in col_resp.json()[:3] if item.get('id')]
     except Exception as e:
         print(f"[DEBUG] Collinfo fetch error: {e}", file=sys.stderr)
         
     if not cc_indexes:
         # Fallback static indexes if API check has network issues
-        cc_indexes = ["CC-MAIN-2026-17", "CC-MAIN-2026-11", "CC-MAIN-2025-49", "CC-MAIN-2025-45", "CC-MAIN-2025-35", "CC-MAIN-2025-27"]
-
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        # Archive.org parallel tasks
+        cc_indexes = ["CC-MAIN-2026-17", "CC-MAIN-2026-11", "CC-MAIN-2025-49"]
+ 
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        # Archive.org parallel task
         archive_apex_f = executor.submit(fetch_archive_org_apex, indicator)
-        archive_wc_f = executor.submit(fetch_archive_org_wildcard, indicator)
         
         # AlienVault OTX parallel task
         otx_f = executor.submit(fetch_alienvault, indicator)
         
-        # Common Crawl parallel tasks for 6 indexes
+        # Common Crawl parallel tasks for 3 indexes
         cc_futures = [
             executor.submit(fetch_common_crawl_single, idx, indicator)
             for idx in cc_indexes
@@ -1003,7 +974,6 @@ def wayback_search():
         
         # Gather all parallel results
         archive_apex_res = archive_apex_f.result()
-        archive_wc_res = archive_wc_f.result()
         otx_res = otx_f.result()
         
         cc_res = []
@@ -1016,7 +986,7 @@ def wayback_search():
     # Merge results and prevent duplicates
     seen = set()
     results = []
-    for r in archive_apex_res + archive_wc_res + otx_res + cc_res:
+    for r in archive_apex_res + otx_res + cc_res:
         if r['original'] not in seen:
             seen.add(r['original'])
             results.append(r)
