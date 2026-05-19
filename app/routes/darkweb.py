@@ -852,6 +852,9 @@ def wayback_search():
         from urllib.parse import urlparse
         indicator = urlparse(indicator).netloc
         
+    import sys
+    print(f"[DEBUG] Wayback search started for: {indicator}", file=sys.stderr)
+    
     results = []
     seen_urls = set()
     
@@ -864,8 +867,10 @@ def wayback_search():
         # Wildcard prefix gets ALL subdomains!
         url = f"https://web.archive.org/cdx/search/cdx?url=*.{indicator}/*&output=json&limit=100&collapse=urlkey"
         resp = req.get(url, headers=headers, timeout=8)
+        print(f"[DEBUG] Archive.org CDX HTTP Status: {resp.status_code}", file=sys.stderr)
         if resp.status_code == 200:
             raw_data = resp.json()
+            print(f"[DEBUG] Archive.org CDX raw items: {len(raw_data)}", file=sys.stderr)
             if len(raw_data) > 1:
                 header = raw_data[0]
                 for row in raw_data[1:]:
@@ -879,17 +884,21 @@ def wayback_search():
                             'statuscode': str(item.get('statuscode', '200')),
                             'original': orig_url
                         })
+            print(f"[DEBUG] After Archive.org parser, results count: {len(results)}", file=sys.stderr)
     except Exception as e:
-        print(f"Archive.org CDX fetch error: {str(e)}")
+        print(f"[DEBUG] Archive.org CDX fetch error: {str(e)}", file=sys.stderr)
         
     # 2. Query AlienVault OTX API (as a second rich source and robust fallback!)
     try:
         otx_url = f"https://otx.alienvault.com/api/v1/indicators/domain/{indicator}/url_list?limit=100"
         otx_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         otx_resp = req.get(otx_url, headers=otx_headers, timeout=8)
+        print(f"[DEBUG] AlienVault OTX HTTP Status: {otx_resp.status_code}", file=sys.stderr)
         if otx_resp.status_code == 200:
             otx_data = otx_resp.json()
-            for item in otx_data.get('url_list', []):
+            urls = otx_data.get('url_list', [])
+            print(f"[DEBUG] AlienVault OTX raw items: {len(urls)}", file=sys.stderr)
+            for item in urls:
                 orig_url = item.get('url', '')
                 if orig_url and orig_url not in seen_urls:
                     seen_urls.add(orig_url)
@@ -902,8 +911,11 @@ def wayback_search():
                         'mimetype': 'OSINT/AlienVault',
                         'statuscode': str(item.get('httpcode', '200'))
                     })
+            print(f"[DEBUG] After AlienVault parser, total merged: {len(results)}", file=sys.stderr)
     except Exception as otx_e:
-        print(f"AlienVault OTX fetch error: {str(otx_e)}")
+        print(f"[DEBUG] AlienVault OTX fetch error: {str(otx_e)}", file=sys.stderr)
+        
+    print(f"[DEBUG] Final results array to return: {len(results)} items", file=sys.stderr)
         
     if results:
         # Sort by timestamp descending
