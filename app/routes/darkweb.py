@@ -853,6 +853,9 @@ def wayback_search():
         indicator = urlparse(indicator).netloc
         
     import sys
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
     print(f"[DEBUG] Wayback search started for: {indicator}", file=sys.stderr)
     
     results = []
@@ -861,12 +864,11 @@ def wayback_search():
     # 1. Query Archive.org CDX API with wildcard (gets all subdomains and paths!)
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'application/json'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         }
         # Wildcard prefix gets ALL subdomains!
         url = f"https://web.archive.org/cdx/search/cdx?url=*.{indicator}/*&output=json&limit=100&collapse=urlkey"
-        resp = req.get(url, headers=headers, timeout=8)
+        resp = req.get(url, headers=headers, timeout=12, verify=False)
         print(f"[DEBUG] Archive.org CDX HTTP Status: {resp.status_code}", file=sys.stderr)
         if resp.status_code == 200:
             raw_data = resp.json()
@@ -891,8 +893,10 @@ def wayback_search():
     # 2. Query AlienVault OTX API (as a second rich source and robust fallback!)
     try:
         otx_url = f"https://otx.alienvault.com/api/v1/indicators/domain/{indicator}/url_list?limit=100"
-        otx_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        otx_resp = req.get(otx_url, headers=otx_headers, timeout=8)
+        otx_headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        otx_resp = req.get(otx_url, headers=otx_headers, timeout=12, verify=False)
         print(f"[DEBUG] AlienVault OTX HTTP Status: {otx_resp.status_code}", file=sys.stderr)
         if otx_resp.status_code == 200:
             otx_data = otx_resp.json()
