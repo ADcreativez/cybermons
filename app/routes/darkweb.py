@@ -937,7 +937,8 @@ def wayback_search():
         if col_resp.status_code == 200:
             latest_idx = col_resp.json()[0].get('id')
             print(f"[DEBUG] Querying Common Crawl Index: {latest_idx}", file=sys.stderr)
-            cc_url = f"https://index.commoncrawl.org/{latest_idx}?url=*.{indicator}/*&output=json&limit=100"
+            # Append '-index' to the collection ID to hit the actual API endpoint instead of the HTML page!
+            cc_url = f"https://index.commoncrawl.org/{latest_idx}-index?url=*.{indicator}/*&output=json&limit=100"
             cc_resp = req.get(cc_url, headers=cc_headers, timeout=10, verify=False)
             if cc_resp.status_code == 200:
                 cc_count = 0
