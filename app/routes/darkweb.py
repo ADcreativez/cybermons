@@ -868,9 +868,18 @@ def wayback_search():
         }
         # Wildcard prefix gets ALL subdomains!
         url = f"https://web.archive.org/cdx/search/cdx?url=*.{indicator}/*&output=json&limit=100&collapse=urlkey"
-        resp = req.get(url, headers=headers, timeout=12, verify=False)
-        print(f"[DEBUG] Archive.org CDX HTTP Status: {resp.status_code}", file=sys.stderr)
-        if resp.status_code == 200:
+        resp = None
+        try:
+            resp = req.get(url, headers=headers, timeout=8, verify=False)
+        except Exception as e_timeout:
+            print(f"[DEBUG] Archive.org CDX wildcard query timed out. Trying apex fallback...", file=sys.stderr)
+            try:
+                url_apex = f"https://web.archive.org/cdx/search/cdx?url={indicator}/*&output=json&limit=100&collapse=urlkey"
+                resp = req.get(url_apex, headers=headers, timeout=6, verify=False)
+            except Exception as e_apex:
+                print(f"[DEBUG] Archive.org CDX apex fallback also failed: {e_apex}", file=sys.stderr)
+
+        if resp and resp.status_code == 200:
             raw_data = resp.json()
             print(f"[DEBUG] Archive.org CDX raw items: {len(raw_data)}", file=sys.stderr)
             if len(raw_data) > 1:
@@ -896,7 +905,7 @@ def wayback_search():
         otx_headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        otx_resp = req.get(otx_url, headers=otx_headers, timeout=12, verify=False)
+        otx_resp = req.get(otx_url, headers=otx_headers, timeout=10, verify=False)
         print(f"[DEBUG] AlienVault OTX HTTP Status: {otx_resp.status_code}", file=sys.stderr)
         if otx_resp.status_code == 200:
             otx_data = otx_resp.json()
@@ -918,6 +927,40 @@ def wayback_search():
             print(f"[DEBUG] After AlienVault parser, total merged: {len(results)}", file=sys.stderr)
     except Exception as otx_e:
         print(f"[DEBUG] AlienVault OTX fetch error: {str(otx_e)}", file=sys.stderr)
+
+    # 3. Query Common Crawl CDX Index (Blazing fast third rich source!)
+    try:
+        cc_headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        col_resp = req.get("https://index.commoncrawl.org/collinfo.json", headers=cc_headers, timeout=5, verify=False)
+        if col_resp.status_code == 200:
+            latest_idx = col_resp.json()[0].get('id')
+            print(f"[DEBUG] Querying Common Crawl Index: {latest_idx}", file=sys.stderr)
+            cc_url = f"https://index.commoncrawl.org/{latest_idx}?url=*.{indicator}/*&output=json&limit=100"
+            cc_resp = req.get(cc_url, headers=cc_headers, timeout=10, verify=False)
+            if cc_resp.status_code == 200:
+                cc_count = 0
+                for line in cc_resp.text.strip().splitlines():
+                    if not line.strip(): continue
+                    try:
+                        item = json.loads(line)
+                        orig_url = item.get('url', '')
+                        if orig_url and orig_url not in seen_urls:
+                            seen_urls.add(orig_url)
+                            ts = item.get('timestamp', '00000000000000')
+                            results.append({
+                                'timestamp': ts,
+                                'original': orig_url,
+                                'mimetype': item.get('mime', 'OSINT/CommonCrawl'),
+                                'statuscode': str(item.get('status', '200'))
+                            })
+                            cc_count += 1
+                    except Exception as line_e:
+                        pass
+                print(f"[DEBUG] After Common Crawl, added {cc_count} items, total merged: {len(results)}", file=sys.stderr)
+    except Exception as cc_e:
+        print(f"[DEBUG] Common Crawl fetch error: {str(cc_e)}", file=sys.stderr)
         
     print(f"[DEBUG] Final results array to return: {len(results)} items", file=sys.stderr)
         
@@ -928,7 +971,7 @@ def wayback_search():
             'status': 'success', 
             'query': indicator, 
             'results': results[:100], 
-            'source': 'hybrid-osint'
+            'count': len(results)
         })
         
     # If both failed and we have no results, return error
