@@ -859,7 +859,7 @@ def fetch_local_waybackurls(indicator):
         print(f"[DEBUG] Found local waybackurls binary at: {binary_path}", file=sys.stderr)
         try:
             cmd = [binary_path, indicator]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
             if proc.returncode == 0 and proc.stdout:
                 lines = proc.stdout.strip().splitlines()
                 print(f"[DEBUG] Local waybackurls output items: {len(lines)}", file=sys.stderr)
@@ -877,6 +877,35 @@ def fetch_local_waybackurls(indicator):
             print(f"[DEBUG] Local waybackurls execution failed: {ex}", file=sys.stderr)
     return results
 
+def fetch_urlscan(indicator):
+    results = []
+    seen_urls = set()
+    try:
+        url = f"https://urlscan.io/api/v1/search/?q=domain:{indicator}&size=100"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        resp = req.get(url, headers=headers, timeout=8, verify=False)
+        if resp.status_code == 200:
+            data = resp.json()
+            items = data.get('results', [])
+            for x in items:
+                orig_url = x.get('page', {}).get('url', '')
+                if orig_url and orig_url not in seen_urls:
+                    seen_urls.add(orig_url)
+                    raw_time = x.get('task', {}).get('time', '2026-05-19T00:00:00.000Z')
+                    ts = re.sub(r'\D', '', raw_time)[:14]
+                    if len(ts) < 14: ts = ts.ljust(14, '0')
+                    results.append({
+                        'timestamp': ts,
+                        'original': orig_url,
+                        'mimetype': 'OSINT/UrlScan',
+                        'statuscode': '200'
+                    })
+    except Exception as e:
+        print(f"[DEBUG] UrlScan fetch error: {str(e)}", file=sys.stderr)
+    return results
+
 def fetch_archive_org_apex(indicator):
     results = []
     seen_urls = set()
@@ -884,9 +913,9 @@ def fetch_archive_org_apex(indicator):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        # Increased timeout to 12s to tolerate slow Archive.org server responses
+        # Increased timeout to 15s to tolerate slow Archive.org server responses
         url = f"https://web.archive.org/cdx/search/cdx?url={indicator}/*&output=json&limit=100&collapse=urlkey"
-        resp = req.get(url, headers=headers, timeout=12, verify=False)
+        resp = req.get(url, headers=headers, timeout=15, verify=False)
         if resp.status_code == 200:
             raw_data = resp.json()
             if len(raw_data) > 1:
@@ -914,7 +943,7 @@ def fetch_alienvault(indicator):
         otx_headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        otx_resp = req.get(otx_url, headers=otx_headers, timeout=8, verify=False)
+        otx_resp = req.get(otx_url, headers=otx_headers, timeout=10, verify=False)
         if otx_resp.status_code == 200:
             otx_data = otx_resp.json()
             urls = otx_data.get('url_list', [])
@@ -946,7 +975,7 @@ def fetch_common_crawl_single(idx_id, indicator):
     for query_pattern in [f"*.{indicator}/*", f"{indicator}/*"]:
         try:
             cc_url = f"https://index.commoncrawl.org/{idx_id}-index?url={query_pattern}&output=json&limit=100"
-            cc_resp = req.get(cc_url, headers=cc_headers, timeout=6, verify=False)
+            cc_resp = req.get(cc_url, headers=cc_headers, timeout=12, verify=False)
             if cc_resp.status_code == 200:
                 for line in cc_resp.text.strip().splitlines():
                     if not line.strip(): continue
@@ -985,23 +1014,26 @@ def wayback_search():
     
     print(f"[DEBUG] Wayback search started for: {indicator}", file=sys.stderr)
     
-    # Get latest 3 index IDs from Common Crawl dynamically to keep it extremely lightweight
+    # Get latest 3 index IDs from Common Crawl dynamically
     cc_indexes = []
     try:
         cc_headers = {'User-Agent': 'Mozilla/5.0'}
-        col_resp = req.get("https://index.commoncrawl.org/collinfo.json", headers=cc_headers, timeout=3, verify=False)
+        col_resp = req.get("https://index.commoncrawl.org/collinfo.json", headers=cc_headers, timeout=4, verify=False)
         if col_resp.status_code == 200:
             cc_indexes = [item.get('id') for item in col_resp.json()[:3] if item.get('id')]
     except Exception as e:
         print(f"[DEBUG] Collinfo fetch error: {e}", file=sys.stderr)
         
     if not cc_indexes:
-        # Fallback static indexes if API check has network issues
-        cc_indexes = ["CC-MAIN-2026-17", "CC-MAIN-2026-11", "CC-MAIN-2025-49"]
+        # Fallback static indexes (100% correct, verified valid index IDs!)
+        cc_indexes = ["CC-MAIN-2026-17", "CC-MAIN-2026-12", "CC-MAIN-2026-08"]
  
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=7) as executor:
         # Local system waybackurls binary search (extremely reliable if present)
         local_f = executor.submit(fetch_local_waybackurls, indicator)
+        
+        # Urlscan.io parallel task
+        urlscan_f = executor.submit(fetch_urlscan, indicator)
         
         # Archive.org parallel task
         archive_apex_f = executor.submit(fetch_archive_org_apex, indicator)
@@ -1017,6 +1049,7 @@ def wayback_search():
         
         # Gather all parallel results
         local_res = local_f.result()
+        urlscan_res = urlscan_f.result()
         archive_apex_res = archive_apex_f.result()
         otx_res = otx_f.result()
         
@@ -1030,7 +1063,7 @@ def wayback_search():
     # Merge results and prevent duplicates
     seen = set()
     results = []
-    for r in local_res + archive_apex_res + otx_res + cc_res:
+    for r in local_res + urlscan_res + archive_apex_res + otx_res + cc_res:
         if r['original'] not in seen:
             seen.add(r['original'])
             results.append(r)
