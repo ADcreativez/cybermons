@@ -1210,6 +1210,26 @@ def run_nmap_scan(target_ip):
         print(f"RECON DEBUG: nmap scan error: {str(e)}")
         return [], False, str(e)
 
+def run_hackertarget_nmap(target_ip):
+    if not target_ip: return []
+    try:
+        resp = req.get(f"https://api.hackertarget.com/nmap/?q={target_ip}", timeout=12, verify=False)
+        if resp.status_code == 200:
+            ports = []
+            for line in resp.text.splitlines():
+                # Match line format: 80/tcp open http
+                match = re.search(r'(\d+)/(tcp|udp)\s+open\s+(\S+)', line)
+                if match:
+                    ports.append({
+                        'port': f"{match.group(1)}/{match.group(2)}",
+                        'service': match.group(3),
+                        'source': 'HT'
+                    })
+            return ports
+    except Exception as e:
+        print(f"RECON DEBUG: HackerTarget Nmap failed: {e}")
+    return []
+
 @darkweb_bp.route('/darkweb/recon/scan', methods=['POST'])
 @login_required
 def recon_scan():
@@ -1222,12 +1242,13 @@ def recon_scan():
         try: resolved_ip = socket.gethostbyname(query)
         except: pass
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
         whois_f = executor.submit(run_whois, query, is_ip)
         dns_f = executor.submit(run_dns_recon, query, is_ip)
         mail_f = executor.submit(run_mail_protection, query, is_ip)
         waf_f = executor.submit(detect_web_protection, query)
         nmap_f = executor.submit(run_nmap_scan, resolved_ip)
+        ht_nmap_f = executor.submit(run_hackertarget_nmap, resolved_ip)
         
         results = {
             'whois': whois_f.result(),
@@ -1236,14 +1257,15 @@ def recon_scan():
             'mail_protection': mail_f.result(), # Keep for sidebar?
             'web_protection': waf_f.result(),
             'ai_intelligence': get_ai_intelligence(query),
-            'resolved_ip': resolved_ip
+            'resolved_ip': resolved_ip,
+            'ht_parsed': ht_nmap_f.result()
         }
         results['nmap_parsed'], results['nmap_interference'], results['nmap_error'] = nmap_f.result()
         
         # Collect errors for frontend debugging
         errors = []
         if results['nmap_error']:
-            errors.append(f"Nmap: {results['nmap_error']}")
+            errors.append(f"Local Nmap: {results['nmap_error']}")
         if not results['whois']:
             errors.append("WHOIS/RDAP: Could not retrieve registration data. Ensure 'whois' is installed.")
         if not results['dns']:
