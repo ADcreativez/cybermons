@@ -1085,7 +1085,7 @@ def run_dns_recon(domain, is_ip):
         subfinder_bin = find_binary('subfinder')
         if subfinder_bin:
             cmd = [subfinder_bin, "-d", domain, "-silent"]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
             for line in proc.stdout.split('\n'):
                 if line.strip(): add_result(line.strip(), None)
     except Exception as e:
@@ -1100,7 +1100,7 @@ def run_dns_recon(domain, is_ip):
             # We don't necessarily need the json file if stdout is clean, 
             # but dnsrecon stdout is often messy. However, /tmp might not be accessible.
             # Let's try to parse stdout for basic records as a fallback.
-            proc = subprocess.run([dnsrecon_bin, "-d", domain, "-t", "std"], capture_output=True, text=True, timeout=20)
+            proc = subprocess.run([dnsrecon_bin, "-d", domain, "-t", "std"], capture_output=True, text=True, timeout=10)
             
             # Simple grep-like parsing for A records in stdout
             # Format:  [*] 	 A mail.kompas.com 3.171.198.56
@@ -1121,7 +1121,7 @@ def run_dns_recon(domain, is_ip):
     
     # 2.5 TOOL: crt.sh API (Certificate Transparency)
     try:
-        resp = req.get(f"https://crt.sh/?q=%25.{domain}&output=json", timeout=15)
+        resp = req.get(f"https://crt.sh/?q=%25.{domain}&output=json", timeout=12, verify=False)
         if resp.status_code == 200:
             for item in resp.json():
                 name_value = item.get('name_value', '')
@@ -1134,7 +1134,7 @@ def run_dns_recon(domain, is_ip):
 
     # 2.6 TOOL: HackerTarget API (High-speed passive DNS & IP)
     try:
-        resp = req.get(f"https://api.hackertarget.com/hostsearch/?q={domain}", timeout=15)
+        resp = req.get(f"https://api.hackertarget.com/hostsearch/?q={domain}", timeout=12, verify=False)
         if resp.status_code == 200:
             for line in resp.text.splitlines():
                 parts = line.split(',')
@@ -1145,7 +1145,7 @@ def run_dns_recon(domain, is_ip):
 
     # 2.7 TOOL: RapidDNS Archive & AlienVault OTX
     try:
-        resp_rd = req.get(f"https://rapiddns.io/subdomain/{domain}?full=1#result", headers={'User-Agent':'Mozilla/5.0'}, timeout=15)
+        resp_rd = req.get(f"https://rapiddns.io/subdomain/{domain}?full=1#result", headers={'User-Agent':'Mozilla/5.0'}, timeout=12, verify=False)
         if resp_rd.status_code == 200:
             subs = re.findall(rf'<td>([a-zA-Z0-9\.\-]+\.{re.escape(domain)})</td>', resp_rd.text, re.IGNORECASE)
             for sub in subs: add_result(sub.lower(), None)
@@ -1153,7 +1153,7 @@ def run_dns_recon(domain, is_ip):
         print(f"RECON DEBUG: RapidDNS scraping failed: {e}")
 
     try:
-        resp_otx = req.get(f"https://otx.alienvault.com/api/v1/indicators/domain/{domain}/url_list", timeout=15)
+        resp_otx = req.get(f"https://otx.alienvault.com/api/v1/indicators/domain/{domain}/url_list", timeout=12, verify=False)
         if resp_otx.status_code == 200:
             for item in resp_otx.json().get('url_list', []):
                 if 'url' in item:
@@ -1195,7 +1195,8 @@ def run_nmap_scan(target_ip):
         nm = nmap.PortScanner(nmap_search_path=(nmap_bin,))
         # -sT: TCP connect scan (does NOT require root/sudo)
         # -Pn: Skip host discovery (assume host is up)
-        nm.scan(target_ip, arguments='-sT --top-ports 1000 -n -Pn -T4 --version-light')
+        # Add host-timeout and max-retries for lightning speed in enterprise environments
+        nm.scan(target_ip, arguments='-sT --top-ports 1000 -n -Pn -T4 --version-light --host-timeout 15s --max-retries 1')
         ports = []
         if target_ip in nm.all_hosts():
             for proto in nm[target_ip].all_protocols():
