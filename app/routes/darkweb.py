@@ -1047,18 +1047,41 @@ def wayback_search():
             for idx in cc_indexes
         ]
         
-        # Gather all parallel results
-        local_res = local_f.result()
-        urlscan_res = urlscan_f.result()
-        archive_apex_res = archive_apex_f.result()
-        otx_res = otx_f.result()
-        
-        cc_res = []
+        # Create futures mapping to keep track of result types
+        futures_map = {
+            local_f: 'local',
+            urlscan_f: 'urlscan',
+            archive_apex_f: 'archive',
+            otx_f: 'otx'
+        }
         for f in cc_futures:
+            futures_map[f] = 'cc'
+            
+        # Wait for all futures with a strict absolute timeout of 6.0 seconds to prevent Nginx proxy timeouts!
+        from concurrent.futures import wait
+        done, not_done = wait(futures_map.keys(), timeout=6.0)
+        
+        local_res = []
+        urlscan_res = []
+        archive_apex_res = []
+        otx_res = []
+        cc_res = []
+        
+        # Safely extract results only from the threads that finished within 6 seconds
+        for f in done:
             try:
-                cc_res.extend(f.result())
+                res = f.result()
+                f_type = futures_map[f]
+                if f_type == 'local': local_res = res
+                elif f_type == 'urlscan': urlscan_res = res
+                elif f_type == 'archive': archive_apex_res = res
+                elif f_type == 'otx': otx_res = res
+                elif f_type == 'cc': cc_res.extend(res)
             except Exception as fe:
-                print(f"[DEBUG] CC Future fetch failed: {fe}", file=sys.stderr)
+                print(f"[DEBUG] Thread execution failed: {fe}", file=sys.stderr)
+                
+        if not_done:
+            print(f"[DEBUG] {len(not_done)} threads timed out after 6s and were safely bypassed to prevent Nginx failure", file=sys.stderr)
         
     # Merge results and prevent duplicates
     seen = set()
