@@ -84,16 +84,29 @@ install_local_tool() {
     if [ "$needs_install" = true ]; then
         echo -e "${YELLOW}  → Installing $name v$version to $BIN_DIR...${NC}"
         TEMP_DIR=$(mktemp -d)
-        curl -sL "$url" -o "$TEMP_DIR/download.$type"
-        if [ "$type" == "zip" ]; then
-            unzip -q "$TEMP_DIR/download.$type" -d "$TEMP_DIR"
+        if curl -sL "$url" -o "$TEMP_DIR/download.$type"; then
+            local extract_success=false
+            if [ "$type" == "zip" ]; then
+                if unzip -q "$TEMP_DIR/download.$type" -d "$TEMP_DIR" 2>/dev/null; then
+                    extract_success=true
+                fi
+            else
+                if tar -xzf "$TEMP_DIR/download.$type" -C "$TEMP_DIR" 2>/dev/null || tar -xzf "$TEMP_DIR/download.tgz" -C "$TEMP_DIR" 2>/dev/null; then
+                    extract_success=true
+                fi
+            fi
+            
+            if [ "$extract_success" = true ]; then
+                find "$TEMP_DIR" -type f -name "$name" -exec mv {} "$BIN_DIR/$name" \;
+                chmod +x "$BIN_DIR/$name"
+                echo -e "${GREEN}  ✓ $name installed locally.${NC}"
+            else
+                echo -e "${RED}  ⚠ Warning: Failed to extract $name. Proceeding...${NC}"
+            fi
         else
-            tar -xzf "$TEMP_DIR/download.tgz" -C "$TEMP_DIR"
+            echo -e "${RED}  ⚠ Warning: Failed to download $name from source. Proceeding...${NC}"
         fi
-        find "$TEMP_DIR" -type f -name "$name" -exec mv {} "$BIN_DIR/$name" \;
-        chmod +x "$BIN_DIR/$name"
         rm -rf "$TEMP_DIR"
-        echo -e "${GREEN}  ✓ $name installed locally.${NC}"
     else
         echo -e "${GREEN}  ✓ $name already present in bin/${NC}"
     fi
