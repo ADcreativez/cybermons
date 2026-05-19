@@ -846,104 +846,77 @@ def malware_trends():
 def wayback_search():
     query = request.json.get('query', '').strip()
     if not query: return jsonify({'error': 'No domain provided'}), 400
-    try:
-        indicator = query
-        if '://' in indicator:
-            from urllib.parse import urlparse
-            indicator = urlparse(indicator).netloc
+    
+    indicator = query
+    if '://' in indicator:
+        from urllib.parse import urlparse
+        indicator = urlparse(indicator).netloc
         
-        # Add realistic User-Agent to avoid Archive.org bot blocking
+    results = []
+    seen_urls = set()
+    
+    # 1. Query Archive.org CDX API with wildcard (gets all subdomains and paths!)
+    try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept': 'application/json'
         }
-        url = f"https://web.archive.org/cdx/search/cdx?url={indicator}/*&output=json&limit=100&collapse=urlkey"
-        
-        resp = req.get(url, headers=headers, timeout=6)
-        
+        # Wildcard prefix gets ALL subdomains!
+        url = f"https://web.archive.org/cdx/search/cdx?url=*.{indicator}/*&output=json&limit=100&collapse=urlkey"
+        resp = req.get(url, headers=headers, timeout=8)
         if resp.status_code == 200:
-            try:
-                raw_data = resp.json()
-                if len(raw_data) > 1:
-                    results = [dict(zip(raw_data[0], row)) for row in raw_data[1:]]
-                    return jsonify({'status': 'success', 'query': indicator, 'results': results, 'source': 'archive.org'})
-            except Exception:
-                pass
-        
-        print(f"Archive API returned {resp.status_code}, attempting waybackurls fallback...")
-
+            raw_data = resp.json()
+            if len(raw_data) > 1:
+                header = raw_data[0]
+                for row in raw_data[1:]:
+                    item = dict(zip(header, row))
+                    orig_url = item.get('original', '')
+                    if orig_url and orig_url not in seen_urls:
+                        seen_urls.add(orig_url)
+                        results.append({
+                            'timestamp': item.get('timestamp', '00000000000000'),
+                            'mimetype': item.get('mimetype', 'text/html'),
+                            'statuscode': str(item.get('statuscode', '200')),
+                            'original': orig_url
+                        })
     except Exception as e:
-        print(f"Archive API connection error: {str(e)}, attempting waybackurls fallback...")
-
-    # --- Fallback 1: waybackurls CLI tool ---
-    waybackurls_bin = find_binary('waybackurls')
-    if waybackurls_bin:
-        import subprocess
-        try:
-            # Use waybackurls via subprocess
-            # echo "domain" | waybackurls
-            try:
-                proc = subprocess.run([waybackurls_bin], input=indicator.encode(), capture_output=True, timeout=12)
-                raw_stdout = proc.stdout
-            except subprocess.TimeoutExpired as te:
-                print(f"waybackurls timed out, but capturing partial results...")
-                raw_stdout = te.stdout
-            
-            raw_urls = raw_stdout.decode('utf-8', errors='ignore').splitlines()
-            results = []
-            for url in raw_urls[:100]: # Limit to matches the API limit
-                if not url.strip(): continue
-                
-                # Attempt to extract timestamp from wayback URL format
-                # https://web.archive.org/web/20210101000000/http://host/path
-                ts_match = re.search(r'/web/(\d{14})/', url)
-                timestamp = ts_match.group(1) if ts_match else "00000000000000"
-                
-                # Clean original URL (remove wayback prefix)
-                original_url = url
-                if '/web/' in url:
-                    parts = url.split('/web/' + timestamp + '/')
-                    if len(parts) > 1: original_url = parts[1]
-
-                results.append({
-                    'timestamp': timestamp,
-                    'mimetype': 'OSINT/Fallback',
-                    'statuscode': '200',
-                    'original': original_url
-                })
-            
-            if results:
-                # Sort by timestamp descending
-                results.sort(key=lambda x: x['timestamp'], reverse=True)
-                return jsonify({'status': 'success', 'query': indicator, 'results': results, 'source': 'waybackurls-fallback'})
-        except Exception as fe:
-            print(f"waybackurls execution failed: {str(fe)}, attempting AlienVault OTX fallback...")
-
-    # --- Fallback 2: AlienVault OTX API ---
+        print(f"Archive.org CDX fetch error: {str(e)}")
+        
+    # 2. Query AlienVault OTX API (as a second rich source and robust fallback!)
     try:
         otx_url = f"https://otx.alienvault.com/api/v1/indicators/domain/{indicator}/url_list?limit=100"
         otx_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        otx_resp = req.get(otx_url, headers=otx_headers, timeout=15)
+        otx_resp = req.get(otx_url, headers=otx_headers, timeout=8)
         if otx_resp.status_code == 200:
             otx_data = otx_resp.json()
-            results = []
             for item in otx_data.get('url_list', []):
-                date_str = item.get('date', '')
-                ts = re.sub(r'\D', '', date_str) if date_str else "00000000000000"
-                if len(ts) < 14: ts = ts.ljust(14, '0')
-                results.append({
-                    'timestamp': ts,
-                    'original': item.get('url', ''),
-                    'mimetype': 'OSINT/AlienVault',
-                    'statuscode': str(item.get('httpcode', '200'))
-                })
-            results.sort(key=lambda x: x['timestamp'], reverse=True)
-            return jsonify({'status': 'success', 'query': indicator, 'results': results, 'source': 'alienvault-otx'})
+                orig_url = item.get('url', '')
+                if orig_url and orig_url not in seen_urls:
+                    seen_urls.add(orig_url)
+                    date_str = item.get('date', '')
+                    ts = re.sub(r'\D', '', date_str) if date_str else "00000000000000"
+                    if len(ts) < 14: ts = ts.ljust(14, '0')
+                    results.append({
+                        'timestamp': ts,
+                        'original': orig_url,
+                        'mimetype': 'OSINT/AlienVault',
+                        'statuscode': str(item.get('httpcode', '200'))
+                    })
     except Exception as otx_e:
-        print(f"AlienVault OTX connection error: {str(otx_e)}")
-    
-    # If we reached here, all API and Fallback engines failed
-    return jsonify({'error': f"Access Denied or Connection Error to Archive.org. Fallback OSINT engines also unreachable."}), 500
+        print(f"AlienVault OTX fetch error: {str(otx_e)}")
+        
+    if results:
+        # Sort by timestamp descending
+        results.sort(key=lambda x: x['timestamp'], reverse=True)
+        return jsonify({
+            'status': 'success', 
+            'query': indicator, 
+            'results': results[:100], 
+            'source': 'hybrid-osint'
+        })
+        
+    # If both failed and we have no results, return error
+    return jsonify({'error': "Unable to reach OSINT threat index servers. Please check network connection."}), 500
 
 @darkweb_bp.route('/darkweb/recon')
 @login_required
