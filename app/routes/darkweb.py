@@ -841,6 +841,42 @@ def malware_trends():
         'data': shuffled_samples
     })
 
+def fetch_local_waybackurls(indicator):
+    results = []
+    seen = set()
+    import shutil
+    import subprocess
+    
+    # Locate system go binary or local binary path
+    binary_path = shutil.which('waybackurls')
+    if not binary_path:
+        for path in ['/usr/bin/waybackurls', '/usr/local/bin/waybackurls', '/home/security/go/bin/waybackurls', '/root/go/bin/waybackurls']:
+            if shutil.os.path.exists(path):
+                binary_path = path
+                break
+                
+    if binary_path:
+        print(f"[DEBUG] Found local waybackurls binary at: {binary_path}", file=sys.stderr)
+        try:
+            cmd = [binary_path, indicator]
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            if proc.returncode == 0 and proc.stdout:
+                lines = proc.stdout.strip().splitlines()
+                print(f"[DEBUG] Local waybackurls output items: {len(lines)}", file=sys.stderr)
+                for line in lines:
+                    orig_url = line.strip()
+                    if orig_url and orig_url not in seen:
+                        seen.add(orig_url)
+                        results.append({
+                            'timestamp': '20260519000000',
+                            'mimetype': 'OSINT/LocalWayback',
+                            'statuscode': '200',
+                            'original': orig_url
+                        })
+        except Exception as ex:
+            print(f"[DEBUG] Local waybackurls execution failed: {ex}", file=sys.stderr)
+    return results
+
 def fetch_archive_org_apex(indicator):
     results = []
     seen_urls = set()
@@ -848,8 +884,9 @@ def fetch_archive_org_apex(indicator):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
+        # Increased timeout to 12s to tolerate slow Archive.org server responses
         url = f"https://web.archive.org/cdx/search/cdx?url={indicator}/*&output=json&limit=100&collapse=urlkey"
-        resp = req.get(url, headers=headers, timeout=5, verify=False)
+        resp = req.get(url, headers=headers, timeout=12, verify=False)
         if resp.status_code == 200:
             raw_data = resp.json()
             if len(raw_data) > 1:
@@ -877,7 +914,7 @@ def fetch_alienvault(indicator):
         otx_headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        otx_resp = req.get(otx_url, headers=otx_headers, timeout=5, verify=False)
+        otx_resp = req.get(otx_url, headers=otx_headers, timeout=8, verify=False)
         if otx_resp.status_code == 200:
             otx_data = otx_resp.json()
             urls = otx_data.get('url_list', [])
@@ -901,31 +938,34 @@ def fetch_alienvault(indicator):
 def fetch_common_crawl_single(idx_id, indicator):
     results = []
     seen_urls = set()
-    try:
-        cc_headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        cc_url = f"https://index.commoncrawl.org/{idx_id}-index?url=*.{indicator}/*&output=json&limit=100"
-        cc_resp = req.get(cc_url, headers=cc_headers, timeout=5, verify=False)
-        if cc_resp.status_code == 200:
-            for line in cc_resp.text.strip().splitlines():
-                if not line.strip(): continue
-                try:
-                    item = json.loads(line)
-                    orig_url = item.get('url', '')
-                    if orig_url and orig_url not in seen_urls:
-                        seen_urls.add(orig_url)
-                        ts = item.get('timestamp', '00000000000000')
-                        results.append({
-                            'timestamp': ts,
-                            'original': orig_url,
-                            'mimetype': item.get('mime', 'OSINT/CommonCrawl'),
-                            'statuscode': str(item.get('status', '200'))
-                        })
-                except Exception as line_e:
-                    pass
-    except Exception as cc_e:
-        print(f"[DEBUG] Common Crawl Index {idx_id} fetch error: {str(cc_e)}", file=sys.stderr)
+    cc_headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+    
+    # Query wildcard subdomains (*.domain/*) and apex domain (domain/*) in parallel for CC
+    for query_pattern in [f"*.{indicator}/*", f"{indicator}/*"]:
+        try:
+            cc_url = f"https://index.commoncrawl.org/{idx_id}-index?url={query_pattern}&output=json&limit=100"
+            cc_resp = req.get(cc_url, headers=cc_headers, timeout=6, verify=False)
+            if cc_resp.status_code == 200:
+                for line in cc_resp.text.strip().splitlines():
+                    if not line.strip(): continue
+                    try:
+                        item = json.loads(line)
+                        orig_url = item.get('url', '')
+                        if orig_url and orig_url not in seen_urls:
+                            seen_urls.add(orig_url)
+                            ts = item.get('timestamp', '00000000000000')
+                            results.append({
+                                'timestamp': ts,
+                                'original': orig_url,
+                                'mimetype': item.get('mime', 'OSINT/CommonCrawl'),
+                                'statuscode': str(item.get('status', '200'))
+                            })
+                    except Exception as line_e:
+                        pass
+        except Exception as cc_e:
+            print(f"[DEBUG] CC Index {idx_id} pattern {query_pattern} fetch error: {str(cc_e)}", file=sys.stderr)
     return results
 
 @darkweb_bp.route('/darkweb/wayback/search', methods=['POST'])
@@ -959,7 +999,10 @@ def wayback_search():
         # Fallback static indexes if API check has network issues
         cc_indexes = ["CC-MAIN-2026-17", "CC-MAIN-2026-11", "CC-MAIN-2025-49"]
  
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        # Local system waybackurls binary search (extremely reliable if present)
+        local_f = executor.submit(fetch_local_waybackurls, indicator)
+        
         # Archive.org parallel task
         archive_apex_f = executor.submit(fetch_archive_org_apex, indicator)
         
@@ -973,6 +1016,7 @@ def wayback_search():
         ]
         
         # Gather all parallel results
+        local_res = local_f.result()
         archive_apex_res = archive_apex_f.result()
         otx_res = otx_f.result()
         
@@ -986,7 +1030,7 @@ def wayback_search():
     # Merge results and prevent duplicates
     seen = set()
     results = []
-    for r in archive_apex_res + otx_res + cc_res:
+    for r in local_res + archive_apex_res + otx_res + cc_res:
         if r['original'] not in seen:
             seen.add(r['original'])
             results.append(r)
