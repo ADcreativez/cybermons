@@ -167,30 +167,39 @@
                 currentData = data.results;
                 document.getElementById('snap-count').innerText = currentData.length;
                 
-                currentData.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
-                    
-                    const statusClass = `status-${item.statuscode}`;
-                    const formattedDate = item.timestamp.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1-$2-$3 $4:$5:$6');
-                    const archiveUrl = `https://web.archive.org/web/${item.timestamp}/${item.original}`;
+                if (currentData.length === 0) {
+                    if (emptyCont) emptyCont.style.display = 'block';
+                    if (data.warning) {
+                        alert(data.warning);
+                    } else {
+                        alert('No historical footprints found for this domain.');
+                    }
+                } else {
+                    currentData.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+                        
+                        const statusClass = `status-${item.statuscode}`;
+                        const formattedDate = item.timestamp.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1-$2-$3 $4:$5:$6');
+                        const archiveUrl = `https://web.archive.org/web/${item.timestamp}/${item.original}`;
 
-                    row.innerHTML = `
-                        <td style="padding: 12px 20px;">${formattedDate}</td>
-                        <td style="padding: 12px 20px;"><span style="opacity: 0.7;">${item.mimetype || 'N/A'}</span></td>
-                        <td style="padding: 12px 20px; text-align: center;"><span class="${statusClass}" style="background: rgba(255,255,255,0.03); padding: 2px 10px; border-radius: 20px; font-size: 0.7rem; border: 1px solid currentColor; display: inline-block;">${item.statuscode}</span></td>
-                        <td style="padding: 12px 20px; max-width: 500px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.original}">
-                            ${item.original}
-                        </td>
-                        <td style="padding: 12px 20px; text-align: right;">
-                            <a href="${archiveUrl}" target="_blank" class="btn btn-sm" style="font-size: 0.7rem; border: 1px solid rgba(0,255,204,0.3); color: var(--accent-color);">
-                                <i class="fa-solid fa-eye"></i> VIEW
-                            </a>
-                        </td>
-                    `;
-                    body.appendChild(row);
-                });
-                resCont.style.display = 'block';
+                        row.innerHTML = `
+                            <td style="padding: 12px 20px;">${formattedDate}</td>
+                            <td style="padding: 12px 20px;"><span style="opacity: 0.7;">${item.mimetype || 'N/A'}</span></td>
+                            <td style="padding: 12px 20px; text-align: center;"><span class="${statusClass}" style="background: rgba(255,255,255,0.03); padding: 2px 10px; border-radius: 20px; font-size: 0.7rem; border: 1px solid currentColor; display: inline-block;">${item.statuscode}</span></td>
+                            <td style="padding: 12px 20px; max-width: 500px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.original}">
+                                ${item.original}
+                            </td>
+                            <td style="padding: 12px 20px; text-align: right;">
+                                <a href="${archiveUrl}" target="_blank" class="btn btn-sm" style="font-size: 0.7rem; border: 1px solid rgba(0,255,204,0.3); color: var(--accent-color);">
+                                    <i class="fa-solid fa-eye"></i> VIEW
+                                </a>
+                            </td>
+                        `;
+                        body.appendChild(row);
+                    });
+                    resCont.style.display = 'block';
+                }
             } else {
                 if (emptyCont) emptyCont.style.display = 'block';
                 alert(data.error || 'No results found.');

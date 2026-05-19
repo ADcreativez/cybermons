@@ -1003,8 +1003,14 @@ def wayback_search():
             'count': len(results)
         })
         
-    # If all failed and we have no results, return error
-    return jsonify({'error': "Unable to reach OSINT threat index servers. Please check network connection."}), 500
+    # If all failed and we have no results, return success 200 with empty list to prevent Nginx interception!
+    return jsonify({
+        'status': 'success',
+        'query': indicator,
+        'results': [],
+        'count': 0,
+        'warning': "No records found on OSINT servers for this domain, or temporary gateway timeout. Please check your query or try again later."
+    }), 200
 
 @darkweb_bp.route('/darkweb/recon')
 @login_required
