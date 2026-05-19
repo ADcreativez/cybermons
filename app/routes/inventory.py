@@ -67,7 +67,8 @@ def delete(id):
 @login_required
 def alerts():
     severity_filter = request.args.get('severity')
-    user_alerts = get_inventory_alerts(current_user.group_id, severity=severity_filter)
+    category_filter = request.args.get('category')
+    user_alerts = get_inventory_alerts(current_user.group_id, severity=severity_filter, category=category_filter)
     return render_template('alerts.html', alerts=user_alerts, current_severity=severity_filter)
 
 @inventory_bp.route('/alerts/dismiss/<int:threat_id>', methods=['POST'])

@@ -227,6 +227,16 @@
                         `;
                         tbody.appendChild(row);
                     });
+
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const qParam = urlParams.get('q');
+                    const searchInput = document.getElementById('victim-search');
+                    if (qParam && (!searchInput.value || searchInput.value === '')) {
+                        searchInput.value = qParam;
+                    }
+                    if (searchInput && searchInput.value) {
+                        filterVictims(searchInput.value);
+                    }
                 } else {
                     const msg = data.message || 'No data for this date.';
                     tbody.innerHTML = `<tr><td colspan="5" style="padding: 40px; text-align: center; opacity: 0.5; font-family: var(--font-mono); font-size: 0.85rem;">${msg}</td></tr>`;

@@ -111,6 +111,11 @@
                 <span class="sidebar-text">WAYBACK DISCOVERY</span>
             </a>
             {% endif %}
+
+            <a href="{{ url_for('darkweb.malware_sandbox') }}" class="sidebar-item {% if request.endpoint == 'darkweb.malware_sandbox' %}active{% endif %}">
+                <i class="fa-solid fa-shield-virus"></i>
+                <span class="sidebar-text">MALWARE SANDBOX</span>
+            </a>
             
             <a href="{{ url_for('mitre.mitre_matrix') }}" class="sidebar-item {% if request.endpoint == 'mitre.mitre_matrix' %}active{% endif %}">
                 <i class="fa-solid fa-table-cells"></i>

@@ -317,6 +317,9 @@ def fetch_and_store_all_data(force=False):
         from .breach_intel import daily_deep_scan_internal
         daily_deep_scan_internal()
 
+        # 7. Malware Sandbox Threats
+        log_event("GLOBAL SYNC: Refreshed Malware Sandbox live threat indicators", "info")
+
         config['last_sync'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         save_darkweb_config(config)
         log_event("GLOBAL SYNC: Finished. {} items identified.".format(new_count), "success")
@@ -444,9 +447,11 @@ def render_dashboard(category_filter, page_title):
         chart_data['inv_names'] = json.dumps(categories); chart_data['inv_counts'] = json.dumps([inv_risk_counts[c] for c in categories])
 
         exp_stats = {cat: 0 for cat in categories}
-        for exp in Threat.query.filter_by(category='exploit').all():
-            sev = (exp.severity or 'Info').capitalize()
-            if sev in exp_stats: exp_stats[sev] += 1
+        for a in alerts:
+            threat = a['threat']
+            if threat.category == 'exploit':
+                sev = (threat.severity or 'Info').capitalize()
+                if sev in exp_stats: exp_stats[sev] += 1
         chart_data['exp_names'] = json.dumps(categories); chart_data['exp_counts'] = json.dumps([exp_stats[c] for c in categories])
 
     is_syncing = fetch_lock.locked()

@@ -22,7 +22,7 @@ def load_darkweb_config():
     defaults = {
         'hibp_api_key': '', 'intelx_api_key': '', 'hudsonrock_api_key': '',
         'abuse_ch_api_key': '', 'vt_api_key': '', 'abuseipdb_api_key': '',
-        'checkphish_api_key': '', 'urlscan_api_key': '',
+        'checkphish_api_key': '', 'urlscan_api_key': '', 'anyrun_api_key': '',
         'show_credentials': True, 'show_ransomware': True, 'show_paste': True,
         'show_stealer': True, 'show_passwords': True, 'show_infra': True,
         'show_defacements': True, 'show_ioc_intel': True, 'show_wayback': True,
@@ -162,7 +162,7 @@ def determine_severity(title, summary, category='threat'):
     if 'cve' in combined: return 'Medium'
     return 'Info'
 
-def get_inventory_alerts(group_id, severity=None):
+def get_inventory_alerts(group_id, severity=None, category=None):
     if not group_id: return []
     dismissed_ids = [d.threat_id for d in DismissedAlert.query.filter_by(group_id=group_id).all()]
     group_inventory = Inventory.query.filter_by(group_id=group_id).all()
@@ -175,6 +175,7 @@ def get_inventory_alerts(group_id, severity=None):
             and_(Threat.summary.ilike(f"%{brand_lower}%"), Threat.summary.ilike(f"%{module_lower}%"))
         ))
         if severity: query = query.filter(Threat.severity.ilike(severity))
+        if category: query = query.filter(Threat.category.ilike(category))
         if dismissed_ids: query = query.filter(Threat.id.notin_(dismissed_ids))
         matches = query.all()
         for match in matches:

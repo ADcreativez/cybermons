@@ -63,7 +63,25 @@ install_local_tool() {
     local url=$3
     local type=$4 # zip or tgz
     
+    local needs_install=false
     if [ ! -f "bin/$name" ]; then
+        needs_install=true
+    else
+        # Verify if the binary matches the OS type (ELF on Linux, Mach-O on Darwin)
+        if command -v file &> /dev/null; then
+            local file_info
+            file_info=$(file "bin/$name" 2>/dev/null)
+            if [[ "$OS_TYPE" == "Linux" && ! "$file_info" =~ "ELF" ]]; then
+                echo -e "${YELLOW}  ⚠ Warning: Existing bin/$name is not a Linux ELF binary. Overwriting...${NC}"
+                needs_install=true
+            elif [[ "$OS_TYPE" == "Darwin" && ! "$file_info" =~ "Mach-O" ]]; then
+                echo -e "${YELLOW}  ⚠ Warning: Existing bin/$name is not a macOS binary. Overwriting...${NC}"
+                needs_install=true
+            fi
+        fi
+    fi
+
+    if [ "$needs_install" = true ]; then
         echo -e "${YELLOW}  → Installing $name v$version to $BIN_DIR...${NC}"
         TEMP_DIR=$(mktemp -d)
         curl -sL "$url" -o "$TEMP_DIR/download.$type"

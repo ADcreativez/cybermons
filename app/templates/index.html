@@ -436,8 +436,11 @@
                     if (activeEls.length > 0) {
                         const index = activeEls[0].index;
                         const label = e.chart.data.labels[index];
-                        window.location.href = "{{ url_for('monitoring.index') }}?source=" + label;
+                        window.location.href = "{{ url_for('darkweb.ransomware_victims') }}?q=" + encodeURIComponent(label);
                     }
+                },
+                onHover: (e, activeEls, chart) => {
+                    chart.canvas.style.cursor = activeEls.length > 0 ? 'pointer' : 'default';
                 }
             }
         }, 1200);
@@ -486,7 +489,17 @@
                 indexAxis: 'y',
                 animation: { x: { from: -500, duration: 1500 } },
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
+                plugins: { legend: { display: false } },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const index = activeEls[0].index;
+                        const label = e.chart.data.labels[index];
+                        window.location.href = "{{ url_for('darkweb.ransomware_victims') }}?q=" + encodeURIComponent(label);
+                    }
+                },
+                onHover: (e, activeEls, chart) => {
+                    chart.canvas.style.cursor = activeEls.length > 0 ? 'pointer' : 'default';
+                }
             }
         }, 2000);
 
@@ -503,7 +516,17 @@
             options: {
                 animation: { y: { from: 500, duration: 2000 } },
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
+                plugins: { legend: { display: false } },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const index = activeEls[0].index;
+                        const label = e.chart.data.labels[index];
+                        window.location.href = "{{ url_for('darkweb.defacements') }}?q=" + encodeURIComponent(label);
+                    }
+                },
+                onHover: (e, activeEls, chart) => {
+                    chart.canvas.style.cursor = activeEls.length > 0 ? 'pointer' : 'default';
+                }
             }
         }, 2400);
 
@@ -522,6 +545,16 @@
                 indexAxis: 'y',
                 animation: { x: { from: -300, duration: 2000 } },
                 responsive: true, maintainAspectRatio: false,
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const index = activeEls[0].index;
+                        const label = e.chart.data.labels[index];
+                        window.location.href = "{{ url_for('inventory.alerts') }}?severity=" + label;
+                    }
+                },
+                onHover: (e, activeEls, chart) => {
+                    chart.canvas.style.cursor = activeEls.length > 0 ? 'pointer' : 'default';
+                },
                 plugins: { 
                     legend: { display: false },
                     datalabels: {
@@ -561,6 +594,16 @@
                 indexAxis: 'y',
                 animation: { x: { from: -300, duration: 2500 } },
                 responsive: true, maintainAspectRatio: false,
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const index = activeEls[0].index;
+                        const label = e.chart.data.labels[index];
+                        window.location.href = "{{ url_for('inventory.alerts') }}?severity=" + label + "&category=exploit";
+                    }
+                },
+                onHover: (e, activeEls, chart) => {
+                    chart.canvas.style.cursor = activeEls.length > 0 ? 'pointer' : 'default';
+                },
                 plugins: { 
                     legend: { display: false },
                     datalabels: {

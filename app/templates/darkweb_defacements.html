@@ -276,6 +276,16 @@
                         [...dates].sort().reverse().forEach(d => {
                             sel.innerHTML += `<option value="${d}">${d}</option>`;
                         });
+
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const qParam = urlParams.get('q');
+                        const searchInput = document.getElementById('defacement-search');
+                        if (qParam && (!searchInput.value || searchInput.value === '')) {
+                            searchInput.value = qParam;
+                        }
+                        if (searchInput && searchInput.value) {
+                            filterDefacements();
+                        }
                         } else {
                             tbody.innerHTML = `<tr><td colspan="6" style="padding: 40px; text-align: center; opacity:0.5;">No defacement records found. Click SYNC to fetch.</td></tr>`;
                         }

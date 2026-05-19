@@ -44,7 +44,7 @@ def login():
             
             login_user(user)
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('monitoring.index'))
+            return redirect(next_page or url_for('monitoring.main_dashboard'))
         else:
             flash('Invalid username or password', 'danger')
             
@@ -74,7 +74,7 @@ def mfa_verify():
             session.pop('mfa_user_id', None)
             login_user(user)
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('monitoring.index'))
+            return redirect(next_page or url_for('monitoring.main_dashboard'))
         else:
             flash('Invalid MFA token', 'danger')
             

@@ -1417,6 +1417,8 @@ input[type="url"]:focus {
     .header-right {
         align-items: center !important;
         width: 100%;
+        display: flex;
+        justify-content: center;
     }
 
     .dashboard-grid {
@@ -1440,10 +1442,11 @@ input[type="url"]:focus {
     }
 
     .user-meta {
-        flex-direction: column;
-        gap: 10px;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
         width: 100%;
-        text-align: center;
     }
 
     #mfa-warning-bar {
@@ -1837,9 +1840,18 @@ body.sidebar-collapsed .sidebar-item i {
     }
 
     /* Fix untuk tombol dan form agar tidak meluber */
-    .btn, button {
+    .btn, button:not(.sidebar-toggle-btn) {
         width: 100% !important;
         margin-bottom: 5px;
+    }
+
+    .sidebar-toggle-btn {
+        width: auto !important;
+        margin: 0 !important;
+        padding: 5px 10px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
     }
     
     .flex-row-mobile-stack {
@@ -1887,23 +1899,26 @@ body.sidebar-collapsed .sidebar-item i {
 
     .header-left-toggle {
         width: 100% !important;
-        justify-content: center !important;
-        gap: 20px !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 15px !important;
     }
 
     .header-right {
         width: 100% !important;
         justify-content: center !important;
-        flex-direction: column !important;
+        flex-direction: row !important;
         gap: 15px !important;
     }
 
     .user-meta {
-        flex-direction: column !important;
+        flex-direction: row !important;
+        justify-content: center !important;
         align-items: center !important;
+        gap: 25px !important;
         width: 100% !important;
         background: rgba(0, 255, 204, 0.05) !important;
-        padding: 10px !important;
+        padding: 10px 20px !important;
         border-radius: 8px !important;
     }
 
@@ -1915,19 +1930,37 @@ body.sidebar-collapsed .sidebar-item i {
 
     /* Pastikan badge alert dan icon tidak bertumpuk */
     .nav-icon {
-        padding: 10px !important;
-        background: rgba(255, 255, 255, 0.05);
+        padding: 0 12px !important;
+        height: 36px;
+        background: rgba(255, 204, 0, 0.1);
+        border: 1px solid rgba(255, 204, 0, 0.3);
+        border-radius: 18px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .alert-count-badge {
+        position: static !important;
+        background: var(--danger-color);
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .nav-link.text-danger {
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 0, 0, 0.15);
+        border: 1px solid rgba(255, 0, 0, 0.3);
         border-radius: 50%;
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
-    }
-
-    .alert-count-badge {
-        position: relative !important;
-        top: 0 !important;
-        right: 0 !important;
-        margin-left: 5px;
+        color: #ff4a4a !important;
+        text-decoration: none;
     }
 
     /* Page Content Stack */

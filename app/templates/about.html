@@ -216,16 +216,16 @@
             font-family: var(--font-mono);
         }
         .source-table th {
-            background: rgba(0, 255, 204, 0.05);
+            background: #0a0a14;
             color: var(--accent-color);
             text-align: left;
-            padding: 12px 20px;
-            font-size: 0.7rem;
+            padding: 16px 20px;
+            font-size: 0.75rem;
             letter-spacing: 2px;
-            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+            border-bottom: 2px solid var(--accent-color);
             position: sticky;
             top: 0;
-            z-index: 10;
+            z-index: 100;
         }
         .source-table td {
             padding: 12px 20px;
@@ -451,7 +451,7 @@
         <div class="source-modal" onclick="event.stopPropagation()">
             <div class="source-modal-header">
                 <h2 style="margin:0; font-family:var(--font-mono); color:var(--accent-color); font-size:1rem; letter-spacing:3px;">
-                    <i class="fa-solid fa-network-wired"></i> EXTERNAL FEED SOURCES
+                    <i class="fa-solid fa-network-wired"></i> EXTERNAL FEED SOURCES & TOOLS
                 </h2>
                 <button class="close-btn" onclick="closeSourcesModal()">✕</button>
             </div>
@@ -460,7 +460,7 @@
                     <thead>
                         <tr>
                             <th style="width: 50px;">NO</th>
-                            <th>SOURCE NAME</th>
+                            <th>SOURCE / TOOL NAME</th>
                             <th>FUNCTION / CATEGORY</th>
                             <th>REFERENCE LINK</th>
                         </tr>
@@ -480,21 +480,30 @@
                         <tr><td>12</td><td>AbuseIPDB</td><td><span class="source-tag">IP REPUTATION</span></td><td><a href="https://www.abuseipdb.com/" class="source-url-link" target="_blank">abuseipdb.com</a></td></tr>
                         <tr><td>13</td><td>ThreatFox</td><td><span class="source-tag">MALWARE IOC</span></td><td><a href="https://threatfox.abuse.ch/" class="source-url-link" target="_blank">threatfox.ch</a></td></tr>
                         <tr><td>14</td><td>URLScan.io</td><td><span class="source-tag">WEBSITE ANALYSIS</span></td><td><a href="https://urlscan.io/" class="source-url-link" target="_blank">urlscan.io</a></td></tr>
-                        <tr><td>15</td><td>FortiGuard Labs</td><td><span class="source-tag">THREAT INTELLIGENCE</span></td><td><a href="https://www.fortiguard.com/" class="source-url-link" target="_blank">fortiguard.com</a></td></tr>
-                        <tr><td>16</td><td>NVD (NIST CVE)</td><td><span class="source-tag">VULNERABILITY DB</span></td><td><a href="https://nvd.nist.gov/" class="source-url-link" target="_blank">nvd.nist.gov</a></td></tr>
-                        <tr><td>17</td><td>CISA KEV Feed</td><td><span class="source-tag">EXPLOITATION INTEL</span></td><td><a href="https://www.cisa.gov/" class="source-url-link" target="_blank">cisa.gov</a></td></tr>
-                        <tr><td>18</td><td>Exploit-DB</td><td><span class="source-tag">EXPLOIT DATABASE</span></td><td><a href="https://www.exploit-db.com/" class="source-url-link" target="_blank">exploit-db.com</a></td></tr>
-                        <tr><td>19</td><td>MITRE ATT&CK</td><td><span class="source-tag">THREAT TACTIC</span></td><td><a href="https://attack.mitre.org/" class="source-url-link" target="_blank">mitre.org</a></td></tr>
-                        <tr><td>20</td><td>Wayback Machine</td><td><span class="source-tag">RECONNAISSANCE</span></td><td><a href="https://archive.org/" class="source-url-link" target="_blank">archive.org</a></td></tr>
-                        <tr><td>21</td><td>The Hacker News</td><td><span class="source-tag">CYBER NEWS</span></td><td><a href="https://thehackernews.com/" class="source-url-link" target="_blank">thehackernews.com</a></td></tr>
-                        <tr><td>23</td><td>IntelX</td><td><span class="source-tag">BREACH SEARCH</span></td><td><a href="https://intelx.io/" class="source-url-link" target="_blank">intelx.io</a></td></tr>
-                        <tr><td>24</td><td>Criminal IP</td><td><span class="source-tag">THREAT INTELLIGENCE</span></td><td><a href="https://www.criminalip.io/" class="source-url-link" target="_blank">criminalip.io</a></td></tr>
-                        <tr><td>25</td><td>HackerTarget</td><td><span class="source-tag">PASSIVE RECON</span></td><td><a href="https://hackertarget.com/" class="source-url-link" target="_blank">hackertarget.com</a></td></tr>
-                        <tr><td>26</td><td>MXToolbox</td><td><span class="source-tag">DOMAIN RECON</span></td><td><a href="https://mxtoolbox.com/" class="source-url-link" target="_blank">mxtoolbox.com</a></td></tr>
-                        <tr><td>27</td><td>Tempo Nasional</td><td><span class="source-tag">NATIONAL NEWS</span></td><td><a href="https://nasional.tempo.co/" class="source-url-link" target="_blank">tempo.co</a></td></tr>
-                        <tr><td>28</td><td>Antara News</td><td><span class="source-tag">NATIONAL NEWS</span></td><td><a href="https://www.antaranews.com/" class="source-url-link" target="_blank">antaranews.com</a></td></tr>
-                        <tr><td>29</td><td>CNBC Tech</td><td><span class="source-tag">TECH NEWS</span></td><td><a href="https://www.cnbcindonesia.com/tech" class="source-url-link" target="_blank">cnbcindonesia.com</a></td></tr>
-                        <tr><td>30</td><td>Cyberthreat.id</td><td><span class="source-tag">NATIONAL INCIDENT</span></td><td><a href="https://cyberthreat.id/" class="source-url-link" target="_blank">cyberthreat.id</a></td></tr>
+                        <tr><td>15</td><td>CheckPhish (Bolster.ai)</td><td><span class="source-tag">PHISHING SCANNER</span></td><td><a href="https://checkphish.ai/" class="source-url-link" target="_blank">checkphish.ai</a></td></tr>
+                        <tr><td>16</td><td>ANY.RUN Sandbox</td><td><span class="source-tag">MALWARE DETONATION</span></td><td><a href="https://any.run/" class="source-url-link" target="_blank">any.run</a></td></tr>
+                        <tr><td>17</td><td>Subfinder (ProjectDiscovery)</td><td><span class="source-tag">SUBDOMAIN RECON</span></td><td><a href="https://github.com/projectdiscovery/subfinder" class="source-url-link" target="_blank">github.com/projectdiscovery/subfinder</a></td></tr>
+                        <tr><td>18</td><td>Nmap Scanner</td><td><span class="source-tag">PORT RECONNAISSANCE</span></td><td><a href="https://nmap.org/" class="source-url-link" target="_blank">nmap.org</a></td></tr>
+                        <tr><td>19</td><td>crt.sh</td><td><span class="source-tag">CERTIFICATE RECON</span></td><td><a href="https://crt.sh/" class="source-url-link" target="_blank">crt.sh</a></td></tr>
+                        <tr><td>20</td><td>RapidDNS</td><td><span class="source-tag">DNS SCRAPER INTEL</span></td><td><a href="https://rapiddns.io/" class="source-url-link" target="_blank">rapiddns.io</a></td></tr>
+                        <tr><td>21</td><td>AlienVault OTX</td><td><span class="source-tag">OPEN THREAT EXCHANGE</span></td><td><a href="https://otx.alienvault.com/" class="source-url-link" target="_blank">otx.alienvault.com</a></td></tr>
+                        <tr><td>22</td><td>Ransomlooker</td><td><span class="source-tag">RANSOMWARE DB</span></td><td><a href="https://cybernews.com/ransomlooker/" class="source-url-link" target="_blank">cybernews.com/ransomlooker</a></td></tr>
+                        <tr><td>23</td><td>BleepingComputer</td><td><span class="source-tag">INCIDENT NEWS</span></td><td><a href="https://www.bleepingcomputer.com/" class="source-url-link" target="_blank">bleepingcomputer.com</a></td></tr>
+                        <tr><td>24</td><td>FortiGuard Labs</td><td><span class="source-tag">THREAT INTELLIGENCE</span></td><td><a href="https://www.fortiguard.com/" class="source-url-link" target="_blank">fortiguard.com</a></td></tr>
+                        <tr><td>25</td><td>NVD (NIST CVE)</td><td><span class="source-tag">VULNERABILITY DB</span></td><td><a href="https://nvd.nist.gov/" class="source-url-link" target="_blank">nvd.nist.gov</a></td></tr>
+                        <tr><td>26</td><td>CISA KEV Feed</td><td><span class="source-tag">EXPLOITATION INTEL</span></td><td><a href="https://www.cisa.gov/" class="source-url-link" target="_blank">cisa.gov</a></td></tr>
+                        <tr><td>27</td><td>Exploit-DB</td><td><span class="source-tag">EXPLOIT DATABASE</span></td><td><a href="https://www.exploit-db.com/" class="source-url-link" target="_blank">exploit-db.com</a></td></tr>
+                        <tr><td>28</td><td>MITRE ATT&CK</td><td><span class="source-tag">THREAT TACTIC</span></td><td><a href="https://attack.mitre.org/" class="source-url-link" target="_blank">mitre.org</a></td></tr>
+                        <tr><td>29</td><td>Wayback Machine</td><td><span class="source-tag">RECONNAISSANCE</span></td><td><a href="https://archive.org/" class="source-url-link" target="_blank">archive.org</a></td></tr>
+                        <tr><td>30</td><td>The Hacker News</td><td><span class="source-tag">CYBER NEWS</span></td><td><a href="https://thehackernews.com/" class="source-url-link" target="_blank">thehackernews.com</a></td></tr>
+                        <tr><td>31</td><td>IntelX</td><td><span class="source-tag">BREACH SEARCH</span></td><td><a href="https://intelx.io/" class="source-url-link" target="_blank">intelx.io</a></td></tr>
+                        <tr><td>32</td><td>Criminal IP</td><td><span class="source-tag">THREAT INTELLIGENCE</span></td><td><a href="https://www.criminalip.io/" class="source-url-link" target="_blank">criminalip.io</a></td></tr>
+                        <tr><td>33</td><td>HackerTarget</td><td><span class="source-tag">PASSIVE RECON</span></td><td><a href="https://hackertarget.com/" class="source-url-link" target="_blank">hackertarget.com</a></td></tr>
+                        <tr><td>34</td><td>MXToolbox</td><td><span class="source-tag">DOMAIN RECON</span></td><td><a href="https://mxtoolbox.com/" class="source-url-link" target="_blank">mxtoolbox.com</a></td></tr>
+                        <tr><td>35</td><td>Tempo Nasional</td><td><span class="source-tag">NATIONAL NEWS</span></td><td><a href="https://nasional.tempo.co/" class="source-url-link" target="_blank">tempo.co</a></td></tr>
+                        <tr><td>36</td><td>Antara News</td><td><span class="source-tag">NATIONAL NEWS</span></td><td><a href="https://www.antaranews.com/" class="source-url-link" target="_blank">antaranews.com</a></td></tr>
+                        <tr><td>37</td><td>CNBC Tech</td><td><span class="source-tag">TECH NEWS</span></td><td><a href="https://www.cnbcindonesia.com/tech" class="source-url-link" target="_blank">cnbcindonesia.com</a></td></tr>
+                        <tr><td>38</td><td>Cyberthreat.id</td><td><span class="source-tag">NATIONAL INCIDENT</span></td><td><a href="https://cyberthreat.id/" class="source-url-link" target="_blank">cyberthreat.id</a></td></tr>
                     </tbody>
                 </table>
             </div>
