@@ -509,19 +509,19 @@ def malware_search():
                 data = resp.json()
                 return jsonify({
                     'status': 'success',
-                    'provider': 'ANY.RUN',
+                    'provider': 'PHANTOM SANDBOX',
                     'query': query,
                     'results': data.get('data', [])
                 })
             else:
-                error_msg = f"ANY.RUN API returned status {resp.status_code}"
+                error_msg = f"PHANTOM SANDBOX API returned status {resp.status_code}"
                 try:
                     error_msg = resp.json().get('message', error_msg)
                 except:
                     pass
                 return jsonify({'status': 'error', 'message': error_msg}), resp.status_code
         except Exception as e:
-            return jsonify({'status': 'error', 'message': f"ANY.RUN connection error: {str(e)}"}), 500
+            return jsonify({'status': 'error', 'message': f"PHANTOM SANDBOX connection error: {str(e)}"}), 500
 
     # 2. Try VirusTotal fallback if configured
     elif vt_key:
@@ -597,7 +597,7 @@ def malware_search():
     else:
         return jsonify({
             'status': 'no_key',
-            'message': 'No API Key configured. Please configure your VirusTotal or ANY.RUN API key in Settings to perform anonymous queries.'
+            'message': 'No API Key configured. Please configure your VirusTotal or PHANTOM SANDBOX API key in Settings to perform anonymous queries.'
         })
 
 @darkweb_bp.route('/darkweb/malware/trends', methods=['GET'])
@@ -846,11 +846,17 @@ def fetch_local_waybackurls(indicator):
     seen = set()
     import shutil
     import subprocess
+    import sys
     
-    # Locate system go binary or local binary path
     binary_path = shutil.which('waybackurls')
     if not binary_path:
-        for path in ['/usr/bin/waybackurls', '/usr/local/bin/waybackurls', '/home/security/go/bin/waybackurls', '/root/go/bin/waybackurls']:
+        for path in [
+            shutil.os.path.expanduser('~/go/bin/waybackurls'),
+            '/usr/bin/waybackurls',
+            '/usr/local/bin/waybackurls',
+            '/home/security/go/bin/waybackurls',
+            '/root/go/bin/waybackurls'
+        ]:
             if shutil.os.path.exists(path):
                 binary_path = path
                 break
@@ -859,7 +865,7 @@ def fetch_local_waybackurls(indicator):
         print(f"[DEBUG] Found local waybackurls binary at: {binary_path}", file=sys.stderr)
         try:
             cmd = [binary_path, indicator]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if proc.returncode == 0 and proc.stdout:
                 lines = proc.stdout.strip().splitlines()
                 print(f"[DEBUG] Local waybackurls output items: {len(lines)}", file=sys.stderr)
@@ -1057,9 +1063,9 @@ def wayback_search():
         for f in cc_futures:
             futures_map[f] = 'cc'
             
-        # Wait for all futures with a strict absolute timeout of 6.0 seconds to prevent Nginx proxy timeouts!
+        # Wait for all futures with a strict absolute timeout of 30.0 seconds to prevent Nginx proxy timeouts!
         from concurrent.futures import wait
-        done, not_done = wait(futures_map.keys(), timeout=6.0)
+        done, not_done = wait(futures_map.keys(), timeout=30.0)
         
         local_res = []
         urlscan_res = []
@@ -1081,7 +1087,7 @@ def wayback_search():
                 print(f"[DEBUG] Thread execution failed: {fe}", file=sys.stderr)
                 
         if not_done:
-            print(f"[DEBUG] {len(not_done)} threads timed out after 6s and were safely bypassed to prevent Nginx failure", file=sys.stderr)
+            print(f"[DEBUG] {len(not_done)} threads timed out after 30s and were safely bypassed to prevent Nginx failure", file=sys.stderr)
         
     # Merge results and prevent duplicates
     seen = set()
