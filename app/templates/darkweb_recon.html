@@ -422,7 +422,9 @@
         if (query) {
             document.getElementById('link-mxtoolbox').href = `https://mxtoolbox.com/SuperTool.aspx?action=mx%3a${query}`;
             const netlasQuery = results.resolved_ip || query;
-            document.getElementById('link-netlas').href = `https://app.netlas.io/host/?q=${netlasQuery}`;
+            const netlasLink = document.getElementById('link-netlas');
+            netlasLink.href = `https://app.netlas.io/host/?q=${netlasQuery}`;
+            netlasLink.innerHTML = `<i class="fa-solid fa-network-wired"></i> Netlas.io (${netlasQuery})`;
             document.getElementById('link-cvedetails').href = `https://www.cvedetails.com/google-search-results.php?q=${query}`;
             document.getElementById('link-virustotal').href = `https://www.virustotal.com/gui/search/${query}`;
         }
