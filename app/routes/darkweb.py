@@ -1327,9 +1327,12 @@ def get_ai_intelligence(query):
     return "Infrastructure signature indicates Enterprise-grade hosting."
 
 def run_whois(query, is_ip):
-    # Tier 1: Generic RDAP
+    # Tier 1: Generic RDAP with premium browser user-agent to avoid Cloudflare 403 blocks
     try:
-        resp = req.get(f"https://rdap.org/{'ip' if is_ip else 'domain'}/{query}", timeout=10)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        resp = req.get(f"https://rdap.org/{'ip' if is_ip else 'domain'}/{query}", headers=headers, timeout=10)
         if resp.status_code == 200: return resp.json()
         print(f"RECON DEBUG: RDAP.org returned {resp.status_code}")
     except Exception as e:
@@ -1349,9 +1352,19 @@ def run_whois(query, is_ip):
     if whois_bin:
         try:
             import subprocess
+            import re
             proc = subprocess.run([whois_bin, query], capture_output=True, text=True, timeout=15)
             if proc.returncode == 0 and proc.stdout:
-                return {'raw_text': proc.stdout}
+                stdout = proc.stdout
+                # Smart recursive lookup: check if IANA returned a referral server (e.g. refer: whois.id)
+                match = re.search(r'refer:\s+([a-zA-Z0-9\.-]+)', stdout)
+                if match:
+                    referral_host = match.group(1).strip()
+                    print(f"RECON DEBUG: Found referral WHOIS server: {referral_host}, querying recursively...")
+                    proc2 = subprocess.run([whois_bin, "-h", referral_host, query], capture_output=True, text=True, timeout=15)
+                    if proc2.returncode == 0 and proc2.stdout:
+                        return {'raw_text': proc2.stdout}
+                return {'raw_text': stdout}
         except Exception as e:
             print(f"RECON DEBUG: whois CLI ({whois_bin}) failed: {str(e)}")
     
