@@ -40,6 +40,33 @@
 
             <!-- Scrollable Sidebar Stats Section -->
             <div style="flex: 1; overflow-y: auto; scrollbar-width: thin; padding-right: 5px;">
+                <!-- Security Score Card Panel -->
+                <div id="scorecard-panel" style="display: none; padding: 25px 20px; background: rgba(10, 15, 15, 0.6); border: 1px solid rgba(0, 255, 204, 0.15); border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 8px 32px rgba(0, 255, 204, 0.05);">
+                    <div style="font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">Security Posture</div>
+                    
+                    <!-- Circular Glowing Gauge -->
+                    <div style="position: relative; width: 120px; height: 120px; margin: 0 auto 20px auto;">
+                        <svg width="120" height="120" viewBox="0 0 120 120" style="transform: rotate(-90deg);">
+                            <circle cx="60" cy="60" r="50" fill="transparent" stroke="rgba(255,255,255,0.05)" stroke-width="8"></circle>
+                            <circle id="score-ring" cx="60" cy="60" r="50" fill="transparent" stroke="var(--accent-color)" stroke-width="8" stroke-dasharray="314.16" stroke-dashoffset="314.16" style="transition: stroke-dashoffset 1.5s ease-in-out; stroke-linecap: round; filter: drop-shadow(0 0 6px var(--accent-color));"></circle>
+                        </svg>
+                        <div id="score-text-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                            <span id="score-grade" style="font-size: 2.2rem; font-family: var(--font-mono); font-weight: 900; line-height: 1; text-shadow: 0 0 10px var(--accent-color);">A</span>
+                            <span id="score-value" style="font-size: 0.7rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 2px;">100/100</span>
+                        </div>
+                    </div>
+
+                    <!-- Target Scope Info -->
+                    <div id="score-scope-info" style="font-family: var(--font-mono); font-size: 0.52rem; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.3; background: rgba(0, 255, 204, 0.02); border: 1px dashed rgba(0, 255, 204, 0.2); padding: 8px; border-radius: 6px; text-align: left;">
+                        <i class="fa-solid fa-circle-info" style="color: var(--accent-color); margin-right: 4px;"></i>
+                        <span>Score applies only to scanned target: <strong id="score-scope-domain" style="color: #fff;"></strong> (excluding subdomains).</span>
+                    </div>
+
+                    <!-- Deduction Warnings -->
+                    <div id="score-warnings" style="text-align: left; font-family: var(--font-mono); font-size: 0.6rem; max-height: 180px; overflow-y: auto; scrollbar-width: thin; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    </div>
+                </div>
+
                 <!-- Recon Summary Stats -->
                 <div id="recon-summary" style="display: none; padding: 20px; background: rgba(0,255,204,0.03); border: 1px solid rgba(0,255,204,0.1); border-radius: 8px; margin-bottom: 20px;">
                     <div style="font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Scan Metrics</div>
@@ -103,13 +130,16 @@
                         <div class="panel-header" id="live-scan-header" style="background: rgba(255,170,0,0.02); padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--warning-color); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 1px; font-weight: bold;">
                              <i class="fa-solid fa-bolt-lightning"></i> ASSET INTELLIGENCE
                         </div>
-                        <div style="padding: 15px; flex: 1; overflow-y: auto; scrollbar-width: thin; padding-bottom: 20px;">
-                           <div style="display: grid; grid-template-columns: 80px 1fr 50px; padding: 0 10px 10px 10px; border-bottom: 1px solid rgba(255,170,0,0.1); margin-bottom: 10px; font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-secondary); text-transform: uppercase;">
+                        <div style="padding: 15px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                           <div style="display: grid; grid-template-columns: 80px 1fr 100px; padding: 0 10px 10px 10px; border-bottom: 1px solid rgba(255,170,0,0.1); margin-bottom: 10px; font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-secondary); text-transform: uppercase; flex-shrink: 0;">
                                 <div>Port</div>
                                 <div>Service</div>
-                                <div style="text-align: right;">Status</div>
+                                <div style="text-align: right;">Source</div>
                             </div>
-                            <div id="ports-list"></div>
+                            <div id="ports-list" style="flex: 1; overflow-y: auto; scrollbar-width: thin; min-height: 0;"></div>
+                            
+                            <!-- Fixed Diagnostics Footer -->
+                            <div id="ports-diagnostics" style="display: none; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; flex-shrink: 0;"></div>
                         </div>
                     </div>
 
@@ -230,6 +260,8 @@
         document.getElementById('recon-summary').style.display = 'none';
         document.getElementById('mail-summary').style.display = 'none';
         document.getElementById('recon-ports').style.display = 'none';
+        document.getElementById('scorecard-panel').style.display = 'none';
+        document.getElementById('score-ring').style.strokeDashoffset = '314.16';
         
         // CLEAR ALL PREVIOUS DATA IMMEDIATELY
         document.getElementById('summary-items').innerHTML = '';
@@ -304,6 +336,66 @@
     }
 
     function renderRecon(results, type) {
+        // 00. Render Score Card
+        const scorecardCont = document.getElementById('scorecard-panel');
+        const scoreRing = document.getElementById('score-ring');
+        const scoreGrade = document.getElementById('score-grade');
+        const scoreVal = document.getElementById('score-value');
+        const scoreWarnings = document.getElementById('score-warnings');
+
+        if (results.scorecard) {
+            const sc = results.scorecard;
+            scorecardCont.style.display = 'block';
+            scoreGrade.innerText = sc.grade;
+            scoreVal.innerText = sc.score + "/100";
+
+            // Dynamically set scanned target domain/IP scope note
+            const query = document.getElementById('recon-query').value.trim();
+            const scopeDomain = document.getElementById('score-scope-domain');
+            if (scopeDomain) {
+                scopeDomain.innerText = query;
+            }
+
+            let color = '#00ffcc'; // Emerald Green
+            let shadowColor = 'rgba(0, 255, 204, 0.4)';
+            if (sc.score < 70) {
+                color = '#ff4444'; // Crimson Rose
+                shadowColor = 'rgba(255, 68, 68, 0.4)';
+            } else if (sc.score < 90) {
+                color = '#ffaa00'; // Golden Amber
+                shadowColor = 'rgba(255, 170, 0, 0.4)';
+            }
+
+            scoreRing.style.stroke = color;
+            scoreRing.style.filter = `drop-shadow(0 0 8px ${color})`;
+            scoreGrade.style.color = color;
+            scoreGrade.style.textShadow = `0 0 12px ${shadowColor}`;
+            scorecardCont.style.borderColor = `rgba(${sc.score < 70 ? '255,68,68' : (sc.score < 90 ? '255,170,0' : '0,255,204')}, 0.15)`;
+
+            const circumference = 314.16;
+            const offset = circumference - (sc.score / 100) * circumference;
+            setTimeout(() => {
+                scoreRing.style.strokeDashoffset = offset;
+            }, 100);
+
+            if (sc.deductions && sc.deductions.length > 0) {
+                scoreWarnings.innerHTML = sc.deductions.map(d => `
+                    <div style="display: flex; gap: 8px; align-items: flex-start; color: var(--text-secondary); line-height: 1.3;">
+                        <span style="color: ${sc.score < 70 ? 'var(--danger-color)' : 'var(--warning-color)'}; flex-shrink: 0;"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                        <span style="font-size: 0.58rem;">${d}</span>
+                    </div>
+                `).join('');
+            } else {
+                scoreWarnings.innerHTML = `
+                    <div style="color: var(--accent-color); text-align: center; padding: 5px 0;">
+                        <i class="fa-solid fa-circle-check"></i> Excellent security posture! No vulnerabilities identified.
+                    </div>
+                `;
+            }
+        } else {
+            scorecardCont.style.display = 'none';
+        }
+
         // 0. Update Summary Stats
         const summaryCont = document.getElementById('recon-summary');
         const summaryItems = document.getElementById('summary-items');
@@ -426,9 +518,16 @@
         // 4. Render Web Protection (WAF)
         if (results.web_protection) {
             const wp = results.web_protection;
-            let statusBadge = wp.is_protected ? 
-                `<span class="badge" style="background: rgba(0, 255, 204, 0.1); color: var(--accent-color); border: 1px solid rgba(0, 255, 204, 0.3); font-size: 0.55rem; padding: 2px 8px;">PROTECTED</span>` :
-                `<span class="badge" style="background: rgba(255, 170, 0, 0.1); color: var(--warning-color); border: 1px solid rgba(255, 170, 0, 0.3); font-size: 0.55rem; padding: 2px 8px;">EXPOSED</span>`;
+            let statusBadge = '';
+            if (wp.blocked_by_waf) {
+                statusBadge = `<span class="badge" style="background: rgba(255, 170, 0, 0.1); color: var(--warning-color); border: 1px solid rgba(255, 170, 0, 0.3); font-size: 0.55rem; padding: 2px 8px;">FILTERED</span>`;
+            } else if (wp.no_signature) {
+                statusBadge = `<span class="badge" style="background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.15); font-size: 0.55rem; padding: 2px 8px;">UNIDENTIFIED</span>`;
+            } else if (wp.is_protected) {
+                statusBadge = `<span class="badge" style="background: rgba(0, 255, 204, 0.1); color: var(--accent-color); border: 1px solid rgba(0, 255, 204, 0.3); font-size: 0.55rem; padding: 2px 8px;">PROTECTED</span>`;
+            } else {
+                statusBadge = `<span class="badge" style="background: rgba(255, 68, 68, 0.1); color: var(--danger-color); border: 1px solid rgba(255, 68, 68, 0.3); font-size: 0.55rem; padding: 2px 8px;">EXPOSED</span>`;
+            }
 
             identityHtml += `
                 <div style="margin-top: 25px; padding: 15px; background: rgba(0, 255, 204, 0.02); border: 1px solid rgba(0, 255, 204, 0.1); border-radius: 12px;">
@@ -439,9 +538,13 @@
                         ${statusBadge}
                     </div>
                     <div class="recon-item"><span class="recon-label">WAF Type:</span><span class="recon-val">${wp.waf}</span></div>
-                    <div class="recon-item"><span class="recon-label">Provider:</span><span class="recon-val" style="color:var(--accent-color)">${wp.provider}</span></div>
+                    <div class="recon-item"><span class="recon-label">Provider:</span><span class="recon-val" style="color:${wp.blocked_by_waf ? 'var(--warning-color)' : (wp.no_signature ? 'var(--text-secondary)' : 'var(--accent-color)')}">${wp.provider}</span></div>
                     <div style="margin-top: 10px; font-size: 0.55rem; color: var(--text-secondary); opacity: 0.7; font-family: var(--font-mono); line-height: 1.4; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
-                        ${wp.is_protected ? `<i class="fa-solid fa-shield-virus"></i> Protected by ${wp.provider} edge nodes.` : `<i class="fa-solid fa-triangle-exclamation"></i> No active WAF detected.`}
+                        ${wp.blocked_by_waf ? 
+                            `<span style="color: var(--warning-color); font-weight: bold;"><i class="fa-solid fa-ban"></i> Scan Blocked:</span> Connection timed out/refused. The target's perimeter firewall is actively blocking automated port scanning and reconnaissance handshakes.` : 
+                            (wp.no_signature ? `<i class="fa-solid fa-circle-question"></i> ${wp.tool_missing ? 'WAF scanning tool (wafw00f) was not found in the host system. Edge security verification is unverified.' : (wp.scan_error ? 'An active scanning error occurred during WAF validation. Edge security verification is unverified.' : 'No known commercial WAF fingerprint identified. Custom perimeter firewalls or standard webserver hardening may still protect the asset.')}` :
+                            (wp.is_protected ? `<i class="fa-solid fa-shield-virus"></i> Protected by ${wp.provider} edge nodes.` : `<i class="fa-solid fa-triangle-exclamation"></i> No active WAF detected.`))
+                        }
                     </div>
                 </div>
             `;
@@ -513,84 +616,230 @@
         // 2. Render Ports & Services
         const portsCont = document.getElementById('recon-ports');
         const portsList = document.getElementById('ports-list');
+        const portsDiag = document.getElementById('ports-diagnostics');
         const liveHeader = document.getElementById('live-scan-header');
         portsCont.classList.remove('pulse-active');
         portsCont.style.display = 'flex';
         
         let portContent = "";
         let foundPorts = false;
+        let seenPorts = new Set();
 
-        // --- 0. CRIMINAL IP RESULTS (NEW PRIMARY) ---
-        if (results.cip_parsed && results.cip_parsed.length > 0) {
+        // Standardize raw results
+        const cipParsed = results.cip_parsed || [];
+        const shodanParsed = results.shodan_parsed || [];
+        const htParsed = results.ht_parsed || [];
+        const nmapParsed = results.nmap_parsed || [];
+
+        // Combine all ports safely
+        const combinedPorts = [];
+        
+        cipParsed.forEach(p => {
+            const portNum = p.port.split('/')[0];
+            if (!seenPorts.has(portNum)) {
+                seenPorts.add(portNum);
+                combinedPorts.push({...p, engine: 'CIP', engineName: 'Criminal IP'});
+            }
+        });
+
+        shodanParsed.forEach(p => {
+            const portNum = p.port.split('/')[0];
+            if (!seenPorts.has(portNum)) {
+                seenPorts.add(portNum);
+                combinedPorts.push({...p, engine: 'SHODAN', engineName: 'Shodan'});
+            }
+        });
+
+        htParsed.forEach(p => {
+            const portNum = p.port.split('/')[0];
+            if (!seenPorts.has(portNum)) {
+                seenPorts.add(portNum);
+                combinedPorts.push({...p, engine: 'HT', engineName: 'HackerTarget'});
+            }
+        });
+
+        nmapParsed.forEach(p => {
+            const portNum = p.port.split('/')[0];
+            if (!seenPorts.has(portNum)) {
+                seenPorts.add(portNum);
+                combinedPorts.push({...p, engine: 'LIVE', engineName: 'Local Nmap'});
+            }
+        });
+
+        if (combinedPorts.length > 0) {
             foundPorts = true;
-            portContent += results.cip_parsed.map(p => `
-                <div style="display: grid; grid-template-columns: 80px 1fr 50px; padding: 10px 12px; border-bottom: 1px solid rgba(0,255,204,0.05); align-items: center; font-family: var(--font-mono); background: rgba(0,255,204,0.03);">
-                    <div style="font-size: 0.75rem; color: var(--accent-color); font-weight: bold;">${p.port}</div>
-                    <div style="font-size: 0.6rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">
-                        ${p.service} <span style="font-size: 0.45rem; color: var(--accent-color); opacity: 0.8; letter-spacing: 1px;">[CIP]</span>
+            portContent += combinedPorts.map(p => {
+                let sourceBadge = '';
+                let portColor = 'var(--accent-color)';
+                let rowBg = 'rgba(0,255,204,0.02)';
+                
+                if (p.engine === 'CIP') {
+                    sourceBadge = `<span style="font-size: 0.5rem; background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.3); color: var(--accent-color); padding: 1px 6px; border-radius: 4px; font-weight: bold; letter-spacing: 0.5px;">CRIMINAL IP</span>`;
+                } else if (p.engine === 'SHODAN') {
+                    sourceBadge = `<span style="font-size: 0.5rem; background: rgba(192, 132, 252, 0.1); border: 1px solid rgba(192, 132, 252, 0.3); color: #c084fc; padding: 1px 6px; border-radius: 4px; font-weight: bold; letter-spacing: 0.5px;">SHODAN</span>`;
+                    portColor = '#c084fc';
+                    rowBg = 'rgba(192, 132, 252, 0.01)';
+                } else if (p.engine === 'HT') {
+                    sourceBadge = `<span style="font-size: 0.5rem; background: rgba(255, 170, 0, 0.1); border: 1px solid rgba(255, 170, 0, 0.3); color: var(--warning-color); padding: 1px 6px; border-radius: 4px; font-weight: bold; letter-spacing: 0.5px;">HACKERTARGET</span>`;
+                    portColor = 'var(--warning-color)';
+                    rowBg = 'rgba(255,170,0,0.01)';
+                } else {
+                    sourceBadge = `<span style="font-size: 0.5rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 1px 6px; border-radius: 4px; font-weight: bold; letter-spacing: 0.5px;">LOCAL NMAP</span>`;
+                    portColor = '#ffffff';
+                    rowBg = 'rgba(255,255,255,0.01)';
+                }
+
+                if (results.is_cached_fallback) {
+                    sourceBadge = `<span style="font-size: 0.5rem; background: rgba(255, 170, 0, 0.1); border: 1px solid rgba(255, 170, 0, 0.3); color: var(--warning-color); padding: 1px 6px; border-radius: 4px; font-weight: bold; letter-spacing: 0.5px; margin-right: 4px;"><i class="fa-solid fa-clock-rotate-left" style="margin-right: 3px;"></i>CACHED</span>` + sourceBadge;
+                }
+
+                return `
+                    <div style="display: grid; grid-template-columns: 80px 1fr 100px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); align-items: center; font-family: var(--font-mono); background: ${rowBg};">
+                        <div style="font-size: 0.75rem; color: ${portColor}; font-weight: bold;">${p.port}</div>
+                        <div style="font-size: 0.6rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">
+                            ${p.service}
+                        </div>
+                        <div style="text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 4px;">${sourceBadge}</div>
                     </div>
-                    <div style="font-size: 0.55rem; color: var(--accent-color); text-align: right; font-weight: bold;">ACTIVE</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
-        // --- 3. HACKERTARGET RESULTS (FREE FALLBACK) ---
-        if (results.ht_parsed && results.ht_parsed.length > 0) {
-            foundPorts = true;
-            portContent += results.ht_parsed.map(p => `
-                <div style="display: grid; grid-template-columns: 80px 1fr 50px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); align-items: center; font-family: var(--font-mono); background: rgba(0,255,102,0.02);">
-                    <div style="font-size: 0.75rem; color: #00ff66; font-weight: bold;">${p.port}</div>
-                    <div style="font-size: 0.6rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">
-                        ${p.service} <span style="font-size: 0.45rem; color: #00ff66; opacity: 0.8; letter-spacing: 1px;">[HT]</span>
-                    </div>
-                    <div style="font-size: 0.55rem; color: #00ff66; text-align: right; font-weight: bold;">DETECTED</div>
+        // Draw firewall intercept callout inside ports container if Nmap failed due to WAF but external engines picked up open ports
+        let firewallCallout = '';
+        if (results.web_protection && results.web_protection.blocked_by_waf) {
+            let detailsText = 'Perimeter firewall or IPS actively dropped port probe handshakes. Local Nmap returned 0 open ports as a security defense measure.';
+            if (results.is_cached_fallback) {
+                detailsText += `<br><span style="color: var(--accent-color); font-weight: bold; margin-top: 5px; display: inline-block;"><i class="fa-solid fa-clock-rotate-left"></i> Showing historical/cached results from previous successful discoveries (Cached: ${results.cached_timestamp || 'N/A'}).</span>`;
+            }
+            firewallCallout = `
+                <div style="margin: 10px 0; padding: 12px; background: rgba(255, 170, 0, 0.05); border: 1px solid rgba(255, 170, 0, 0.2); border-radius: 8px; font-family: var(--font-mono); font-size: 0.55rem; color: var(--warning-color); line-height: 1.4; text-align: left;">
+                    <i class="fa-solid fa-triangle-exclamation" style="margin-right: 6px;"></i>
+                    <strong>ACTIVE SCAN INTERCEPTED</strong>
+                    <p style="margin: 4px 0 0 0; color: var(--text-secondary); opacity: 0.9; font-size: 0.5rem; line-height: 1.3;">
+                        ${detailsText}
+                    </p>
                 </div>
-            `).join('');
-        }
-
-        // --- 4. LOCAL NMAP RESULTS (LAST RESORT) ---
-        if (results.nmap_parsed && results.nmap_parsed.length > 0) {
-            foundPorts = true;
-            portContent += results.nmap_parsed.map(p => `
-                <div style="display: grid; grid-template-columns: 80px 1fr 50px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); align-items: center; font-family: var(--font-mono); background: rgba(0,255,204,0.02);">
-                    <div style="font-size: 0.75rem; color: var(--accent-color); font-weight: bold;">${p.port}</div>
-                    <div style="font-size: 0.6rem; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">
-                        ${p.service} <span style="font-size: 0.45rem; color: var(--accent-color); opacity: 0.9; font-weight: bold; letter-spacing: 1px;">[LIVE] ${p.verified ? '✓' : ''}</span>
-                    </div>
-                    <div style="font-size: 0.55rem; color: var(--accent-color); text-align: right; font-weight: bold;">OPEN</div>
+            `;
+        } else if (results.is_cached_fallback) {
+            firewallCallout = `
+                <div style="margin: 10px 0; padding: 12px; background: rgba(0, 255, 204, 0.05); border: 1px solid rgba(0, 255, 204, 0.2); border-radius: 8px; font-family: var(--font-mono); font-size: 0.55rem; color: var(--accent-color); line-height: 1.4; text-align: left;">
+                    <i class="fa-solid fa-clock-rotate-left" style="margin-right: 6px;"></i>
+                    <strong>HISTORICAL FALLBACK ACTIVE</strong>
+                    <p style="margin: 4px 0 0 0; color: var(--text-secondary); opacity: 0.9; font-size: 0.5rem; line-height: 1.3;">
+                        Showing historical/cached results from previous successful discoveries (Cached: ${results.cached_timestamp || 'N/A'}).
+                    </p>
                 </div>
-            `).join('');
+            `;
         }
 
         if (foundPorts) {
-            liveHeader.innerHTML = `<i class="fa-solid fa-cloud-bolt"></i> ASSET INTELLIGENCE (TARGET: ${results.resolved_ip})`;
-            portsList.innerHTML = portContent;
+            liveHeader.innerHTML = `<i class="fa-solid fa-cloud-bolt"></i> ASSET INTELLIGENCE (TARGET: ${results.resolved_ip || 'N/A'})`;
+            portsList.innerHTML = firewallCallout + portContent;
             
-            // Show errors even if some ports found
+            // Show errors even if some ports found - Hidden as requested by user
+            /*
             if (results.errors && results.errors.length > 0) {
                 portsList.innerHTML += results.errors.map(err => `
-                    <div style="padding: 10px; background: rgba(255,68,68,0.03); border: 1px dashed rgba(255,68,68,0.2); margin: 10px; border-radius: 8px; font-size: 0.55rem; color: #ff4444; font-family: var(--font-mono);">
+                    <div style="padding: 10px; background: rgba(255,68,68,0.03); border: 1px dashed rgba(255,68,68,0.2); margin: 10px 0; border-radius: 8px; font-size: 0.55rem; color: #ff4444; font-family: var(--font-mono);">
                         <i class="fa-solid fa-triangle-exclamation"></i> ${err}
                     </div>
                 `).join('');
             }
+            */
         } else {
             liveHeader.innerHTML = `<i class="fa-solid fa-cloud-slash"></i> ASSET INTELLIGENCE`;
-            let emptyMsg = `<div style="padding: 40px 20px; text-align: center; opacity: 0.3; font-size: 0.65rem;">
-                <i class="fa-solid fa-plug-circle-exclamation" style="font-size: 1.5rem; margin-bottom: 10px; display: block;"></i>
-                NO ACTIVE PORT DATA FOUND
-            </div>`;
             
-            if (results.errors && results.errors.length > 0) {
-                emptyMsg += results.errors.map(err => `
-                    <div style="padding: 15px; background: rgba(255,68,68,0.05); border: 1px solid rgba(255,68,68,0.3); margin: 20px; border-radius: 8px; font-size: 0.6rem; color: #ff4444; font-family: var(--font-mono); text-align: center;">
-                        <i class="fa-solid fa-lock" style="font-size: 1.2rem; margin-bottom: 8px; display: block;"></i>
-                        <strong>ENGINE LIMITATION:</strong><br>${err}
-                    </div>
-                `).join('');
-            }
-            portsList.innerHTML = emptyMsg;
+            portsList.innerHTML = `${firewallCallout}
+            <div style="padding: 25px 20px; text-align: center; opacity: 0.5; font-size: 0.65rem;">
+                <i class="fa-solid fa-plug-circle-exclamation" style="font-size: 1.5rem; margin-bottom: 10px; display: block; color: var(--warning-color);"></i>
+                <strong style="color: #fff; font-family: var(--font-mono); letter-spacing: 1px;">NO ACTIVE PORT DATA FOUND</strong>
+                <p style="font-size: 0.55rem; color: var(--text-secondary); margin-top: 5px; line-height: 1.3;">Target host may be protected by a strict perimeter firewall, behind a DDoS protection proxy, or offline.</p>
+            </div>`;
         }
+
+        // Build stunning scan engine diagnostics checklist inside fixed footer
+        const nmap = results.engines_status?.nmap || { success: true };
+        const ht = results.engines_status?.hackertarget || { success: true };
+        const cip = results.engines_status?.criminalip || { success: true };
+        const shodan = results.engines_status?.shodan || { success: true };
+        
+        let htStatus = 'ONLINE (0 ports)';
+        let htColor = 'var(--accent-color)';
+        if (ht.error && (ht.error.includes("Timeout") || ht.error.includes("Offline") || ht.error.includes("timed out"))) {
+            htStatus = 'TIMEOUT / OFFLINE';
+            htColor = 'var(--warning-color)';
+        } else if (ht.error && ht.error.includes("limit")) {
+            htStatus = 'RATE LIMITED';
+            htColor = 'var(--warning-color)';
+        } else if (!ht.success) {
+            htStatus = 'FAILED';
+            htColor = 'var(--danger-color)';
+        } else if (ht.count > 0) {
+            htStatus = `SUCCESS (${ht.count} ports)`;
+            htColor = 'var(--success-color)';
+        }
+        
+        let cipStatus = 'ONLINE (0 ports)';
+        let cipColor = 'var(--accent-color)';
+        if (!cip.success) {
+            cipStatus = 'FAILED / KEY ERROR';
+            cipColor = 'var(--danger-color)';
+        } else if (cip.count > 0) {
+            cipStatus = `SUCCESS (${cip.count} ports)`;
+            cipColor = 'var(--success-color)';
+        }
+
+        let shodanStatus = 'ONLINE (0 ports)';
+        let shodanColor = 'var(--accent-color)';
+        if (!shodan.success) {
+            if (shodan.error && shodan.error.includes("Membership")) {
+                shodanStatus = 'MEMBERSHIP REQ';
+                shodanColor = 'var(--warning-color)';
+            } else {
+                shodanStatus = 'FAILED / KEY ERROR';
+                shodanColor = 'var(--danger-color)';
+            }
+        } else if (shodan.count > 0) {
+            shodanStatus = `SUCCESS (${shodan.count} ports)`;
+            shodanColor = '#c084fc';
+        }
+
+        let nmapStatus = 'ONLINE (0 ports)';
+        let nmapColor = 'var(--accent-color)';
+        if (!nmap.success) {
+            nmapStatus = 'FAILED / NO BINARY';
+            nmapColor = 'var(--danger-color)';
+        } else if (nmap.count > 0) {
+            nmapStatus = `SUCCESS (${nmap.count} ports)`;
+            nmapColor = 'var(--success-color)';
+        }
+        
+        portsDiag.innerHTML = `
+            <div style="margin: 5px 0; padding: 12px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 10px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
+                <div style="font-size: 0.55rem; color: var(--accent-color); font-family: var(--font-mono); letter-spacing: 1px; margin-bottom: 12px; text-transform: uppercase; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-square-poll-vertical"></i> SCAN ENGINE DIAGNOSTICS
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.55rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 6px;">
+                        <span style="color: var(--text-secondary);"><i class="fa-solid fa-radar" style="width: 14px;"></i> Local Nmap:</span>
+                        <span style="color: ${nmapColor}; font-weight: bold;">${nmapStatus}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 6px;">
+                        <span style="color: var(--text-secondary);"><i class="fa-solid fa-globe" style="width: 14px;"></i> HackerTarget:</span>
+                        <span style="color: ${htColor}; font-weight: bold;">${htStatus}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 6px;">
+                        <span style="color: var(--text-secondary);"><i class="fa-solid fa-shield-halved" style="width: 14px;"></i> Criminal IP:</span>
+                        <span style="color: ${cipColor}; font-weight: bold;">${cipStatus}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
+                        <span style="color: var(--text-secondary);"><i class="fa-solid fa-eye" style="width: 14px;"></i> Shodan:</span>
+                        <span style="color: ${shodanColor}; font-weight: bold;">${shodanStatus}</span>
+                    </div>
+                </div>
+            </div>
+        `;
 
         // 3. Render DNS
         const dnsCont = document.getElementById('dns-body');

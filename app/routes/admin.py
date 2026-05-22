@@ -94,7 +94,7 @@ def save_keys():
     # API Keys
     for key in ['hibp_api_key', 'intelx_api_key', 'hudsonrock_api_key', 'criminalip_api_key',
                 'vt_api_key', 'abuseipdb_api_key', 'checkphish_api_key', 'urlscan_api_key',
-                'abuse_ch_api_key', 'breachdirectory_api_key', 'anyrun_api_key']:
+                'abuse_ch_api_key', 'breachdirectory_api_key', 'anyrun_api_key', 'shodan_api_key']:
         # Get list of inputs with same name, strip and filter empty
         values = [v.strip() for v in request.form.getlist(key) if v.strip()]
         config[key] = ','.join(values)

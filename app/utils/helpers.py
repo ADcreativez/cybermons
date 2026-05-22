@@ -23,6 +23,7 @@ def load_darkweb_config():
         'hibp_api_key': '', 'intelx_api_key': '', 'hudsonrock_api_key': '',
         'abuse_ch_api_key': '', 'vt_api_key': '', 'abuseipdb_api_key': '',
         'checkphish_api_key': '', 'urlscan_api_key': '', 'anyrun_api_key': '',
+        'shodan_api_key': '',
         'show_credentials': True, 'show_ransomware': True, 'show_paste': True,
         'show_stealer': True, 'show_passwords': True, 'show_infra': True,
         'show_defacements': True, 'show_ioc_intel': True, 'show_wayback': True,
@@ -217,4 +218,13 @@ def find_binary(name):
         return venv_bin
         
     # 3. System Path
-    return shutil.which(name)
+    res = shutil.which(name)
+    if res:
+        return res
+        
+    # 4. Common fallback paths on Unix (useful when PATH is restricted in Gunicorn/systemd)
+    for p in [f'/opt/homebrew/bin/{name}', f'/opt/homebrew/sbin/{name}', f'/usr/bin/{name}', f'/usr/local/bin/{name}', f'/bin/{name}', f'/sbin/{name}']:
+        if os.path.exists(p) and os.access(p, os.X_OK):
+            return p
+            
+    return None
